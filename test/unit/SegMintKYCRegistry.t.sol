@@ -13,125 +13,124 @@ contract SegMintKYCRegistryTest is Base {
     /* Deployment Test */
 
     function test_SegMintKYCRegistry_Deployment() public {
-        assertTrue(kycRegistry.hasAllRoles(users.admin, ADMIN_ROLE));
+        assertTrue(kycRegistry.hasAllRoles(users.admin, ROLE_0));
         assertEq(kycRegistry.owner(), address(this));
         assertEq(kycRegistry.signer(), SIGNER);
     }
 
-    /* `setAccessType()` Tests */
+    /* `initAccessType()` Tests */
 
-    function test_SetAccessType_Restricted() public {
-        ISegMintKYCRegistry.AccessType accessType = ISegMintKYCRegistry.AccessType.RESTRICTED;
+    function test_InitAccessType_Restricted() public {
+        KYCRegistry.AccessType accessType = KYCRegistry.AccessType.RESTRICTED;
         bytes memory signature = getAccessSignature(users.alice, accessType);
 
         hoax(users.alice, users.alice);
         vm.expectEmit();
-        emit AccessTypeSet({account: users.alice, accessType: accessType});
-        kycRegistry.setAccessType({signature: signature, newAccessType: accessType});
+        emit AccessTypeSet({ account: users.alice, accessType: accessType });
+        kycRegistry.initAccessType({ signature: signature, newAccessType: accessType });
 
-        assertEq(uint256(kycRegistry.getAccessType({account: users.alice})), uint256(accessType), "AccessType");
+        assertEq(uint256(kycRegistry.getAccessType({ account: users.alice })), uint256(accessType), "AccessType");
     }
 
-    function test_SetAccessType_Unrestricted() public {
-        ISegMintKYCRegistry.AccessType accessType = ISegMintKYCRegistry.AccessType.UNRESTRICTED;
+    function test_InitAccessType_Unrestricted() public {
+        KYCRegistry.AccessType accessType = KYCRegistry.AccessType.UNRESTRICTED;
         bytes memory signature = getAccessSignature(users.bob, accessType);
 
         hoax(users.bob, users.bob);
         vm.expectEmit();
-        emit AccessTypeSet({account: users.bob, accessType: accessType});
-        kycRegistry.setAccessType({signature: signature, newAccessType: accessType});
+        emit AccessTypeSet({ account: users.bob, accessType: accessType });
+        kycRegistry.initAccessType({ signature: signature, newAccessType: accessType });
 
-        assertEq(uint256(kycRegistry.getAccessType({account: users.bob})), uint256(accessType), "AccessType");
+        assertEq(uint256(kycRegistry.getAccessType({ account: users.bob })), uint256(accessType), "AccessType");
     }
 
-    function test_SetAccessType_Fuzzed(address account) public {
-        ISegMintKYCRegistry.AccessType accessType = uint160(account) & 1 == 0 ?
-            ISegMintKYCRegistry.AccessType.RESTRICTED :
-            ISegMintKYCRegistry.AccessType.UNRESTRICTED;
+    function test_InitAccessType_Fuzzed(address account) public {
+        KYCRegistry.AccessType accessType =
+            uint160(account) & 1 == 0 ? KYCRegistry.AccessType.RESTRICTED : KYCRegistry.AccessType.UNRESTRICTED;
 
         bytes memory signature = getAccessSignature(account, accessType);
 
         hoax(account, account);
         vm.expectEmit();
-        emit AccessTypeSet({account: account, accessType: accessType});
-        kycRegistry.setAccessType({signature: signature, newAccessType: accessType});
+        emit AccessTypeSet({ account: account, accessType: accessType });
+        kycRegistry.initAccessType({ signature: signature, newAccessType: accessType });
 
-        assertEq(uint256(kycRegistry.getAccessType({account: account})), uint256(accessType), "AccessType");
+        assertEq(uint256(kycRegistry.getAccessType({ account: account })), uint256(accessType), "AccessType");
     }
 
-    function testCannot_SetAccessType_AccessTypeSet() public {
-        ISegMintKYCRegistry.AccessType accessType = ISegMintKYCRegistry.AccessType.RESTRICTED;
+    function testCannot_InitAccessType_AccessTypeSet() public {
+        KYCRegistry.AccessType accessType = KYCRegistry.AccessType.RESTRICTED;
         bytes memory signature = getAccessSignature(users.alice, accessType);
 
         startHoax(users.alice, users.alice);
-        kycRegistry.setAccessType({signature: signature, newAccessType: accessType});
+        kycRegistry.initAccessType({ signature: signature, newAccessType: accessType });
         vm.expectRevert(Errors.AccessTypeSet.selector);
-        kycRegistry.setAccessType({signature: signature, newAccessType: accessType});
+        kycRegistry.initAccessType({ signature: signature, newAccessType: accessType });
     }
 
-    function testCannot_SetAccessType_NoneAccessType() public {
-        ISegMintKYCRegistry.AccessType accessType = ISegMintKYCRegistry.AccessType.NONE;
+    function testCannot_InitAccessType_InvalidAccessType() public {
+        KYCRegistry.AccessType accessType = KYCRegistry.AccessType.BLOCKED;
         bytes memory signature = getAccessSignature(users.alice, accessType);
 
         hoax(users.alice, users.alice);
-        vm.expectRevert(Errors.NoneAccessType.selector);
-        kycRegistry.setAccessType({signature: signature, newAccessType: accessType});
+        vm.expectRevert(Errors.InvalidAccessType.selector);
+        kycRegistry.initAccessType({ signature: signature, newAccessType: accessType });
     }
 
-    function testCannot_SetAccessType_SignerMismatch() public {
+    function testCannot_InitAccessType_SignerMismatch() public {
         hoax(users.admin, users.admin);
         kycRegistry.setSigner(address(0));
 
-        ISegMintKYCRegistry.AccessType accessType = ISegMintKYCRegistry.AccessType.RESTRICTED;
+        KYCRegistry.AccessType accessType = KYCRegistry.AccessType.RESTRICTED;
         bytes memory signature = getAccessSignature(users.alice, accessType);
 
         hoax(users.alice, users.alice);
         vm.expectRevert(Errors.SignerMismatch.selector);
-        kycRegistry.setAccessType({signature: signature, newAccessType: accessType});
+        kycRegistry.initAccessType({ signature: signature, newAccessType: accessType });
     }
 
     /* `modifyAccessType()` Tests */
 
     function test_ModifyAccessType() public {
-        ISegMintKYCRegistry.AccessType accessType = ISegMintKYCRegistry.AccessType.RESTRICTED;
+        KYCRegistry.AccessType accessType = KYCRegistry.AccessType.RESTRICTED;
 
         startHoax(users.admin, users.admin);
         vm.expectEmit();
-        emit AccessTypeModified({admin: users.admin, account: users.alice, accessType: accessType});
-        kycRegistry.modifyAccessType({account: users.alice, newAccessType: accessType});
-        assertEq(uint256(kycRegistry.getAccessType({account: users.alice})), uint256(accessType), "AccessType");
+        emit AccessTypeModified({ admin: users.admin, account: users.alice, accessType: accessType });
+        kycRegistry.modifyAccessType({ account: users.alice, newAccessType: accessType });
+        assertEq(uint256(kycRegistry.getAccessType({ account: users.alice })), uint256(accessType), "AccessType");
 
-        accessType = ISegMintKYCRegistry.AccessType.UNRESTRICTED;
+        accessType = KYCRegistry.AccessType.UNRESTRICTED;
 
         vm.expectEmit();
-        emit AccessTypeModified({admin: users.admin, account: users.bob, accessType: accessType});
-        kycRegistry.modifyAccessType({account: users.bob, newAccessType: accessType});
-        assertEq(uint256(kycRegistry.getAccessType({account: users.bob})), uint256(accessType), "AccessType");
+        emit AccessTypeModified({ admin: users.admin, account: users.bob, accessType: accessType });
+        kycRegistry.modifyAccessType({ account: users.bob, newAccessType: accessType });
+        assertEq(uint256(kycRegistry.getAccessType({ account: users.bob })), uint256(accessType), "AccessType");
     }
 
     function testCannot_ModifyAccessType_Unauthorized() public {
         hoax(users.eve, users.eve);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
-        kycRegistry.modifyAccessType({account: users.eve, newAccessType: ISegMintKYCRegistry.AccessType.UNRESTRICTED});
+        kycRegistry.modifyAccessType({ account: users.eve, newAccessType: KYCRegistry.AccessType.UNRESTRICTED });
     }
 
     /* `setSigner()` Tests */
 
     function test_SetSigner_Fuzzed(address newSigner) public {
         hoax(users.admin, users.admin);
-        kycRegistry.setSigner({newSigner: newSigner});
+        kycRegistry.setSigner({ newSigner: newSigner });
         assertEq(kycRegistry.signer(), newSigner);
     }
 
     function testCannot_SetSigner_Unauthorized() public {
         hoax(users.eve, users.eve);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
-        kycRegistry.setSigner({newSigner: users.eve});
+        kycRegistry.setSigner({ newSigner: users.eve });
     }
 
     /* Helper Functions */
 
-    function getAccessSignature(address account, ISegMintKYCRegistry.AccessType accessType)
+    function getAccessSignature(address account, KYCRegistry.AccessType accessType)
         internal
         pure
         returns (bytes memory)
