@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity 0.8.19;
 
 import "../Base.t.sol";
 
 contract SegMintKYCRegistryTest is Base {
-    using ECDSA for bytes32;
-
     function setUp() public override {
         super.setUp();
     }
@@ -13,7 +11,7 @@ contract SegMintKYCRegistryTest is Base {
     /* Deployment Test */
 
     function test_SegMintKYCRegistry_Deployment() public {
-        assertTrue(kycRegistry.hasAllRoles(users.admin, ROLE_0));
+        assertTrue(kycRegistry.hasAllRoles(users.admin, ADMIN_ROLE));
         assertEq(kycRegistry.owner(), address(this));
         assertEq(kycRegistry.signer(), SIGNER);
     }
@@ -126,17 +124,5 @@ contract SegMintKYCRegistryTest is Base {
         hoax(users.eve, users.eve);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
         kycRegistry.setSigner({ newSigner: users.eve });
-    }
-
-    /* Helper Functions */
-
-    function getAccessSignature(address account, KYCRegistry.AccessType accessType)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes32 digest = keccak256(abi.encodePacked(account, accessType)).toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(PRIVATE_KEY, digest);
-        return abi.encodePacked(r, s, v);
     }
 }

@@ -39,7 +39,7 @@ contract SegMintKYCRegistry is ISegMintKYCRegistry, OwnableRoles {
         if (newAccessType == KYCRegistry.AccessType.BLOCKED) revert Errors.InvalidAccessType();
 
         /// Checks: Ensure the signature provided has been signed by `_signer`.
-        bytes32 digest = keccak256(abi.encodePacked(msg.sender, newAccessType));
+        bytes32 digest = keccak256(abi.encodePacked(msg.sender, newAccessType, "INIT_ACCESS_TYPE"));
         address recoveredSigner = digest.toEthSignedMessageHash().recover(signature);
         if (signer != recoveredSigner) revert Errors.SignerMismatch();
 
