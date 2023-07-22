@@ -15,6 +15,16 @@ library Errors {
      */
     error SignerMismatch();
 
+    /**
+     * Thrown when an input array of zero length is provided.
+     */
+    error ZeroLengthArray();
+
+    /**
+     * Thrown when a user tries to initialize an address with an access type of `BLOCKED`.
+     */
+    error InvalidAccessType();
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                    SEGMINT-KYC-REGISTRY                    */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -24,8 +34,35 @@ library Errors {
      */
     error AccessTypeSet();
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       SEGMINT-LOCKER                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                   SEGMINT-LOCKER-FACTORY                   */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                   SEGMINT-VAULT-REGISTRY                   */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     /**
-     * Thrown when a user tries to initialize an address with an access type of `NONE`.
+     * Thrown when trying to initiate an upgrade proposal while one is in progress.
      */
-    error NoneAccessType();
+    error ProposalInProgress();
+
+    /**
+     * Thrown when trying to cancel an upgrade proposal that doesn't exist.
+     */
+    error NoProposalExists();
+
+    /**
+     * Thrown when trying to execute an upgrade before the time lock has expired.
+     */
+    error UpgradeTimeLocked();
+
+    /**
+     * Thrown when trying to execute an upgrade without the correct permissions.
+     */
+    error Unauthorized();
 }

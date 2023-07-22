@@ -41,6 +41,12 @@ interface ISegMintKYCRegistry {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
+     * Function used to view the current signer address.
+     * @return signer Returns the current signer address.
+     */
+    function signer() external view returns (address);
+
+    /**
      * Function used to initialise the access type of an address.
      * @param signature Signed message digest.
      * @param newAccessType Desired `{ISegMintKYCRegistry.AccessType}` Enum value.
@@ -62,12 +68,6 @@ interface ISegMintKYCRegistry {
      * @dev The role specified represents an administrator role.
      */
     function setSigner(address newSigner) external;
-
-    /**
-     * Function used to view the current signer address.
-     * @return signer Returns the current signer address.
-     */
-    function signer() external view returns (address);
 
     /**
      * Function used to view the access type of a specified address.
