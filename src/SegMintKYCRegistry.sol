@@ -4,6 +4,7 @@ pragma solidity 0.8.19;
 import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
 import { ECDSA } from "solady/src/utils/ECDSA.sol";
 import { ISegMintKYCRegistry } from "./interfaces/ISegMintKYCRegistry.sol";
+import { ISegMintSignerModule } from "./interfaces/ISegMintSignerModule.sol";
 import { Errors } from "./libraries/Errors.sol";
 import { KYCRegistry } from "./types/DataTypes.sol";
 
@@ -18,14 +19,14 @@ contract SegMintKYCRegistry is ISegMintKYCRegistry, OwnableRoles {
     /**
      * @inheritdoc ISegMintKYCRegistry
      */
-    address public override signer;
+    ISegMintSignerModule public override signerModule;
 
     mapping(address account => KYCRegistry.AccessType accessType) private _access;
 
-    constructor(address admin_, address signer_) {
+    constructor(address admin_, ISegMintSignerModule signerModule_) {
         _initializeOwner(msg.sender);
         _grantRoles(admin_, _ROLE_0);
-        signer = signer_;
+        signerModule = signerModule_;
     }
 
     /**
@@ -38,10 +39,10 @@ contract SegMintKYCRegistry is ISegMintKYCRegistry, OwnableRoles {
         /// Checks: Ensure the access type is not `AccessType.BLOCKED` on initialisation.
         if (newAccessType == KYCRegistry.AccessType.BLOCKED) revert Errors.InvalidAccessType();
 
-        /// Checks: Ensure the signature provided has been signed by `_signer`.
+        /// Checks: Ensure the signature provided has been signed by the registered signer.
         bytes32 digest = keccak256(abi.encodePacked(msg.sender, newAccessType, "INIT_ACCESS_TYPE"));
         address recoveredSigner = digest.toEthSignedMessageHash().recover(signature);
-        if (signer != recoveredSigner) revert Errors.SignerMismatch();
+        if (signerModule.getSigner() != recoveredSigner) revert Errors.SignerMismatch();
 
         _access[msg.sender] = newAccessType;
 
@@ -56,19 +57,29 @@ contract SegMintKYCRegistry is ISegMintKYCRegistry, OwnableRoles {
         override
         onlyRoles(_ROLE_0)
     {
+        KYCRegistry.AccessType oldAccessType = _access[account];
         _access[account] = newAccessType;
 
-        emit ISegMintKYCRegistry.AccessTypeModified({ admin: msg.sender, account: account, accessType: newAccessType });
+        emit ISegMintKYCRegistry.AccessTypeModified({
+            admin: msg.sender,
+            account: account,
+            oldAccessType: oldAccessType,
+            newAccessType: newAccessType
+        });
     }
 
     /**
      * @inheritdoc ISegMintKYCRegistry
      */
-    function setSigner(address newSigner) external override onlyRoles(_ROLE_0) {
-        address oldSigner = signer;
-        signer = newSigner;
+    function setSignerModule(ISegMintSignerModule newSignerModule) external override onlyRoles(_ROLE_0) {
+        ISegMintSignerModule oldSignerModule = signerModule;
+        signerModule = newSignerModule;
 
-        emit ISegMintKYCRegistry.SignerUpdated({ admin: msg.sender, oldSigner: oldSigner, newSigner: newSigner });
+        emit ISegMintKYCRegistry.SignerModuleUpdated({
+            admin: msg.sender,
+            oldSignerModule: oldSignerModule,
+            newSignerModule: newSignerModule
+        });
     }
 
     /**

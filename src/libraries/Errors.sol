@@ -35,15 +35,7 @@ library Errors {
     error AccessTypeSet();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                       SEGMINT-LOCKER                       */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                   SEGMINT-LOCKER-FACTORY                   */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                   SEGMINT-VAULT-REGISTRY                   */
+    /*                   SEGMINT-VAULT-MANAGER                    */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
@@ -65,4 +57,62 @@ library Errors {
      * Thrown when trying to execute an upgrade without the correct permissions.
      */
     error Unauthorized();
+
+    /**
+     * Thrown when a predicted address does not match the actual address.
+     */
+    error AddressMismatch();
+
+    /**
+     * Thrown when the keys address is required but not set.
+     */
+    error KeysNotSet();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       SEGMINT-VAULT                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * Thrown when trying to move an excess of assets in one transaction.
+     */
+    error OverMovementLimit();
+
+    /**
+     * Thrown when trying to lock or unlock assets on a key binded vault.
+     */
+    error KeyBinded();
+
+    /**
+     * Thrown when trying to unbind keys on a vault this is not key binded.
+     */
+    error NotKeyBinded();
+
+    /**
+     * Thrown when trying to lock an asset that takes a fee on transfer.
+     */
+    error FeeOnTransferToken();
+
+    /**
+     * Thrown when the transfer of a token fails.
+     */
+    error TransferFailed();
+
+    /**
+     * Thrown when trying to bind an invalid amount of keys to a vault.
+     */
+    error InvalidKeyAmount();
+
+    /**
+     * Thrown when trying to unbind keys on a vault without holding the full key supply.
+     */
+    error InsufficientKeys();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                        SEGMINT-KEYS                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * Thrown when trying to execute a function from an unapproved address.
+     */
+    error VaultNotApproved();
 }

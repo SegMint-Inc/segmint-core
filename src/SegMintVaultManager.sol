@@ -3,63 +3,104 @@ pragma solidity 0.8.19;
 
 import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
 import { ECDSA } from "solady/src/utils/ECDSA.sol";
+import { LibClone } from "solady/src/utils/LibClone.sol";
 import { Initializable } from "@openzeppelin/proxy/utils/Initializable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/proxy/utils/UUPSUpgradeable.sol";
-import { SegMintVault } from "./SegMintVault.sol";
 import { ISegMintVaultManager } from "./interfaces/ISegMintVaultManager.sol";
 import { ISegMintVault } from "./interfaces/ISegMintVault.sol";
 import { ISegMintKYCRegistry } from "./interfaces/ISegMintKYCRegistry.sol";
+import { ISegMintSignerModule } from "./interfaces/ISegMintSignerModule.sol";
+import { ISegMintKeys } from "./interfaces/ISegMintKeys.sol";
 import { Errors } from "./libraries/Errors.sol";
 import { KYCRegistry, Vault, VaultManager } from "./types/DataTypes.sol";
 
+/**
+ * TODO: Implement clones for vault creation using CREATE2.
+ */
+
 contract SegMintVaultManager is ISegMintVaultManager, OwnableRoles, Initializable, UUPSUpgradeable {
     using ECDSA for bytes32;
+    using LibClone for address;
 
     /// @dev Upgrade proposals cannot be executed for 5 days.
     uint256 private constant _UPGRADE_TIMELOCK = 5 days;
 
+    ISegMintSignerModule public signerModule;
     ISegMintKYCRegistry public kycRegistry;
+    ISegMintKeys public keys;
+
     VaultManager.UpgradeProposal public upgradeProposal;
-    address public signer;
 
-    mapping(address account => SegMintVault[] vaults) private _vaults;
+    address public vaultImplementation;
 
-    function initialize(address admin_, address signer_, ISegMintKYCRegistry kycRegistry_) external initializer {
+    mapping(address account => uint256 nonce) private _nonces;
+
+    function initialize(
+        address admin_,
+        address vaultImplementation_,
+        ISegMintSignerModule signerModule_,
+        ISegMintKYCRegistry kycRegistry_
+    ) external initializer {
         _initializeOwner(msg.sender);
         _grantRoles(admin_, _ROLE_0);
 
-        signer = signer_;
+        vaultImplementation = vaultImplementation_;
+
+        signerModule = signerModule_;
         kycRegistry = kycRegistry_;
     }
 
     /**
      * @inheritdoc ISegMintVaultManager
+     * @dev `msg.sender` will be the EOA that invoked the vault creation.
      */
     function createVault(bytes calldata signature) external override {
-        /// Checks: Ensure the caller has a valid access.
+        /// Checks: Ensure the `keys` address has been set.
+        if (address(keys) == address(0)) revert Errors.KeysNotSet();
+
+        /// Checks: Ensure the caller has access.
         KYCRegistry.AccessType accessType = kycRegistry.getAccessType(msg.sender);
         if (accessType == KYCRegistry.AccessType.BLOCKED) revert Errors.InvalidAccessType();
 
         /// Checks: Ensure the provided signature is valid.
         bytes32 digest = keccak256(abi.encodePacked(msg.sender, accessType, "CREATE_VAULT"));
         address recoveredSigner = digest.toEthSignedMessageHash().recover(signature);
-        if (signer != recoveredSigner) revert Errors.SignerMismatch();
+        if (signerModule.getSigner() != recoveredSigner) revert Errors.SignerMismatch();
 
-        SegMintVault newVault = new SegMintVault(msg.sender);
-        _vaults[msg.sender].push(newVault);
+        /// Cache current nonce and increment.
+        uint256 currentNonce = _nonces[msg.sender]++;
 
+        /// Caclulate CREATE2 salt.
+        bytes32 salt = keccak256(abi.encodePacked(msg.sender, currentNonce));
+
+        /// Sanity check to confirm the predicted address matches the actual addresses.
+        /// This is done prior to any further storage updates. If this statement ever
+        /// fails, chaos ensues.
+        address predictedVault = vaultImplementation.predictDeterministicAddress(salt, address(this));
+        address newVault = vaultImplementation.cloneDeterministic(salt);
+        if (predictedVault != newVault) revert Errors.AddressMismatch();
+
+        /// Initialize the newly created clone.
+        ISegMintVault(newVault).initialize(msg.sender, keys);
+
+        /// Approve the newly created vault with the keys contract to allow for
+        /// further interactions with `keys` to be decoupled from this contract.
+        keys.approveVault(predictedVault);
+
+        /// Emit vault creation event.
         emit VaultCreated({ user: msg.sender, vault: newVault });
     }
 
     /**
      * @inheritdoc ISegMintVaultManager
      */
-    function getVaults(address account) external view override returns (SegMintVault[] memory) {
-        uint256 length = _vaults[account].length;
-        SegMintVault[] memory vaults = new SegMintVault[](length);
+    function getVaults(address account) external view returns (address[] memory) {
+        uint256 length = _nonces[account];
+        address[] memory vaults = new address[](length);
 
         for (uint256 i = 0; i < length; i++) {
-            vaults[i] = _vaults[account][i];
+            bytes32 salt = keccak256(abi.encodePacked(account, i));
+            vaults[i] = vaultImplementation.predictDeterministicAddress(salt, address(this));
         }
 
         return vaults;
@@ -115,8 +156,32 @@ contract SegMintVaultManager is ISegMintVaultManager, OwnableRoles, Initializabl
         /// Effects: Clear the previous upgrade proposal and update the current version.
         upgradeProposal = VaultManager.UpgradeProposal({ newImplementation: address(0), deadline: 0 });
 
-        // TODO: Revisit this and refine data parameter.
+        // TODO: Revisit this and see what `payload` would be necessary.
         _upgradeToAndCallUUPS({ newImplementation: proposedImplementation, data: payload, forceCall: false });
+    }
+
+    /**
+     * @inheritdoc ISegMintVaultManager
+     */
+    function setSignerModule(ISegMintSignerModule newSignerModule) external override onlyRoles(_ROLE_0) {
+        ISegMintSignerModule oldSignerModule = signerModule;
+        signerModule = newSignerModule;
+
+        emit ISegMintVaultManager.SignerModuleUpdated({
+            admin: msg.sender,
+            oldSignerModule: oldSignerModule,
+            newSignerModule: newSignerModule
+        });
+    }
+
+    /**
+     * @inheritdoc ISegMintVaultManager
+     */
+    function setKeys(ISegMintKeys newKeys) external override onlyRoles(_ROLE_0) {
+        ISegMintKeys oldKeys = keys;
+        keys = newKeys;
+
+        emit ISegMintVaultManager.KeysUpdated({ admin: msg.sender, oldKeys: oldKeys, newKeys: newKeys });
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyRoles(_ROLE_0) { }

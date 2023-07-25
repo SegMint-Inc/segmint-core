@@ -3,15 +3,11 @@ pragma solidity 0.8.19;
 
 /**
  * Enum encapsulating the classes of assets that can be stored in a vault/safe.
- * @custom:value NONE: Uninitialized value.
- * @custom:value ETH: Ether.
- * @custom:value ERC_20: Standardized ERC-20 token.
- * @custom:value ERC_721: Standardized ERC-721 token.
- * @custom:value ERC_1155: Standardized ERC-1155 token.
+ * @custom:value ERC_20: ERC-20 token.
+ * @custom:value ERC_721: ERC-721 token.
+ * @custom:value ERC_1155: ERC-1155 token.
  */
 enum Class {
-    NONE,
-    ETH,
     ERC_20,
     ERC_721,
     ERC_1155
@@ -24,14 +20,28 @@ library Vault {
     /**
      * Struct encapsulating the parameters for vault lock and unlock functions.
      * @param class Enum defining the class of asset.
-     * @param collection Contract address of the asset.
+     * @param addr Contract address of the asset.
+     * @param tokenId Unique token identifier, only applies to ERC-721/1155 assets.
      * @param amount The amount of asset being held.
      * @dev For ERC-721 tokens, the amount will always be 1.
      */
     struct Asset {
         Class class;
-        address collection;
+        address addr;
+        uint256 tokenId;
         uint256 amount;
+    }
+
+    /**
+     * Struct encapsulating vault configuration values.
+     * @param keyBound Whether or not the vault is bound to keys.
+     * @param keyId Unique keys identifier from keys contract.
+     * @param keyCount Number of keys associated with the vault.
+     */
+    struct Config {
+        bool keyBound;
+        uint64 keyId;
+        uint64 keyCount;
     }
 }
 
@@ -53,7 +63,7 @@ library KYCRegistry {
 }
 
 /**
- * Namespace for the data types used in {SegMintVaultManager}.
+ * Namespace for the data type used in {SegMintVaultManager}.
  */
 library VaultManager {
     /**
@@ -64,5 +74,16 @@ library VaultManager {
     struct UpgradeProposal {
         address newImplementation;
         uint40 deadline;
+    }
+}
+
+/**
+ * Namespace for manging key settings.
+ */
+library Keys {
+    struct Bindings {
+        bool binded;
+        uint256 keyId;
+        uint256 amount;
     }
 }

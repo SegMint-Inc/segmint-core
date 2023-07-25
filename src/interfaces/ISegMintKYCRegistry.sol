@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
+import { ISegMintSignerModule } from "../interfaces/ISegMintSignerModule.sol";
 import { KYCRegistry } from "../types/DataTypes.sol";
 
 /**
@@ -14,12 +15,14 @@ interface ISegMintKYCRegistry {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * Emitted when the signer address is updated.
-     * @param admin The admin address that made the update.
-     * @param oldSigner The previous signer address.
-     * @param newSigner The new signer address.
+     * Emitted when the signer module is updated.
+     * @param admin The address of the admin that made the update.
+     * @param oldSignerModule Previous signer module address.
+     * @param newSignerModule New signer module address.
      */
-    event SignerUpdated(address indexed admin, address oldSigner, address newSigner);
+    event SignerModuleUpdated(
+        address indexed admin, ISegMintSignerModule oldSignerModule, ISegMintSignerModule newSignerModule
+    );
 
     /**
      * Emitted when the access type of an address has been set for the first time.
@@ -32,24 +35,30 @@ interface ISegMintKYCRegistry {
      * Emitted when the access type of an address has been modified by an admin.
      * @param admin The address of the admin that made the update.
      * @param account The address whose access type was modified.
-     * @param accessType Associated `{ISegMintKYCRegistry.AccessType}` Enum.
+     * @param oldAccessType Previous `{ISegMintKYCRegistry.AccessType}` Enum value.
+     * @param newAccessType New `{ISegMintKYCRegistry.AccessType}` Enum value.
      */
-    event AccessTypeModified(address indexed admin, address indexed account, KYCRegistry.AccessType accessType);
+    event AccessTypeModified(
+        address indexed admin,
+        address indexed account,
+        KYCRegistry.AccessType oldAccessType,
+        KYCRegistry.AccessType newAccessType
+    );
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                         FUNCTIONS                          */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * Function used to view the current signer address.
-     * @return signer Returns the current signer address.
+     * Function used to view the current signer module address.
+     * @return currentSignerModule Returns the current signer module address.
      */
-    function signer() external view returns (address);
+    function signerModule() external view returns (ISegMintSignerModule);
 
     /**
      * Function used to initialise the access type of an address.
      * @param signature Signed message digest.
-     * @param newAccessType Desired `{ISegMintKYCRegistry.AccessType}` Enum value.
+     * @param newAccessType New `{ISegMintKYCRegistry.AccessType}` Enum value.
      * @dev This function sets the access type of `msg.sender`.
      */
     function initAccessType(bytes calldata signature, KYCRegistry.AccessType newAccessType) external;
@@ -63,11 +72,10 @@ interface ISegMintKYCRegistry {
     function modifyAccessType(address account, KYCRegistry.AccessType newAccessType) external;
 
     /**
-     * Function used to set a new `_signer` address.
-     * @param newSigner Newly desired signer address.
-     * @dev The role specified represents an administrator role.
+     * Function used to set a new signer module address.
+     * @param newSignerModule The new signer module address.
      */
-    function setSigner(address newSigner) external;
+    function setSignerModule(ISegMintSignerModule newSignerModule) external;
 
     /**
      * Function used to view the access type of a specified address.

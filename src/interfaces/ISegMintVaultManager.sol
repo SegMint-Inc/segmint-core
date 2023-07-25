@@ -2,7 +2,9 @@
 pragma solidity 0.8.19;
 
 import { SegMintVault } from "../SegMintVault.sol";
+import { ISegMintSignerModule } from "./ISegMintSignerModule.sol";
 import { ISegMintKYCRegistry } from "./ISegMintKYCRegistry.sol";
+import { ISegMintKeys } from "./ISegMintKeys.sol";
 
 /**
  * @title ISegMintVaultManager
@@ -19,7 +21,7 @@ interface ISegMintVaultManager {
      * @param user Address of the account that created the vault.
      * @param vault Address of the newly created vault.
      */
-    event VaultCreated(address indexed user, SegMintVault indexed vault);
+    event VaultCreated(address indexed user, address indexed vault);
 
     /**
      * Emitted when a new implementation address for {SegMintVaultManager} has been proposed.
@@ -36,31 +38,54 @@ interface ISegMintVaultManager {
      */
     event UpgradeCancelled(address indexed admin, address implementation);
 
+    /**
+     * Emitted when the signer module is updated.
+     * @param admin Address of admin that made the update.
+     * @param oldSignerModule Previous signer module address.
+     * @param newSignerModule New signer module address.
+     */
+    event SignerModuleUpdated(
+        address indexed admin, ISegMintSignerModule oldSignerModule, ISegMintSignerModule newSignerModule
+    );
+
+    /**
+     * Emitted the keys interface is updated.
+     * @param admin Address of admin that made the update.
+     * @param oldKeys Previous keys interface address.
+     * @param newKeys New keys interface address.
+     */
+    event KeysUpdated(address indexed admin, ISegMintKeys oldKeys, ISegMintKeys newKeys);
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                         FUNCTIONS                          */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * Function used to create a new {SegMintVault}.
+     * Function used upon upgrade to initialize the appropriate storage variables.
+     * @param admin_ Address of the new admin.
+     * @param vaultImplementation_ Address of vault implementation.
+     * @param signerModule_ Address of {SegMintSignerModule} contract.
+     * @param kycRegistry_ Address of {SegMintKYCRegistry} contract.
+     */
+    function initialize(
+        address admin_,
+        address vaultImplementation_,
+        ISegMintSignerModule signerModule_,
+        ISegMintKYCRegistry kycRegistry_
+    ) external;
+
+    /**
+     * Function used to create a new instance of {SegMintVault}.
      * @param signature Signed message digest.
-     * @dev `msg.sender` should be the address of the EOA that invoked the creation.
      */
     function createVault(bytes calldata signature) external;
 
     /**
      * Function used to view all vaults created by a user.
-     * @param account The address to get associated vaults for.
-     * @return vaults Returns a list of all vaults associated with the account.
+     * @param account Address to get associated vaults for.
+     * @return vaults List of all vaults created by account.
      */
-    function getVaults(address account) external view returns (SegMintVault[] memory);
-
-    /**
-     * Function used upon upgrade to initialize the appropriate storage variables.
-     * @param admin_ Address of the new admin.
-     * @param signer_ Address of the new signer.
-     * @param kycRegistry_ Address of the KYC registry.
-     */
-    function initialize(address admin_, address signer_, ISegMintKYCRegistry kycRegistry_) external;
+    function getVaults(address account) external view returns (address[] memory);
 
     /**
      * Function used to propose an upgrade to the implementation address.
@@ -78,4 +103,16 @@ interface ISegMintVaultManager {
      * @param payload Encoded calldata to make upon implementation upgrade.
      */
     function executeUpgrade(bytes memory payload) external;
+
+    /**
+     * Function used to set a new signer module address.
+     * @param newSignerModule The new signer module address.
+     */
+    function setSignerModule(ISegMintSignerModule newSignerModule) external;
+
+    /**
+     * Function used to set a new {SegMintKeys} address.
+     * @param newKeys The new {SegMintKeys} address.
+     */
+    function setKeys(ISegMintKeys newKeys) external;
 }
