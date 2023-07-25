@@ -4,12 +4,16 @@ pragma solidity 0.8.19;
 import { Test } from "forge-std/Test.sol";
 import { ECDSA } from "solady/src/utils/ECDSA.sol";
 
+import { ISegMintSignerModule } from "../src/interfaces/ISegMintSignerModule.sol";
 import { ISegMintKYCRegistry } from "../src/interfaces/ISegMintKYCRegistry.sol";
+import { ISegMintKeys } from "../src/interfaces/ISegMintKeys.sol";
 import { ISegMintVault } from "../src/interfaces/ISegMintVault.sol";
 import { ISegMintVaultManager } from "../src/interfaces/ISegMintVaultManager.sol";
 import { ISegMintVaultManagerProxy } from "../src/interfaces/ISegMintVaultManagerProxy.sol";
 
+import { SegMintSignerModule } from "../src/SegMintSignerModule.sol";
 import { SegMintKYCRegistry } from "../src/SegMintKYCRegistry.sol";
+import { SegMintKeys } from "../src/SegMintKeys.sol";
 import { SegMintVault } from "../src/SegMintVault.sol";
 import { SegMintVaultManager } from "../src/SegMintVaultManager.sol";
 import { SegMintVaultManagerProxy } from "../src/SegMintVaultManagerProxy.sol";
@@ -19,7 +23,7 @@ import { Events } from "./utils/Events.sol";
 
 import { Users } from "./utils/Types.sol";
 import { Errors } from "../src/libraries/Errors.sol";
-import { KYCRegistry } from "../src/types/DataTypes.sol";
+import { Class, KYCRegistry, Vault, VaultManager, Keys } from "../src/types/DataTypes.sol";
 
 import { SomeERC20 } from "./token/SomeERC20.sol";
 import { SomeERC721 } from "./token/SomeERC721.sol";
@@ -28,7 +32,10 @@ import { SomeERC1155 } from "./token/SomeERC1155.sol";
 contract Base is Constants, Events, Test {
     using ECDSA for bytes32;
 
+    SegMintSignerModule public signerModule;
     SegMintKYCRegistry public kycRegistry;
+    SegMintKeys public keys;
+    SegMintVault public vaultImplementation;
     SegMintVaultManager public vaultManager;
     SegMintVaultManagerProxy public vaultManagerProxy;
 
@@ -50,17 +57,22 @@ contract Base is Constants, Events, Test {
             eve: createUser("eve")
         });
 
-        kycRegistry = new SegMintKYCRegistry({admin_: users.admin, signer_: SIGNER});
+        signerModule = new SegMintSignerModule({admin_: users.admin, signer_: SIGNER});
+        kycRegistry = new SegMintKYCRegistry({admin_: users.admin, signerModule_: signerModule});
+        keys = new SegMintKeys({admin_: users.admin, uri_: "", kycRegistry_: kycRegistry});
+
+        vaultImplementation = new SegMintVault();
+
         vaultManager = new SegMintVaultManager();
+
+        bytes memory initPayload = abi.encodeWithSelector(
+            ISegMintVaultManager.initialize.selector, users.admin, vaultImplementation, signerModule, kycRegistry
+        );
+
         vaultManagerProxy = new SegMintVaultManagerProxy({
             admin_: users.admin,
             implementation_: address(vaultManager),
-            payload_: abi.encodeWithSelector(
-                ISegMintVaultManager.initialize.selector,
-                users.admin,
-                SIGNER,
-                kycRegistry
-            )
+            payload_: initPayload
         });
     }
 

@@ -13,7 +13,7 @@ contract SegMintKYCRegistryTest is Base {
     function test_SegMintKYCRegistry_Deployment() public {
         assertTrue(kycRegistry.hasAllRoles(users.admin, ADMIN_ROLE));
         assertEq(kycRegistry.owner(), address(this));
-        assertEq(kycRegistry.signer(), SIGNER);
+        assertEq(address(kycRegistry.signerModule()), address(signerModule));
     }
 
     /* `initAccessType()` Tests */
@@ -23,7 +23,13 @@ contract SegMintKYCRegistryTest is Base {
         bytes memory signature = getAccessSignature(users.alice, accessType);
 
         hoax(users.alice, users.alice);
-        vm.expectEmit();
+        vm.expectEmit({
+            checkTopic1: true,
+            checkTopic2: true,
+            checkTopic3: false,
+            checkData: true,
+            emitter: address(kycRegistry)
+        });
         emit AccessTypeSet({ account: users.alice, accessType: accessType });
         kycRegistry.initAccessType({ signature: signature, newAccessType: accessType });
 
@@ -35,7 +41,13 @@ contract SegMintKYCRegistryTest is Base {
         bytes memory signature = getAccessSignature(users.bob, accessType);
 
         hoax(users.bob, users.bob);
-        vm.expectEmit();
+        vm.expectEmit({
+            checkTopic1: true,
+            checkTopic2: true,
+            checkTopic3: false,
+            checkData: true,
+            emitter: address(kycRegistry)
+        });
         emit AccessTypeSet({ account: users.bob, accessType: accessType });
         kycRegistry.initAccessType({ signature: signature, newAccessType: accessType });
 
@@ -49,7 +61,13 @@ contract SegMintKYCRegistryTest is Base {
         bytes memory signature = getAccessSignature(account, accessType);
 
         hoax(account, account);
-        vm.expectEmit();
+        vm.expectEmit({
+            checkTopic1: true,
+            checkTopic2: true,
+            checkTopic3: false,
+            checkData: true,
+            emitter: address(kycRegistry)
+        });
         emit AccessTypeSet({ account: account, accessType: accessType });
         kycRegistry.initAccessType({ signature: signature, newAccessType: accessType });
 
@@ -77,7 +95,7 @@ contract SegMintKYCRegistryTest is Base {
 
     function testCannot_InitAccessType_SignerMismatch() public {
         hoax(users.admin, users.admin);
-        kycRegistry.setSigner(address(0));
+        signerModule.setSigner(address(0));
 
         KYCRegistry.AccessType accessType = KYCRegistry.AccessType.RESTRICTED;
         bytes memory signature = getAccessSignature(users.alice, accessType);
@@ -90,20 +108,44 @@ contract SegMintKYCRegistryTest is Base {
     /* `modifyAccessType()` Tests */
 
     function test_ModifyAccessType() public {
-        KYCRegistry.AccessType accessType = KYCRegistry.AccessType.RESTRICTED;
+        KYCRegistry.AccessType oldAccessType = KYCRegistry.AccessType.BLOCKED;
+        KYCRegistry.AccessType newAccessType = KYCRegistry.AccessType.RESTRICTED;
 
         startHoax(users.admin, users.admin);
-        vm.expectEmit();
-        emit AccessTypeModified({ admin: users.admin, account: users.alice, accessType: accessType });
-        kycRegistry.modifyAccessType({ account: users.alice, newAccessType: accessType });
-        assertEq(uint256(kycRegistry.getAccessType({ account: users.alice })), uint256(accessType), "AccessType");
+        vm.expectEmit({
+            checkTopic1: true,
+            checkTopic2: true,
+            checkTopic3: false,
+            checkData: true,
+            emitter: address(kycRegistry)
+        });
+        emit AccessTypeModified({
+            admin: users.admin,
+            account: users.alice,
+            oldAccessType: oldAccessType,
+            newAccessType: newAccessType
+        });
+        kycRegistry.modifyAccessType({ account: users.alice, newAccessType: newAccessType });
+        assertEq(uint256(kycRegistry.getAccessType({ account: users.alice })), uint256(newAccessType), "AccessType");
 
-        accessType = KYCRegistry.AccessType.UNRESTRICTED;
+        oldAccessType = kycRegistry.getAccessType(users.alice);
+        newAccessType = KYCRegistry.AccessType.UNRESTRICTED;
 
-        vm.expectEmit();
-        emit AccessTypeModified({ admin: users.admin, account: users.bob, accessType: accessType });
-        kycRegistry.modifyAccessType({ account: users.bob, newAccessType: accessType });
-        assertEq(uint256(kycRegistry.getAccessType({ account: users.bob })), uint256(accessType), "AccessType");
+        vm.expectEmit({
+            checkTopic1: true,
+            checkTopic2: true,
+            checkTopic3: true,
+            checkData: true,
+            emitter: address(kycRegistry)
+        });
+        emit AccessTypeModified({
+            admin: users.admin,
+            account: users.alice,
+            oldAccessType: oldAccessType,
+            newAccessType: newAccessType
+        });
+        kycRegistry.modifyAccessType({ account: users.alice, newAccessType: newAccessType });
+        assertEq(uint256(kycRegistry.getAccessType({ account: users.alice })), uint256(newAccessType), "AccessType");
     }
 
     function testCannot_ModifyAccessType_Unauthorized() public {
@@ -112,17 +154,17 @@ contract SegMintKYCRegistryTest is Base {
         kycRegistry.modifyAccessType({ account: users.eve, newAccessType: KYCRegistry.AccessType.UNRESTRICTED });
     }
 
-    /* `setSigner()` Tests */
+    /* `setSignerModule()` Tests */
 
-    function test_SetSigner_Fuzzed(address newSigner) public {
+    function test_SetSignerModule_Fuzzed(SegMintSignerModule newSignerModule) public {
         hoax(users.admin, users.admin);
-        kycRegistry.setSigner({ newSigner: newSigner });
-        assertEq(kycRegistry.signer(), newSigner);
+        kycRegistry.setSignerModule({ newSignerModule: newSignerModule });
+        assertEq(address(kycRegistry.signerModule()), address(newSignerModule));
     }
 
-    function testCannot_SetSigner_Unauthorized() public {
+    function testCannot_SetSignerModule_Unauthorized() public {
         hoax(users.eve, users.eve);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
-        kycRegistry.setSigner({ newSigner: users.eve });
+        kycRegistry.setSignerModule({ newSignerModule: SegMintSignerModule(users.eve) });
     }
 }
