@@ -1,0 +1,8 @@
+{
+    "extends": "solhint:recommended",
+    "rules": {
+        "func-name-mixedcase": "ignore",
+        "no-empty-blocks": "ignore",
+        "private-vars-leading-underscore": "ignore"
+    }
+}
