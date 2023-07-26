@@ -63,11 +63,6 @@ library Errors {
      */
     error AddressMismatch();
 
-    /**
-     * Thrown when the keys address is required but not set.
-     */
-    error KeysNotSet();
-
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       SEGMINT-VAULT                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/

@@ -1,6 +1,7 @@
 [profile.default]
 src = "src"
 out = "out"
+evm_version = "paris"
 libs = ["lib"]
 gas_reports = [
     "SegMintKYCRegistry",

@@ -6,7 +6,7 @@ import { ISegMintSignerModule } from "./interfaces/ISegMintSignerModule.sol";
 
 /**
  * @title SegMintSignerModule
- * @notice Signer module responsible for returning the current signer address.
+ * @notice See documentation for {ISegMintSignerModule}.
  */
 
 contract SegMintSignerModule is ISegMintSignerModule, OwnableRoles {

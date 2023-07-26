@@ -10,10 +10,6 @@ contract SegMintVaultManagerTest is Base {
 
         /// Since `vaultManagerProxy` is a proxy, interface the proxy as the implementation contract.
         vaultManager = SegMintVaultManager(address(vaultManagerProxy));
-
-        hoax(users.admin, users.admin);
-        vaultManager.setKeys(ISegMintKeys(address(keys)));
-
         keys.grantRoles(address(vaultManager), VAULT_MANAGER_ROLE);
     }
 
@@ -35,7 +31,8 @@ contract SegMintVaultManagerTest is Base {
             admin_: users.admin,
             vaultImplementation_: address(vaultImplementation),
             signerModule_: signerModule,
-            kycRegistry_: kycRegistry
+            kycRegistry_: kycRegistry,
+            keys_: keys
         });
 
         assertTrue(newVaultManager.hasAllRoles(users.admin, ADMIN_ROLE));
@@ -50,7 +47,8 @@ contract SegMintVaultManagerTest is Base {
             admin_: users.eve,
             vaultImplementation_: address(vaultImplementation),
             signerModule_: signerModule,
-            kycRegistry_: kycRegistry
+            kycRegistry_: kycRegistry,
+            keys_: keys
         });
     }
 
@@ -136,17 +134,6 @@ contract SegMintVaultManagerTest is Base {
         SegMintVault typedUserVault = SegMintVault(userVault);
         assertEq(typedUserVault.owner(), users.bob);
         assertEq(address(typedUserVault.keys()), address(keys));
-    }
-
-    function testCannot_CreateVault_KeysNotSet() public {
-        hoax(users.admin, users.admin);
-        vaultManager.setKeys(ISegMintKeys(address(0)));
-
-        bytes memory signature = getCreateVaultSignature(users.alice, KYCRegistry.AccessType.RESTRICTED);
-
-        hoax(users.eve, users.eve);
-        vm.expectRevert(Errors.KeysNotSet.selector);
-        vaultManager.createVault(signature);
     }
 
     function testCannot_CreateVault_InvalidAccessType() public {
@@ -283,35 +270,5 @@ contract SegMintVaultManagerTest is Base {
 
         vm.expectRevert(Errors.UpgradeTimeLocked.selector);
         vaultManager.executeUpgrade("");
-    }
-
-    /* `setSignerModule()` Tests */
-
-    function test_SetSignerModule_Fuzzed(address signerModule_) public {
-        ISegMintSignerModule oldSignerModule = vaultManager.signerModule();
-        ISegMintSignerModule newSignerModule = ISegMintSignerModule(signerModule_);
-
-        hoax(users.admin, users.admin);
-        vm.expectEmit({
-            checkTopic1: true,
-            checkTopic2: true,
-            checkTopic3: true,
-            checkData: true,
-            emitter: address(vaultManager)
-        });
-        emit SignerModuleUpdated({
-            admin: users.admin,
-            oldSignerModule: oldSignerModule,
-            newSignerModule: newSignerModule
-        });
-        vaultManager.setSignerModule(newSignerModule);
-
-        assertEq(address(vaultManager.signerModule()), address(newSignerModule));
-    }
-
-    function testCannot_SetSignerModule_Unauthorized() public {
-        hoax(users.eve, users.eve);
-        vm.expectRevert(UNAUTHORIZED_SELECTOR);
-        vaultManager.setSignerModule(ISegMintSignerModule(address(0)));
     }
 }

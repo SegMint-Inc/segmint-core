@@ -62,11 +62,16 @@ contract Base is Constants, Events, Test {
         keys = new SegMintKeys({admin_: users.admin, uri_: "", kycRegistry_: kycRegistry});
 
         vaultImplementation = new SegMintVault();
-
         vaultManager = new SegMintVaultManager();
 
+        /// forgefmt: disable-next-item
         bytes memory initPayload = abi.encodeWithSelector(
-            ISegMintVaultManager.initialize.selector, users.admin, vaultImplementation, signerModule, kycRegistry
+            ISegMintVaultManager.initialize.selector,
+            users.admin,
+            vaultImplementation,
+            signerModule,
+            kycRegistry,
+            keys
         );
 
         vaultManagerProxy = new SegMintVaultManagerProxy({

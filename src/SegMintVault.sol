@@ -1,28 +1,31 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
+import { Ownable } from "solady/src/auth/Ownable.sol";
+import { Initializable } from "@openzeppelin/proxy/utils/Initializable.sol";
 import { SafeERC20 } from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/token/ERC20/IERC20.sol";
 import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
 import { ISegMintVault } from "./interfaces/ISegMintVault.sol";
 import { ISegMintKeys } from "./interfaces/ISegMintKeys.sol";
-import { Ownable } from "solady/src/auth/Ownable.sol";
 import { Errors } from "./libraries/Errors.sol";
 import { Class, Vault, Keys } from "./types/DataTypes.sol";
-import { Initializable } from "@openzeppelin/proxy/utils/Initializable.sol";
+
+/**
+ * @title SegMintVault
+ * @notice See documentation for {ISegMintVault}.
+ */
 
 contract SegMintVault is ISegMintVault, Ownable, Initializable {
     using SafeERC20 for IERC20;
 
     /**
-     * @dev Maximum number of movable assets in one transaction.
+     * @dev Maximum number of movable assets in one transaction. This value
+     * is bounded for gas reasons.
      */
     uint256 private constant _ASSET_MOVEMENT_LIMIT = 20;
 
-    /**
-     * @inheritdoc ISegMintVault
-     */
     ISegMintKeys public keys;
 
     Keys.Bindings public keyBindings;
@@ -37,9 +40,8 @@ contract SegMintVault is ISegMintVault, Ownable, Initializable {
 
     /**
      * @inheritdoc ISegMintVault
-     * @dev Off-chain indexer will keep track of assets locked into a vault using
+     * @dev Off-chain indexer will keep track of assets locked into the vault using
      * the transfer events emitted from each assets token standard.
-     * @custom:note If a vault is key-binded, no assets can be locked.
      */
     function lockAssets(Vault.Asset[] calldata assets) external override onlyOwner {
         /// Checks: Ensure a valid amount of assets has been provided.
@@ -129,7 +131,7 @@ contract SegMintVault is ISegMintVault, Ownable, Initializable {
     /**
      * @inheritdoc ISegMintVault
      */
-    function unlockEther(uint256 amount, address receiver) external {
+    function unlockEther(uint256 amount, address receiver) external override {
         /// Copy key bindings struct into memory to avoid SLOADs.
         Keys.Bindings memory _keyBindings = keyBindings;
 
@@ -150,7 +152,7 @@ contract SegMintVault is ISegMintVault, Ownable, Initializable {
      * @inheritdoc ISegMintVault
      * @dev Discuss if there is a key limit.
      */
-    function bindKeys(uint256 amount) external onlyOwner {
+    function bindKeys(uint256 amount) external override onlyOwner {
         /// Checks: Ensure the vault is not already key-binded.
         if (keyBindings.binded) revert Errors.KeyBinded();
 
@@ -170,7 +172,7 @@ contract SegMintVault is ISegMintVault, Ownable, Initializable {
     /**
      * @inheritdoc ISegMintVault
      */
-    function unbindKeys() external {
+    function unbindKeys() external override {
         /// Checks: Ensure the vault is key-binded.
         if (!keyBindings.binded) revert Errors.NotKeyBinded();
 

@@ -50,12 +50,6 @@ interface ISegMintKYCRegistry {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * Function used to view the current signer module address.
-     * @return currentSignerModule Returns the current signer module address.
-     */
-    function signerModule() external view returns (ISegMintSignerModule);
-
-    /**
      * Function used to initialise the access type of an address.
      * @param signature Signed message digest.
      * @param newAccessType New `{ISegMintKYCRegistry.AccessType}` Enum value.

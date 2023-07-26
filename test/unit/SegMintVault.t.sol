@@ -15,10 +15,6 @@ contract SegMintVaultManagerTest is Base {
         /// Since `vaultManagerProxy` is a proxy, interface the proxy as the implementation contract.
         vaultManager = SegMintVaultManager(address(vaultManagerProxy));
 
-        /// Set keys address seperately due to circular dependency.
-        hoax(users.admin, users.admin);
-        vaultManager.setKeys(ISegMintKeys(address(keys)));
-
         /// Grant `vaultManager` the ability to approve vaults for `keys`.
         keys.grantRoles(address(vaultManager), VAULT_MANAGER_ROLE);
 
@@ -127,7 +123,7 @@ contract SegMintVaultManagerTest is Base {
 
     function testCannot_LockAssets_KeyBinded() public {
         Vault.Asset[] memory vaultAssets = new Vault.Asset[](1);
-        
+
         startHoax(users.alice, users.alice);
         aliceVault.bindKeys({ amount: 5 });
 
@@ -145,7 +141,7 @@ contract SegMintVaultManagerTest is Base {
         hoax(users.alice, users.alice);
         aliceVault.unlockAssets({ assets: vaultAssets, receiver: users.alice });
         uint256 updatedBalance = erc20.balanceOf(users.alice);
-        
+
         assertEq(erc20.balanceOf(address(aliceVault)), 0 ether);
         assertEq(updatedBalance, initialBalance + vaultAssets[0].amount);
     }
@@ -189,7 +185,7 @@ contract SegMintVaultManagerTest is Base {
 
     function testCannot_UnlockAssets_ZeroLengthArray() public {
         Vault.Asset[] memory vaultAssets = new Vault.Asset[](0);
-        
+
         hoax(users.alice, users.alice);
         vm.expectRevert(Errors.ZeroLengthArray.selector);
         aliceVault.unlockAssets({ assets: vaultAssets, receiver: users.alice });
@@ -197,7 +193,7 @@ contract SegMintVaultManagerTest is Base {
 
     function testCannot_UnlockAssets_OverMovementLimit() public {
         Vault.Asset[] memory vaultAssets = new Vault.Asset[](21);
-        
+
         hoax(users.alice, users.alice);
         vm.expectRevert(Errors.OverMovementLimit.selector);
         aliceVault.unlockAssets({ assets: vaultAssets, receiver: users.alice });
@@ -205,7 +201,7 @@ contract SegMintVaultManagerTest is Base {
 
     function testCannot_UnlockAssets_Unauthorized() public {
         Vault.Asset[] memory vaultAssets = new Vault.Asset[](1);
-        
+
         hoax(users.eve, users.eve);
         vm.expectRevert(Errors.Unauthorized.selector);
         aliceVault.unlockAssets({ assets: vaultAssets, receiver: users.alice });
@@ -217,7 +213,7 @@ contract SegMintVaultManagerTest is Base {
         startHoax(users.alice, users.alice);
         aliceVault.bindKeys({ amount: 5 });
         keys.safeTransferFrom({ from: users.alice, to: users.bob, id: 0, amount: 1, data: "" });
-        
+
         vm.expectRevert(Errors.InsufficientKeys.selector);
         aliceVault.unlockAssets({ assets: vaultAssets, receiver: users.alice });
         vm.stopPrank();
@@ -343,7 +339,7 @@ contract SegMintVaultManagerTest is Base {
         emit KeysBurned({ vault: address(aliceVault), keyId: 0, amount: 5 });
         aliceVault.unbindKeys();
 
-        (bool binded, uint256 keyId, uint256 amount) = aliceVault.keyBindings();   
+        (bool binded, uint256 keyId, uint256 amount) = aliceVault.keyBindings();
         assertFalse(binded);
         assertEq(keyId, 0);
         assertEq(amount, 0);
@@ -357,10 +353,10 @@ contract SegMintVaultManagerTest is Base {
 
     function testCannot_UnbindKeys_InsufficientKeys() public {
         startHoax(users.alice, users.alice);
-        
+
         aliceVault.bindKeys({ amount: 5 });
         keys.safeTransferFrom({ from: users.alice, to: users.bob, id: 0, amount: 3, data: "" });
-        
+
         vm.expectRevert(Errors.InsufficientKeys.selector);
         aliceVault.unbindKeys();
     }
@@ -369,17 +365,17 @@ contract SegMintVaultManagerTest is Base {
 
     function test_Receive() public {
         uint256 etherAmount = 10 ether;
-        
+
         hoax(users.alice, users.alice);
-        (bool success,) = address(aliceVault).call{value: etherAmount }("");
-        
+        (bool success,) = address(aliceVault).call{ value: etherAmount }("");
+
         assertTrue(success);
         assertEq(address(aliceVault).balance, etherAmount);
     }
 
     /* Helpers */
 
-    modifier lockERC20 {
+    modifier lockERC20() {
         Vault.Asset[] memory vaultAssets = new Vault.Asset[](1);
         vaultAssets[0] = getERC20Asset();
 
@@ -391,7 +387,7 @@ contract SegMintVaultManagerTest is Base {
         _;
     }
 
-    modifier lockERC721 {
+    modifier lockERC721() {
         Vault.Asset[] memory vaultAssets = new Vault.Asset[](1);
         vaultAssets[0] = getERC721Asset();
 
@@ -403,7 +399,7 @@ contract SegMintVaultManagerTest is Base {
         _;
     }
 
-    modifier lockERC1155 {
+    modifier lockERC1155() {
         Vault.Asset[] memory vaultAssets = new Vault.Asset[](1);
         vaultAssets[0] = getERC1155Asset();
 
@@ -415,7 +411,7 @@ contract SegMintVaultManagerTest is Base {
         _;
     }
 
-    modifier lockMixed {
+    modifier lockMixed() {
         Vault.Asset[] memory vaultAssets = getMixedAssets();
 
         startHoax(users.alice, users.alice);
@@ -429,30 +425,15 @@ contract SegMintVaultManagerTest is Base {
     }
 
     function getERC20Asset() internal view returns (Vault.Asset memory) {
-        return Vault.Asset({
-            class: Class.ERC_20,
-            addr: address(erc20),
-            tokenId: 0,
-            amount: 100 ether
-        });
+        return Vault.Asset({ class: Class.ERC_20, addr: address(erc20), tokenId: 0, amount: 100 ether });
     }
 
     function getERC721Asset() internal view returns (Vault.Asset memory) {
-        return Vault.Asset({
-            class: Class.ERC_721,
-            addr: address(erc721),
-            tokenId: ALICE_NFT_ID,
-            amount: 1
-        });
+        return Vault.Asset({ class: Class.ERC_721, addr: address(erc721), tokenId: ALICE_NFT_ID, amount: 1 });
     }
 
     function getERC1155Asset() internal view returns (Vault.Asset memory) {
-        return Vault.Asset({
-            class: Class.ERC_1155,
-            addr: address(erc1155),
-            tokenId: ERC1155_TOKEN_ID,
-            amount: 1
-        });
+        return Vault.Asset({ class: Class.ERC_1155, addr: address(erc1155), tokenId: ERC1155_TOKEN_ID, amount: 1 });
     }
 
     function getMixedAssets() internal view returns (Vault.Asset[] memory) {

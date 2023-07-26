@@ -15,14 +15,15 @@ import { Errors } from "./libraries/Errors.sol";
 import { KYCRegistry, Vault, VaultManager } from "./types/DataTypes.sol";
 
 /**
- * TODO: Implement clones for vault creation using CREATE2.
+ * @title SegMintVaultManager
+ * @notice See documentation for {ISegMintVaultManager}.
  */
 
 contract SegMintVaultManager is ISegMintVaultManager, OwnableRoles, Initializable, UUPSUpgradeable {
     using ECDSA for bytes32;
     using LibClone for address;
 
-    /// @dev Upgrade proposals cannot be executed for 5 days.
+    /// @dev Implementation upgrade proposals cannot be executed for 5 days.
     uint256 private constant _UPGRADE_TIMELOCK = 5 days;
 
     ISegMintSignerModule public signerModule;
@@ -39,8 +40,9 @@ contract SegMintVaultManager is ISegMintVaultManager, OwnableRoles, Initializabl
         address admin_,
         address vaultImplementation_,
         ISegMintSignerModule signerModule_,
-        ISegMintKYCRegistry kycRegistry_
-    ) external initializer {
+        ISegMintKYCRegistry kycRegistry_,
+        ISegMintKeys keys_
+    ) external override initializer {
         _initializeOwner(msg.sender);
         _grantRoles(admin_, _ROLE_0);
 
@@ -48,16 +50,14 @@ contract SegMintVaultManager is ISegMintVaultManager, OwnableRoles, Initializabl
 
         signerModule = signerModule_;
         kycRegistry = kycRegistry_;
+        keys = keys_;
     }
 
     /**
      * @inheritdoc ISegMintVaultManager
-     * @dev `msg.sender` will be the EOA that invoked the vault creation.
+     * @dev `msg.sender` will be the EOA that invoked the function call.
      */
     function createVault(bytes calldata signature) external override {
-        /// Checks: Ensure the `keys` address has been set.
-        if (address(keys) == address(0)) revert Errors.KeysNotSet();
-
         /// Checks: Ensure the caller has access.
         KYCRegistry.AccessType accessType = kycRegistry.getAccessType(msg.sender);
         if (accessType == KYCRegistry.AccessType.BLOCKED) revert Errors.InvalidAccessType();
@@ -85,16 +85,15 @@ contract SegMintVaultManager is ISegMintVaultManager, OwnableRoles, Initializabl
 
         /// Approve the newly created vault with the keys contract to allow for
         /// further interactions with `keys` to be decoupled from this contract.
-        keys.approveVault(predictedVault);
+        keys.approveVault(newVault);
 
-        /// Emit vault creation event.
-        emit VaultCreated({ user: msg.sender, vault: newVault });
+        emit ISegMintVaultManager.VaultCreated({ user: msg.sender, vault: newVault });
     }
 
     /**
      * @inheritdoc ISegMintVaultManager
      */
-    function getVaults(address account) external view returns (address[] memory) {
+    function getVaults(address account) external view override returns (address[] memory) {
         uint256 length = _nonces[account];
         address[] memory vaults = new address[](length);
 
@@ -153,36 +152,15 @@ contract SegMintVaultManager is ISegMintVaultManager, OwnableRoles, Initializabl
 
         address proposedImplementation = upgradeProposal.newImplementation;
 
-        /// Effects: Clear the previous upgrade proposal and update the current version.
+        /// Clear the previous upgrade proposal and update the current version.
         upgradeProposal = VaultManager.UpgradeProposal({ newImplementation: address(0), deadline: 0 });
 
-        // TODO: Revisit this and see what `payload` would be necessary.
+        /// Upgrade to the proposed implementation.
         _upgradeToAndCallUUPS({ newImplementation: proposedImplementation, data: payload, forceCall: false });
     }
 
     /**
-     * @inheritdoc ISegMintVaultManager
+     * @dev Overriden to ensure that only callers with the `_ROLE_0` can upgrade the implementation.
      */
-    function setSignerModule(ISegMintSignerModule newSignerModule) external override onlyRoles(_ROLE_0) {
-        ISegMintSignerModule oldSignerModule = signerModule;
-        signerModule = newSignerModule;
-
-        emit ISegMintVaultManager.SignerModuleUpdated({
-            admin: msg.sender,
-            oldSignerModule: oldSignerModule,
-            newSignerModule: newSignerModule
-        });
-    }
-
-    /**
-     * @inheritdoc ISegMintVaultManager
-     */
-    function setKeys(ISegMintKeys newKeys) external override onlyRoles(_ROLE_0) {
-        ISegMintKeys oldKeys = keys;
-        keys = newKeys;
-
-        emit ISegMintVaultManager.KeysUpdated({ admin: msg.sender, oldKeys: oldKeys, newKeys: newKeys });
-    }
-
     function _authorizeUpgrade(address newImplementation) internal override onlyRoles(_ROLE_0) { }
 }

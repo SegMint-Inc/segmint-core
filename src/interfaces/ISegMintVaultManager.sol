@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { SegMintVault } from "../SegMintVault.sol";
 import { ISegMintSignerModule } from "./ISegMintSignerModule.sol";
 import { ISegMintKYCRegistry } from "./ISegMintKYCRegistry.sol";
 import { ISegMintKeys } from "./ISegMintKeys.sol";
 
 /**
  * @title ISegMintVaultManager
- * @notice Interface for SegMintVaultManager.
+ * @notice This contract is a factory that creates instances of {ISegMintVault} and {ISegMintSafe}
+ * using deterministic clones.
  */
 
 interface ISegMintVaultManager {
@@ -66,12 +66,14 @@ interface ISegMintVaultManager {
      * @param vaultImplementation_ Address of vault implementation.
      * @param signerModule_ Address of {SegMintSignerModule} contract.
      * @param kycRegistry_ Address of {SegMintKYCRegistry} contract.
+     * @param keys_ Address of {SegMintKeys} contract.
      */
     function initialize(
         address admin_,
         address vaultImplementation_,
         ISegMintSignerModule signerModule_,
-        ISegMintKYCRegistry kycRegistry_
+        ISegMintKYCRegistry kycRegistry_,
+        ISegMintKeys keys_
     ) external;
 
     /**
@@ -81,38 +83,25 @@ interface ISegMintVaultManager {
     function createVault(bytes calldata signature) external;
 
     /**
-     * Function used to view all vaults created by a user.
-     * @param account Address to get associated vaults for.
-     * @return vaults List of all vaults created by account.
+     * Function used to view all vaults created by `account`.
+     * @param account Account to view associated vaults for.
      */
     function getVaults(address account) external view returns (address[] memory);
 
     /**
-     * Function used to propose an upgrade to the implementation address.
-     * @param newImplementation Newly proposed implementation address.
+     * Function used to propose an upgrade to the implementation address of {SegMintVaultManager}.
+     * @param newImplementation Newly proposed {SegMintVaultManager} address.
      */
     function proposeUpgrade(address newImplementation) external;
 
     /**
-     * Function used to cancel a pending proposal.
+     * Function used to cancel a pending upgrade proposal.
      */
     function cancelUpgrade() external;
 
     /**
-     * Function used to execute an upgrade proposal.
-     * @param payload Encoded calldata to make upon implementation upgrade.
+     * Function used to execute an upgrade to the implementation address of {SegMintVaultManager}.
+     * @param payload Encoded calldata that will be used to initialize the new implementation.
      */
     function executeUpgrade(bytes memory payload) external;
-
-    /**
-     * Function used to set a new signer module address.
-     * @param newSignerModule The new signer module address.
-     */
-    function setSignerModule(ISegMintSignerModule newSignerModule) external;
-
-    /**
-     * Function used to set a new {SegMintKeys} address.
-     * @param newKeys The new {SegMintKeys} address.
-     */
-    function setKeys(ISegMintKeys newKeys) external;
 }

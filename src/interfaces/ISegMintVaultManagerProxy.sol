@@ -3,7 +3,7 @@ pragma solidity 0.8.19;
 
 /**
  * @title ISegMintVaultManagerProxy
- * @notice Interface for SegMintVaultManagerProxy.
+ * @notice This contract is a proxy for {SegMintVaultManager}.
  */
 
 interface ISegMintVaultManagerProxy {
@@ -13,7 +13,6 @@ interface ISegMintVaultManagerProxy {
 
     /**
      * Function used to view the current implementation address.
-     * @return implementation The current implementation address.
      */
     function implementation() external view returns (address);
 }

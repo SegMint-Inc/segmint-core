@@ -16,10 +16,7 @@ import { KYCRegistry } from "./types/DataTypes.sol";
 contract SegMintKYCRegistry is ISegMintKYCRegistry, OwnableRoles {
     using ECDSA for bytes32;
 
-    /**
-     * @inheritdoc ISegMintKYCRegistry
-     */
-    ISegMintSignerModule public override signerModule;
+    ISegMintSignerModule public signerModule;
 
     mapping(address account => KYCRegistry.AccessType accessType) private _access;
 
