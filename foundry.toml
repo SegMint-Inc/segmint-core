@@ -1,6 +1,14 @@
 [profile.default]
 src = "src"
 out = "out"
+evm_version = "paris"
 libs = ["lib"]
+gas_reports = [
+    "SegMintKYCRegistry",
+    "SegMintVaultManagerProxy",
+    "SegMintVaultManager",
+    "SegMintVault"
+]
 
-# See more config options https://github.com/foundry-rs/foundry/tree/master/config
+[fmt]
+bracket_spacing = true
