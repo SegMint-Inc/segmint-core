@@ -29,6 +29,20 @@ interface ISegMintKeys {
         address indexed admin, ISegMintVaultManager oldVaultManager, ISegMintVaultManager newVaultManager
     );
 
+    /**
+     * Emitted when a specified group of keys is frozen.
+     * @param admin Address of the admin that froze the keys.
+     * @param keyId Key identifier that was frozen.
+     */
+    event KeyFrozen(address indexed admin, uint256 keyId);
+
+    /**
+     * Emitted when a specified group of keys is unfrozen.
+     * @param admin Address of the admin that unfroze the keys.
+     * @param keyId Key ID that was unfrozen.
+     */
+    event KeyUnfrozen(address indexed admin, uint256 keyId);
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                         FUNCTIONS                          */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/

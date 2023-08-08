@@ -7,23 +7,29 @@ import { ECDSA } from "solady/src/utils/ECDSA.sol";
 import { ISegMintSignerModule } from "../src/interfaces/ISegMintSignerModule.sol";
 import { ISegMintKYCRegistry } from "../src/interfaces/ISegMintKYCRegistry.sol";
 import { ISegMintKeys } from "../src/interfaces/ISegMintKeys.sol";
+import { ISegMintSafe } from "../src/interfaces/ISegMintSafe.sol";
 import { ISegMintVault } from "../src/interfaces/ISegMintVault.sol";
+import { ISegMintVaultSingle } from "../src/interfaces/ISegMintVaultSingle.sol";
 import { ISegMintVaultManager } from "../src/interfaces/ISegMintVaultManager.sol";
 import { ISegMintVaultManagerProxy } from "../src/interfaces/ISegMintVaultManagerProxy.sol";
 
 import { SegMintSignerModule } from "../src/SegMintSignerModule.sol";
 import { SegMintKYCRegistry } from "../src/SegMintKYCRegistry.sol";
 import { SegMintKeys } from "../src/SegMintKeys.sol";
+import { SegMintSafe } from "../src/SegMintSafe.sol";
 import { SegMintVault } from "../src/SegMintVault.sol";
+import { SegMintVaultSingle } from "../src/SegMintVaultSingle.sol";
 import { SegMintVaultManager } from "../src/SegMintVaultManager.sol";
 import { SegMintVaultManagerProxy } from "../src/SegMintVaultManagerProxy.sol";
+
+import { SignerManagerMock } from "./mocks/SignerManagerMock.sol";
 
 import { Constants } from "./utils/Constants.sol";
 import { Events } from "./utils/Events.sol";
 
 import { Users } from "./utils/Types.sol";
 import { Errors } from "../src/libraries/Errors.sol";
-import { Class, KYCRegistry, Vault, VaultManager, Keys } from "../src/types/DataTypes.sol";
+import { Class, KYCRegistry, Vault, VaultSingle, VaultManager, Keys } from "../src/types/DataTypes.sol";
 
 import { SomeERC20 } from "./token/SomeERC20.sol";
 import { SomeERC721 } from "./token/SomeERC721.sol";
@@ -35,9 +41,13 @@ contract Base is Constants, Events, Test {
     SegMintSignerModule public signerModule;
     SegMintKYCRegistry public kycRegistry;
     SegMintKeys public keys;
+    SegMintSafe public safeImplementation;
     SegMintVault public vaultImplementation;
+    SegMintVaultSingle public vaultSingleImplementation;
     SegMintVaultManager public vaultManager;
     SegMintVaultManagerProxy public vaultManagerProxy;
+
+    SignerManagerMock public signerManager;
 
     SomeERC20 public erc20;
     SomeERC721 public erc721;
@@ -62,6 +72,9 @@ contract Base is Constants, Events, Test {
         keys = new SegMintKeys({admin_: users.admin, uri_: "", kycRegistry_: kycRegistry});
 
         vaultImplementation = new SegMintVault();
+        vaultSingleImplementation = new SegMintVaultSingle();
+        safeImplementation = new SegMintSafe();
+
         vaultManager = new SegMintVaultManager();
 
         /// forgefmt: disable-next-item
@@ -69,6 +82,8 @@ contract Base is Constants, Events, Test {
             ISegMintVaultManager.initialize.selector,
             users.admin,
             vaultImplementation,
+            vaultSingleImplementation,
+            safeImplementation,
             signerModule,
             kycRegistry,
             keys
@@ -79,6 +94,8 @@ contract Base is Constants, Events, Test {
             implementation_: address(vaultManager),
             payload_: initPayload
         });
+
+        signerManager = new SignerManagerMock();
     }
 
     /* Helper Functions */
@@ -127,6 +144,20 @@ contract Base is Constants, Events, Test {
         returns (bytes memory)
     {
         bytes32 digest = keccak256(abi.encodePacked(account, accessType, "CREATE_VAULT")).toEthSignedMessageHash();
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(PRIVATE_KEY, digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    /**
+     * Returns the signature required for {SegMintVaultManager.createVaultSingle}.
+     */
+    function getCreateVaultSingleSignature(address account, KYCRegistry.AccessType accessType)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes32 digest =
+            keccak256(abi.encodePacked(account, accessType, "CREATE_VAULT_SINGLE")).toEthSignedMessageHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(PRIVATE_KEY, digest);
         return abi.encodePacked(r, s, v);
     }

@@ -212,7 +212,7 @@ contract SegMintVaultManagerTest is Base {
 
         startHoax(users.alice, users.alice);
         aliceVault.bindKeys({ amount: 5 });
-        keys.safeTransferFrom({ from: users.alice, to: users.bob, id: 0, amount: 1, data: "" });
+        keys.safeTransferFrom({ from: users.alice, to: users.bob, id: 1, amount: 1, data: "" });
 
         vm.expectRevert(Errors.InsufficientKeys.selector);
         aliceVault.unlockAssets({ assets: vaultAssets, receiver: users.alice });
@@ -238,7 +238,7 @@ contract SegMintVaultManagerTest is Base {
 
         startHoax(users.alice, users.alice);
         aliceVault.bindKeys({ amount: 5 });
-        keys.safeTransferFrom({ from: users.alice, to: users.bob, id: 0, amount: 5, data: "" });
+        keys.safeTransferFrom({ from: users.alice, to: users.bob, id: 1, amount: 5, data: "" });
         vm.stopPrank();
 
         hoax(users.bob, users.bob, 0 ether);
@@ -254,7 +254,7 @@ contract SegMintVaultManagerTest is Base {
 
         startHoax(users.alice, users.alice);
         aliceVault.bindKeys({ amount: 5 });
-        keys.safeTransferFrom({ from: users.alice, to: users.bob, id: 0, amount: 3, data: "" });
+        keys.safeTransferFrom({ from: users.alice, to: users.bob, id: 1, amount: 3, data: "" });
         vm.stopPrank();
 
         hoax(users.bob, users.bob, 0 ether);
@@ -293,12 +293,12 @@ contract SegMintVaultManagerTest is Base {
             checkData: true,
             emitter: address(aliceVault)
         });
-        emit KeysCreated({ vault: address(aliceVault), keyId: 0, amount: 5 });
+        emit KeysCreated({ vault: address(aliceVault), keyId: 1, amount: 5 });
         aliceVault.bindKeys({ amount: 5 });
 
         (bool binded, uint256 keyId, uint256 amount) = aliceVault.keyBindings();
         assertTrue(binded);
-        assertEq(keyId, 0);
+        assertEq(keyId, 1);
         assertEq(amount, 5);
     }
 
@@ -336,7 +336,7 @@ contract SegMintVaultManagerTest is Base {
             checkData: true,
             emitter: address(aliceVault)
         });
-        emit KeysBurned({ vault: address(aliceVault), keyId: 0, amount: 5 });
+        emit KeysBurned({ vault: address(aliceVault), keyId: 1, amount: 5 });
         aliceVault.unbindKeys();
 
         (bool binded, uint256 keyId, uint256 amount) = aliceVault.keyBindings();
@@ -355,7 +355,7 @@ contract SegMintVaultManagerTest is Base {
         startHoax(users.alice, users.alice);
 
         aliceVault.bindKeys({ amount: 5 });
-        keys.safeTransferFrom({ from: users.alice, to: users.bob, id: 0, amount: 3, data: "" });
+        keys.safeTransferFrom({ from: users.alice, to: users.bob, id: 1, amount: 3, data: "" });
 
         vm.expectRevert(Errors.InsufficientKeys.selector);
         aliceVault.unbindKeys();

@@ -54,6 +54,9 @@ contract SegMintVault is ISegMintVault, Ownable, Initializable {
         for (uint256 i = 0; i < assets.length; i++) {
             Vault.Asset memory asset = assets[i];
 
+            /// Checks: Ensure the asset being locked is not a key.
+            if (asset.addr == address(keys)) revert Errors.CantLockKeys();
+
             /// forgefmt: disable-next-item
             if (asset.class == Class.ERC_20) {
                 IERC20(asset.addr).safeTransferFrom({

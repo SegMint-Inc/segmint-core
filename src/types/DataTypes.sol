@@ -87,3 +87,28 @@ library Keys {
         uint256 amount;
     }
 }
+
+library KeyExchange { }
+
+library VaultSingle {
+    enum SingleClass {
+        NONE,
+        ERC_721,
+        ERC_1155
+    }
+
+    /**
+     * Struct encapsulating the parameters for vault lock and unlock functions.
+     * @param class Enum defining the class of asset.
+     * @param addr Contract address of the asset.
+     * @param tokenId Unique token identifier, only applies to ERC-721/1155 assets.
+     * @param amount The amount of asset being held.
+     * @dev For ERC-721 tokens, the amount will always be 1.
+     */
+    struct Asset {
+        SingleClass class;
+        address addr;
+        uint256 tokenId;
+        uint256 amount;
+    }
+}
