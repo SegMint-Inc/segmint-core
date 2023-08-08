@@ -24,6 +24,13 @@ interface ISegMintVaultManager {
     event VaultCreated(address indexed user, address indexed vault);
 
     /**
+     * Emitted when a new safe is created.
+     * @param user Address of the account that created the safe.
+     * @param safe Address of the newly created safe.
+     */
+    event SafeCreated(address indexed user, address indexed safe);
+
+    /**
      * Emitted when a new implementation address for {SegMintVaultManager} has been proposed.
      * @param admin The admin address that proposed the upgrade.
      * @param implementation The newly proposed implementation address.
@@ -63,7 +70,9 @@ interface ISegMintVaultManager {
     /**
      * Function used upon upgrade to initialize the appropriate storage variables.
      * @param admin_ Address of the new admin.
-     * @param vaultImplementation_ Address of vault implementation.
+     * @param vaultImplementation_ Address of {SegMintVault} implementation.
+     * @param vaultSingleImplementation_ Address of {SegMintVaultSingle} implementation.
+     * @param safeImplementation_ Address of {SegMintSafe} implementation.
      * @param signerModule_ Address of {SegMintSignerModule} contract.
      * @param kycRegistry_ Address of {SegMintKYCRegistry} contract.
      * @param keys_ Address of {SegMintKeys} contract.
@@ -71,6 +80,8 @@ interface ISegMintVaultManager {
     function initialize(
         address admin_,
         address vaultImplementation_,
+        address vaultSingleImplementation_,
+        address safeImplementation_,
         ISegMintSignerModule signerModule_,
         ISegMintKYCRegistry kycRegistry_,
         ISegMintKeys keys_
@@ -87,6 +98,20 @@ interface ISegMintVaultManager {
      * @param account Account to view associated vaults for.
      */
     function getVaults(address account) external view returns (address[] memory);
+
+    /**
+     * Function used to create a new instance of {SegMintSafe}.
+     * @param signature Signed message digest.
+     * @param signees Array of addresses that will be added as signers.
+     * @param quorum Number of approvals a proposal must have before passing.
+     */
+    function createSafe(bytes calldata signature, address[] calldata signees, uint256 quorum) external;
+
+    /**
+     * Function used to view all safes created by `account`.
+     * @param account Account to view associated safe for.
+     */
+    function getSafes(address account) external view returns (address[] memory);
 
     /**
      * Function used to propose an upgrade to the implementation address of {SegMintVaultManager}.

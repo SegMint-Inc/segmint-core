@@ -30,6 +30,8 @@ contract SegMintVaultManagerTest is Base {
         newVaultManager.initialize({
             admin_: users.admin,
             vaultImplementation_: address(vaultImplementation),
+            vaultSingleImplementation_: address(vaultSingleImplementation),
+            safeImplementation_: address(safeImplementation),
             signerModule_: signerModule,
             kycRegistry_: kycRegistry,
             keys_: keys
@@ -46,6 +48,8 @@ contract SegMintVaultManagerTest is Base {
         vaultManager.initialize({
             admin_: users.eve,
             vaultImplementation_: address(vaultImplementation),
+            vaultSingleImplementation_: address(vaultSingleImplementation),
+            safeImplementation_: address(safeImplementation),
             signerModule_: signerModule,
             kycRegistry_: kycRegistry,
             keys_: keys

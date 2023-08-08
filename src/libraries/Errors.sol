@@ -63,6 +63,21 @@ library Errors {
      */
     error AddressMismatch();
 
+    /**
+     * Thrown when trying to create a safe with over the maximum number of signers.
+     */
+    error OverMaxSigners();
+
+    /**
+     * Thrown when the quorum amount is greater than the amount of signers.
+     */
+    error InvalidQuorumValue();
+
+    /**
+     * Thrown when trying to lock an asset with an invalid class type.
+     */
+    error InvalidAssetClass();
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       SEGMINT-VAULT                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -102,6 +117,39 @@ library Errors {
      */
     error InsufficientKeys();
 
+    /**
+     * Thrown when trying to lock keys into a vault.
+     */
+    error CantLockKeys();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                    SEGMINT-VAULT-SINGLE                    */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * Thrown when trying to unlock an asset that doesn't exist.
+     */
+    error NoAssetLocked();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                        SEGMINT-SAFE                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * Thrown when duplicate signers are found.
+     */
+    error DuplicateSigner();
+
+    /**
+     * Thrown when an invalid signer address is provided.
+     */
+    error InvalidSigner();
+
+    /**
+     * Thrown when a signer has expired.
+     */
+    error SignerExpired();
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                        SEGMINT-KEYS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -110,4 +158,31 @@ library Errors {
      * Thrown when trying to execute a function from an unapproved address.
      */
     error VaultNotApproved();
+
+    /**
+     * Thrown when trying to transfer frozen keys.
+     */
+    error KeysFrozen();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       SIGNER-MANAGER                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * Thrown when trying to remove a signer which brings the signer count below the quorum.
+     */
+    error RemovalBreaksQuorum();
+
+    error InvalidPointer();
+
+    error SignerNotApproved();
+
+    error InvalidCaller();
+
+    /**
+     * Thrown when trying to add a signer with an invalid expiry time.
+     */
+    error InvalidExpiryTime();
+
+    error PointerMismatch();
 }
