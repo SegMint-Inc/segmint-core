@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity ^0.8.0;
 
-import { Errors } from "./libraries/Errors.sol";
+import { ISelfAuthorized } from "./interfaces/ISelfAuthorized.sol";
 
 /**
  * @title SelfAuthorized
- * @notice From Gnosis Safe's `SelfAuthorized`.
- * https://github.com/safe-global/safe-contracts/blob/main/contracts/common/SelfAuthorized.sol
+ * @notice See documentation from {ISelfAuthorized}.
  */
 
-abstract contract SelfAuthorized {
+abstract contract SelfAuthorized is ISelfAuthorized {
     function _sanityCheck() private view {
-        /// Checks: Ensure that `msg.sender` is the caller itself.
-        if (msg.sender != address(this)) revert Errors.InvalidCaller();
+        /// Checks: Ensure that `msg.sender` is the address itself.
+        if (msg.sender != address(this)) revert CallerNotSelf();
     }
 
     modifier selfAuthorized() {
