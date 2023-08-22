@@ -147,4 +147,10 @@ interface IKeys {
      * @param keyId Unique key identifier.
      */
     function unfreezeKeys(uint256 keyId) external;
+
+    /**
+     * Function used to view the original key creator.
+     * @param keyId Unique key identifier.
+     */
+    function creatorOf(uint256 keyId) external view returns (address);
 }
