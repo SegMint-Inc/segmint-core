@@ -22,6 +22,8 @@ import { ISafe } from "../interfaces/ISafe.sol";
  * @notice See documentation for {IServiceFactory}.
  */
 
+/// TODO: Wrapper method for all creation functions handling fiat and crypto payments.
+
 contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initializable, EIP712 {
     using LibClone for address;
     using ECDSA for bytes32;
