@@ -9,13 +9,14 @@ import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
 import { IMAVault } from "./interfaces/IMAVault.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
+import { Multicall } from "./handlers/Multicall.sol";
 
 /**
  * @title MAVault - Multi Asset Vault
  * @notice See documentation for {IMAVault}.
  */
 
-contract MAVault is IMAVault, Ownable, Initializable {
+contract MAVault is IMAVault, Ownable, Multicall, Initializable {
     using SafeERC20 for IERC20;
 
     /// @dev Maximum number of movable assets in one transaction.
@@ -33,6 +34,31 @@ contract MAVault is IMAVault, Ownable, Initializable {
     function initialize(address owner_, IKeys keys_) external initializer {
         _initializeOwner(owner_);
         keys = keys_;
+    }
+
+    /**
+     * @inheritdoc Multicall
+     * NOTE: Experimental.
+     */
+    function multicall(
+        address[] calldata targets,
+        bytes[] calldata payloads
+    ) public override returns (bytes[] memory results) {
+        /// Copy key binds into memory.
+        KeyBinds memory _keyBinds = keyBinds;
+
+        /// If a vault is key binded, only the holder of all keys can unlock assets.
+        if (_keyBinds.keyId != 0) {
+            /// Checks: Ensure the caller holds the correct amount of keys.
+            uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, _keyBinds.keyId);
+            if (keysHeld != _keyBinds.amount) revert InsufficientKeys();
+        } else {
+            /// Reverts with `Unauthorized()` if caller is not the owner.
+            _checkOwner();
+        }
+
+        /// Execute payloads after checks have been made.
+        return super.multicall(targets, payloads);
     }
 
     /**
