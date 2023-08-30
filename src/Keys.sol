@@ -28,9 +28,6 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     /// Maximum number of keys that can be created for a single identifier.
     uint256 private constant _MAX_KEYS = 100;
 
-    /// Denotes the concept of a key creator, or rather the account that initially minted the keys.
-    mapping(uint256 keyId => address account) private _creators;
-
     /// Maps a key ID to an associated configuration.
     mapping(uint256 keyId => KeyConfig config) private _keyConfig;
 
@@ -45,7 +42,6 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     /// Mapping of active lends.
     mapping(address lendee => mapping(uint256 keyId => LendingTerms lendingTerm)) public activeLends;
     mapping(address vault => bool registered) public isRegistered;
-    mapping(uint256 keyId => bool frozen) public isFrozen;
 
     /// forgefmt: disable-next-item
     constructor(
@@ -88,8 +84,11 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
      * @inheritdoc IKeys
      */
     function burnKeys(address holder, uint256 keyId, uint256 amount) external {
+        /// Cache key configuration in memory.
+        KeyConfig memory keyConfig = _keyConfig[keyId];
+
         /// Checks: Ensure that frozen keys cannot be destroyed.
-        if (isFrozen[keyId]) revert KeysFrozen();
+        if (keyConfig.isFrozen) revert KeysFrozen();
 
         /// Checks: Ensure the caller is a registered vault.
         if (!isRegistered[msg.sender]) revert CallerNotRegistered();
@@ -103,8 +102,11 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
      * @inheritdoc IKeys
      */
     function lendKeys(address lendee, uint256 keyId, uint256 lendAmount, uint256 lendDuration) external {
+        /// Cache key configuration in memory.
+        KeyConfig memory keyConfig = _keyConfig[keyId];
+
         /// Checks: Ensure the key idenitifier is not frozen.
-        if (isFrozen[keyId]) revert KeysFrozen();
+        if (keyConfig.isFrozen) revert KeysFrozen();
 
         /// Checks: Ensure the lendee has valid access.
         IKYCRegistry.AccessType accessType = kycRegistry.accessType(lendee);
@@ -140,8 +142,11 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
      */
     // TODO: Check if reclaim should only be callable after a lend has expired.
     function reclaimKeys(address lendee, uint256 keyId) external {
+        /// Cache key configuration in memory.
+        KeyConfig memory keyConfig = _keyConfig[keyId];
+
         /// Checks: Ensure the key idenitifier is not frozen.
-        if (isFrozen[keyId]) revert KeysFrozen();
+        if (keyConfig.isFrozen) revert KeysFrozen();
 
         /// Cache lending terms in memory.
         LendingTerms memory lendingTerms = activeLends[lendee][keyId];
@@ -172,7 +177,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
      * @inheritdoc IKeys
      */
     function freezeKeys(uint256 keyId) external onlyRoles(_ADMIN_ROLE) {
-        isFrozen[keyId] = true;
+        _keyConfig[keyId].isFrozen = true;
 
         emit IKeys.KeyFrozen({ admin: msg.sender, keyId: keyId });
     }
@@ -181,7 +186,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
      * @inheritdoc IKeys
      */
     function unfreezeKeys(uint256 keyId) external onlyRoles(_ADMIN_ROLE) {
-        isFrozen[keyId] = false;
+        _keyConfig[keyId].isFrozen = false;
 
         emit IKeys.KeyUnfrozen({ admin: msg.sender, keyId: keyId });
     }
@@ -209,7 +214,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         if (from != sender && !isApprovedForAll(from, sender)) revert ERC1155MissingApprovalForAll(sender, from);
 
         /// Checks: Ensure the key idenitifier is not frozen.
-        if (isFrozen[id]) revert KeysFrozen();
+        if (_keyConfig[id].isFrozen) revert KeysFrozen();
 
         /// Checks: Ensure that `to` has a valid access type.
         IKYCRegistry.AccessType accessType = kycRegistry.accessType(to);
@@ -260,7 +265,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
      * @inheritdoc IKeys
      */
     function creatorOf(uint256 keyId) external view returns (address) {
-        return _creators[keyId];
+        return _keyConfig[keyId].creator;
     }
 
     function getKeyConfig(uint256 keyId) external view returns (KeyConfig memory) {

@@ -20,7 +20,8 @@ contract SAVault is ISAVault, Initializable {
     /// Encapsulates the singular locked asset.
     Asset public lockedAsset;
 
-    /// Key ID associated with this vault.
+    /// The key identifier associated with this vault. Single asset vaults should always be initialized
+    /// with a non-zero `boundKeyId` value.
     uint256 public boundKeyId;
 
     /**
@@ -34,7 +35,6 @@ contract SAVault is ISAVault, Initializable {
         if (asset_.token == address(keys)) revert CannotLockKeys();
 
         /// Checks: Ensure the asset being locked has a valid type.
-        /// @dev Single asset vaults may only contain ERC721 or ERC1155 tokens.
         if (asset_.class == AssetClass.NONE || asset_.class == AssetClass.ERC20) revert InvalidAssetType();
 
         /// Checks: Ensure the asset has a non-zero amount value.

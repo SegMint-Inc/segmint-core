@@ -115,7 +115,7 @@ contract MAVault is IMAVault, Ownable, Multicall, Initializable {
         if (boundKeyId != 0) revert KeysAlreadyBinded();
 
         /// Mint the desired amount of keys to the owner.
-        uint256 keyId = keys.createKeys({ amount: keyAmount, receiver: msg.sender, vaultType: VaultType.MULTI });
+        boundKeyId = keys.createKeys({ amount: keyAmount, receiver: msg.sender, vaultType: VaultType.MULTI });
     }
 
     /**
