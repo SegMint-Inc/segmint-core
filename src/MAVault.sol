@@ -10,7 +10,7 @@ import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
 import { IMAVault } from "./interfaces/IMAVault.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
 import { Multicall } from "./handlers/Multicall.sol";
-import { AssetClass, Asset, VaultType, KeyBinds } from "./types/DataTypes.sol";
+import { AssetClass, Asset, VaultType, KeyConfig } from "./types/DataTypes.sol";
 
 /**
  * @title MAVault - Multi Asset Vault
@@ -23,8 +23,8 @@ contract MAVault is IMAVault, Ownable, Multicall, Initializable {
     /// Interface of Keys contract.
     IKeys public keys;
 
-    /// Associated key bindings.
-    KeyBinds public keyBinds;
+    /// Key ID associated with this vault.
+    uint256 public boundKeyId;
 
     /**
      * @inheritdoc IMAVault
@@ -44,13 +44,13 @@ contract MAVault is IMAVault, Ownable, Multicall, Initializable {
         if (assets.length == 0) revert ZeroAssetAmount();
 
         /// Copy key binds into memory.
-        KeyBinds memory _keyBinds = keyBinds;
+        KeyConfig memory keyConfig = keys.getKeyConfig(boundKeyId);
 
         /// If a vault is key binded, only the holder of all keys can unlock assets.
-        if (_keyBinds.keyId != 0) {
+        if (boundKeyId != 0) {
             /// Checks: Ensure the caller holds the correct amount of keys.
-            uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, _keyBinds.keyId);
-            if (keysHeld != _keyBinds.amount) revert InsufficientKeys();
+            uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, boundKeyId);
+            if (keysHeld != keyConfig.supply) revert InsufficientKeys();
         } else {
             /// Reverts with `Unauthorized()` if caller is not the owner.
             _checkOwner();
@@ -91,13 +91,13 @@ contract MAVault is IMAVault, Ownable, Multicall, Initializable {
      */
     function unlockNativeToken(uint256 amount, address receiver) external {
         /// Copy key bindings struct into memory to avoid SLOADs.
-        KeyBinds memory _keyBinds = keyBinds;
+        KeyConfig memory keyConfig = keys.getKeyConfig(boundKeyId);
 
         /// If a vault is key binded, only the holder of all keys can unlock the native token.
-        if (_keyBinds.keyId != 0) {
+        if (boundKeyId != 0) {
             /// Checks: Ensure the caller holds the correct amount of keys.
-            uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, _keyBinds.keyId);
-            if (keysHeld != _keyBinds.amount) revert InsufficientKeys();
+            uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, boundKeyId);
+            if (keysHeld != keyConfig.supply) revert InsufficientKeys();
         } else {
             /// Reverts with `Unauthorized()` if caller is not the owner.
             _checkOwner();
@@ -112,34 +112,28 @@ contract MAVault is IMAVault, Ownable, Multicall, Initializable {
      */
     function bindKeys(uint256 keyAmount) external onlyOwner {
         /// Checks: Ensure the vault is not already key binded.
-        if (keyBinds.keyId != 0) revert KeysAlreadyBinded();
+        if (boundKeyId != 0) revert KeysAlreadyBinded();
 
         /// Mint the desired amount of keys to the owner.
-        uint256 keyId = keys.createKeys({ amount: keyAmount, receiver: msg.sender });
-
-        /// Update the associated key bindings.
-        keyBinds = KeyBinds({ keyId: keyId, amount: keyAmount });
+        uint256 keyId = keys.createKeys({ amount: keyAmount, receiver: msg.sender, vaultType: VaultType.MULTI });
     }
 
     /**
      * @inheritdoc IMAVault
      */
     function unbindKeys() external {
-        /// Cache key bindings in memory.
-        KeyBinds memory _keyBinds = keyBinds;
-
         /// Checks: Ensure the vault has keys binded.
-        if (_keyBinds.keyId == 0) revert NoKeysBinded();
+        if (boundKeyId == 0) revert NoKeysBinded();
+
+        /// Cache key bindings in memory.
+        KeyConfig memory keyConfig = keys.getKeyConfig(boundKeyId);
 
         /// Checks: Ensure the caller holds the full amount of keys.
-        uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, _keyBinds.keyId);
-        if (keysHeld != _keyBinds.amount) revert InsufficientKeys();
-
-        /// Clear key bindings.
-        keyBinds = KeyBinds({ keyId: 0, amount: 0 });
+        uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, boundKeyId);
+        if (keysHeld != keyConfig.supply) revert InsufficientKeys();
 
         /// Burn the associated keys.
-        keys.burnKeys(msg.sender, _keyBinds.keyId, _keyBinds.amount);
+        keys.burnKeys(msg.sender, boundKeyId, keyConfig.supply);
     }
 
     /**

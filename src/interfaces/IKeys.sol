@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import { VaultType, KeyBinds } from "../types/DataTypes.sol";
+import { VaultType, KeyConfig } from "../types/DataTypes.sol";
 
 /**
  * @title IKeys
@@ -105,8 +105,9 @@ interface IKeys {
      * Function used to create keys and return the key ID associated with them.
      * @param amount Number of keys being created.
      * @param receiver Address receiving the newly created keys.
+     * @param vaultType Type of vault that keys are being associated with.
      */
-    function createKeys(uint256 amount, address receiver) external returns (uint256);
+    function createKeys(uint256 amount, address receiver, VaultType vaultType) external returns (uint256);
 
     /**
      * Function used to burn keys.
@@ -157,8 +158,8 @@ interface IKeys {
     function creatorOf(uint256 keyId) external view returns (address);
 
     /**
-     * Function used to view the bindings associated with a given vault.
-     * @param vault Vault address.
+     * Function used to view the config associated with a given key ID.
+     * @param keyId Unique key identifier.
      */
-    // function keyBinds(address vault) external view returns (KeyBinds memory);
+    function getKeyConfig(uint256 keyId) external view returns (KeyConfig memory);
 }

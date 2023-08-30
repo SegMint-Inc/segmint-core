@@ -35,12 +35,9 @@ enum VaultType {
     MULTI
 }
 
-/**
- * Struct encapsulating a the key bindings associated with a vault.
- * @param keyId Unique key identifier.
- * @param amount Number of keys associated with a vault.
- */
-struct KeyBinds {
-    uint256 keyId;
-    uint256 amount;
+struct KeyConfig {
+    address creator;
+    VaultType vaultType;
+    bool isFrozen;
+    uint8 supply;
 }

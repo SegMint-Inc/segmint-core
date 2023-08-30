@@ -5,7 +5,7 @@ import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
 import { ERC1155 } from "@openzeppelin/token/ERC1155/ERC1155.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
 import { IKYCRegistry } from "./interfaces/IKYCRegistry.sol";
-import { VaultType, KeyBinds } from "./types/DataTypes.sol";
+import { VaultType, KeyConfig } from "./types/DataTypes.sol";
 
 /**
  * @title Keys
@@ -16,7 +16,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     /// @dev keccak256("_ADMIN_ROLE")
     uint256 private constant _ADMIN_ROLE = 0x4a4566510e9351b52a3e4f6550fc68d8577350bec07d7a69da4906b0efe533bc;
 
-    /// @dev keccak256("FACTORY_ROLE")
+    /// @dev keccak256("_FACTORY_ROLE")
     uint256 private constant _FACTORY_ROLE = 0xee961466e472802bc53e28ea01e7875c1285a5d1f1992f7b1aafc450304db8bc;
 
     /// Minimum duration of a lend.
@@ -31,7 +31,8 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     /// Denotes the concept of a key creator, or rather the account that initially minted the keys.
     mapping(uint256 keyId => address account) private _creators;
 
-    mapping(address vault => KeyBinds bindings) private _keyBinds;
+    /// Maps a key ID to an associated configuration.
+    mapping(uint256 keyId => KeyConfig config) private _keyConfig;
 
     /// Interface for KYC registry.
     IKYCRegistry public kycRegistry;
@@ -58,11 +59,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         kycRegistry = kycRegistry_;
     }
 
-    /**
-     * @inheritdoc IKeys
-     */
-    /// TODO: Unregister a vault after keys have been created.
-    function createKeys(uint256 amount, address receiver) external returns (uint256) {
+    function createKeys(uint256 amount, address receiver, VaultType vaultType) external returns (uint256) {
         /// Checks: Ensure a valid amount of keys are being created.
         if (amount == 0 || amount > _MAX_KEYS) revert InvalidKeyAmount();
 
@@ -73,11 +70,13 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         /// is done to ensure that keys with an ID of 0 are never created.
         uint256 keyId = ++keysCreated;
 
-        /// Acknowledge the `receiver` as the creator of this particular key ID.
-        _creators[keyId] = receiver;
-
         /// Update the key bindings associated with the vault.
-        // keyBinds[msg.sender] = KeyBinds({ vaultType: vaultType, isFrozen: false, keyId: keyId, amount: amount });
+        _keyConfig[keyId] = KeyConfig({
+            creator: receiver,
+            vaultType: vaultType,
+            isFrozen: false,
+            supply: uint8(amount)
+        });
 
         /// Mint keys to `receiver`.
         _mint({ to: receiver, id: keyId, value: amount, data: "" });
@@ -262,6 +261,10 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
      */
     function creatorOf(uint256 keyId) external view returns (address) {
         return _creators[keyId];
+    }
+
+    function getKeyConfig(uint256 keyId) external view returns (KeyConfig memory) {
+        return _keyConfig[keyId];
     }
 
     /**

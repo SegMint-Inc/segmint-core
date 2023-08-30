@@ -27,7 +27,7 @@ import { ISAVault } from "../src/interfaces/ISAVault.sol";
 import { ISafe } from "../src/interfaces/ISafe.sol";
 import { IWETH } from "../src/interfaces/IWETH.sol";
 
-import { AssetClass, Asset, KeyBinds } from "../src/types/DataTypes.sol";
+import { AssetClass, Asset } from "../src/types/DataTypes.sol";
 
 import { DemoERC20 } from "./tokens/DemoERC20.sol";
 import { DemoERC721 } from "./tokens/DemoERC721.sol";

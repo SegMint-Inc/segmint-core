@@ -6,7 +6,7 @@ import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
 import { ISAVault } from "./interfaces/ISAVault.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
-import { AssetClass, Asset, VaultType, KeyBinds } from "./types/DataTypes.sol";
+import { AssetClass, Asset, VaultType, KeyConfig } from "./types/DataTypes.sol";
 
 /**
  * @title SAVault - Single Asset Vault
@@ -20,8 +20,8 @@ contract SAVault is ISAVault, Initializable {
     /// Encapsulates the singular locked asset.
     Asset public lockedAsset;
 
-    /// Associated key bindings.
-    KeyBinds public keyBinds;
+    /// Key ID associated with this vault.
+    uint256 public boundKeyId;
 
     /**
      * @inheritdoc ISAVault
@@ -46,11 +46,8 @@ contract SAVault is ISAVault, Initializable {
         lockedAsset = asset_;
         keys = keys_;
 
-        uint256 keyId = keys.createKeys({ amount: keyAmount_, receiver: receiver_ });
-        keyBinds = KeyBinds({
-            keyId: keyId,
-            amount: keyAmount_
-        });
+        /// Create the keys and mint them to the receiver.
+        boundKeyId = keys.createKeys({ amount: keyAmount_, receiver: receiver_, vaultType: VaultType.SINGLE });
     }
 
     /**
@@ -65,20 +62,17 @@ contract SAVault is ISAVault, Initializable {
         if (_lockedAsset.class == AssetClass.NONE) revert NoAssetLocked();
 
         /// Copy `KeyBinds` struct into memory.
-        KeyBinds memory _keyBinds = keyBinds;
+        KeyConfig memory keyConfig = keys.getKeyConfig(boundKeyId);
 
         /// Checks: Ensure the caller holds all the keys.
-        uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, _keyBinds.keyId);
-        if (keysHeld != _keyBinds.amount) revert InsufficientKeys();
+        uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, boundKeyId);
+        if (keysHeld != keyConfig.supply) revert InsufficientKeys();
 
         /// Clear the locked asset.
         lockedAsset = Asset({ class: AssetClass.NONE, token: address(0), identifier: 0, amount: 0 });
 
-        /// Clear the associated key bindings.
-        keyBinds = KeyBinds({ keyId: 0, amount: 0 });
-
         /// Burn the keys associated with the vault.
-        keys.burnKeys(msg.sender, _keyBinds.keyId, _keyBinds.amount);
+        keys.burnKeys(msg.sender, boundKeyId, keyConfig.supply);
 
         /// Transfer the locked asset to the receiver.
         /// forgefmt: disable-next-item
