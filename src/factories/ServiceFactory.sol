@@ -156,7 +156,7 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
         }
 
         /// Initialize the newly created clone.
-        ISAVault(newVault).initialize({ asset_: asset, keys_: keys, keyAmount_: keyAmount, receiver_: msg.sender });
+        ISAVault(newVault).initialize({ _asset: asset, _keys: keys, _keyAmount: keyAmount, _receiver: msg.sender });
     }
 
     /**

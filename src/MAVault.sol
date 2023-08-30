@@ -23,7 +23,9 @@ contract MAVault is IMAVault, Ownable, Multicall, Initializable {
     /// Interface of Keys contract.
     IKeys public keys;
 
-    /// Key ID associated with this vault.
+    /**
+     * @inheritdoc IMAVault
+     */
     uint256 public boundKeyId;
 
     /**
@@ -36,21 +38,21 @@ contract MAVault is IMAVault, Ownable, Multicall, Initializable {
 
     /**
      * @inheritdoc IMAVault
-     * @dev Off-chain indexer will keep track of assets being locked and unlocked from a
+     * @dev Off-chain indexer will keep track of assets being locked into a
      * vault using the transfer events emitted from each assets token standard.
      */
     function unlockAssets(Asset[] calldata assets, address receiver) external {
         /// Checks: Ensure a non-zero amount of assets has been specified.
         if (assets.length == 0) revert ZeroAssetAmount();
 
-        /// Copy key binds into memory.
-        KeyConfig memory keyConfig = keys.getKeyConfig(boundKeyId);
-
         /// If a vault is key binded, only the holder of all keys can unlock assets.
         if (boundKeyId != 0) {
-            /// Checks: Ensure the caller holds the correct amount of keys.
+            /// Get the total number of keys in circulation.
+            uint256 keySupply = keys.getKeyConfig(boundKeyId).supply;
             uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, boundKeyId);
-            if (keysHeld != keyConfig.supply) revert InsufficientKeys();
+
+            /// Checks: Ensure the caller holds the correct amount of keys.
+            if (keysHeld != keySupply) revert InsufficientKeys();
         } else {
             /// Reverts with `Unauthorized()` if caller is not the owner.
             _checkOwner();
@@ -90,14 +92,14 @@ contract MAVault is IMAVault, Ownable, Multicall, Initializable {
      * @inheritdoc IMAVault
      */
     function unlockNativeToken(uint256 amount, address receiver) external {
-        /// Copy key bindings struct into memory to avoid SLOADs.
-        KeyConfig memory keyConfig = keys.getKeyConfig(boundKeyId);
-
         /// If a vault is key binded, only the holder of all keys can unlock the native token.
         if (boundKeyId != 0) {
-            /// Checks: Ensure the caller holds the correct amount of keys.
+            /// Get the total number of keys in circulation.
+            uint256 keySupply = keys.getKeyConfig(boundKeyId).supply;
             uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, boundKeyId);
-            if (keysHeld != keyConfig.supply) revert InsufficientKeys();
+            
+            /// Checks: Ensure the caller holds the correct amount of keys.
+            if (keysHeld != keySupply) revert InsufficientKeys();
         } else {
             /// Reverts with `Unauthorized()` if caller is not the owner.
             _checkOwner();
@@ -125,15 +127,22 @@ contract MAVault is IMAVault, Ownable, Multicall, Initializable {
         /// Checks: Ensure the vault has keys binded.
         if (boundKeyId == 0) revert NoKeysBinded();
 
-        /// Cache key bindings in memory.
-        KeyConfig memory keyConfig = keys.getKeyConfig(boundKeyId);
+        /// Get the total number of keys in circulation.
+        uint256 keySupply = keys.getKeyConfig(boundKeyId).supply;
 
         /// Checks: Ensure the caller holds the full amount of keys.
         uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, boundKeyId);
-        if (keysHeld != keyConfig.supply) revert InsufficientKeys();
+        if (keysHeld != keySupply) revert InsufficientKeys();
 
         /// Burn the associated keys.
-        keys.burnKeys(msg.sender, boundKeyId, keyConfig.supply);
+        keys.burnKeys(msg.sender, boundKeyId, keySupply);
+    }
+
+    /**
+     * @inheritdoc IMAVault
+     */
+    function getKeyConfig() external view returns (KeyConfig memory) {
+        return keys.getKeyConfig(boundKeyId);
     }
 
     /**

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import { IKeys } from "./IKeys.sol";
-import { Asset } from "../types/DataTypes.sol";
+import { Asset, KeyConfig } from "../types/DataTypes.sol";
 
 /**
  * @title ISAVault
@@ -49,17 +49,27 @@ interface ISAVault {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * Function used to initialize vault storage.
-     * @param asset_ The asset being locked.
-     * @param keys_ Keys contract address.
-     * @param keyAmount_ Number of keys being binded.
-     * @param receiver_ Receiving address of the newly created keys.
+     * Function used to return the key ID associated with a vault.
      */
-    function initialize(Asset calldata asset_, IKeys keys_, uint256 keyAmount_, address receiver_) external;
+    function boundKeyId() external view returns (uint256);
+
+    /**
+     * Function used to initialize vault storage.
+     * @param _asset Defines the asset being locked.
+     * @param _keys Keys contract address.
+     * @param _keyAmount Number of keys being binded.
+     * @param _receiver Receiving address of the newly created keys.
+     */
+    function initialize(Asset calldata _asset, IKeys _keys, uint256 _keyAmount, address _receiver) external;
 
     /**
      * Function used to unlock the underlying asset within a vault.
      * @param receiver Address of the account receiving the unlocked asset.
      */
     function unlockAsset(address receiver) external;
+
+    /**
+     * Function used to view the key config associated the vaults key ID.
+     */
+    function getKeyConfig() external view returns (KeyConfig memory);
 }

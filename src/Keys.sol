@@ -71,6 +71,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
             creator: receiver,
             vaultType: vaultType,
             isFrozen: false,
+            isBurned: false,
             supply: uint8(amount)
         });
 
@@ -92,6 +93,9 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
 
         /// Checks: Ensure the caller is a registered vault.
         if (!isRegistered[msg.sender]) revert CallerNotRegistered();
+
+        /// Acknowledge that the keys have been burned.
+        _keyConfig[keyId].isBurned = true;
 
         /// The `amount` does not require sanitization as the vault itself will keep track of
         /// how many keys are associated with it.

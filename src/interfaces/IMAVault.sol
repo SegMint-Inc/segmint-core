@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import { IKeys } from "./IKeys.sol";
-import { Asset } from "../types/DataTypes.sol";
+import { Asset, KeyConfig } from "../types/DataTypes.sol";
 
 /**
  * @title IMAVault
@@ -79,4 +79,14 @@ interface IMAVault {
      * Function used to unbind keys from the vault.
      */
     function unbindKeys() external;
+
+    /**
+     * Function used to view the key config associated the vaults key ID.
+     */
+    function getKeyConfig() external view returns (KeyConfig memory);
+
+    /**
+     * Function used to return the key ID associated with a vault.
+     */
+    function boundKeyId() external view returns (uint256);
 }

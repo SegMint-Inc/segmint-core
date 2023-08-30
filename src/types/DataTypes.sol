@@ -39,5 +39,6 @@ struct KeyConfig {
     address creator;
     VaultType vaultType;
     bool isFrozen;
+    bool isBurned;
     uint8 supply;
 }
