@@ -10,7 +10,6 @@ pragma solidity ^0.8.0;
  */
 
 abstract contract Multicall {
-
     /**
      * Thrown when the targets array differs in size to the data array.
      */
@@ -33,10 +32,11 @@ abstract contract Multicall {
      * @dev This function is deliberately made non-payable to guard against double-spending.
      * Ref: https://www.paradigm.xyz/2021/08/two-rights-might-make-a-wrong
      */
-    function multicall(
-        address[] calldata targets,
-        bytes[] calldata payloads
-    ) public virtual returns (bytes[] memory results) {
+    function multicall(address[] calldata targets, bytes[] calldata payloads)
+        public
+        virtual
+        returns (bytes[] memory results)
+    {
         /// Checks: Ensure the targets array length matches the payloads array length.
         if (targets.length != payloads.length) revert ArrayLengthMismatch();
 
@@ -54,5 +54,4 @@ abstract contract Multicall {
 
         return results;
     }
-
 }

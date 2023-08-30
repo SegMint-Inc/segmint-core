@@ -42,7 +42,7 @@ contract KYCRegistry is IKYCRegistry, OwnableRoles {
         /// Checks: Ensure the access type is not `AccessType.BLOCKED` on initialisation.
         if (newAccessType == AccessType.BLOCKED) revert InvalidAccessType();
 
-        bytes32 digest = keccak256(abi.encodePacked(msg.sender, newAccessType));
+        bytes32 digest = keccak256(abi.encodePacked(msg.sender, deadline, newAccessType));
         address recoveredSigner = digest.toEthSignedMessageHash().recover(signature);
 
         /// Checks: Ensure the signature provided has been signed by the registered signer.
@@ -71,7 +71,7 @@ contract KYCRegistry is IKYCRegistry, OwnableRoles {
     /**
      * @inheritdoc IKYCRegistry
      */
-    function setSignerModule(ISignerRegistry newSignerModule) external onlyRoles(_ADMIN_ROLE) {
-        signerRegistry = newSignerModule;
+    function setSignerRegistry(ISignerRegistry newSignerRegistry) external onlyRoles(_ADMIN_ROLE) {
+        signerRegistry = newSignerRegistry;
     }
 }

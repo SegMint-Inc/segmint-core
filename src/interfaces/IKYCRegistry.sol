@@ -88,9 +88,9 @@ interface IKYCRegistry {
 
     /**
      * Function used to set a new signer module address.
-     * @param newSignerModule The new signer module address.
+     * @param newSignerRegistry The new signer registry address.
      */
-    function setSignerModule(ISignerRegistry newSignerModule) external;
+    function setSignerRegistry(ISignerRegistry newSignerRegistry) external;
 
     /**
      * Function used to view the access type of an address

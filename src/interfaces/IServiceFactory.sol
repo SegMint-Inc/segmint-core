@@ -5,6 +5,7 @@ import { ISignerRegistry } from "./ISignerRegistry.sol";
 import { IKYCRegistry } from "./IKYCRegistry.sol";
 import { ISAVault } from "./ISAVault.sol";
 import { IKeys } from "./IKeys.sol";
+import { Asset } from "../types/DataTypes.sol";
 
 /**
  * @title IServiceFactory
@@ -75,8 +76,7 @@ interface IServiceFactory {
      * @param keyAmount Number of keys to create and bind.
      * @param signature Signed message digest.
      */
-    function createSingleAssetVault(ISAVault.SAVAsset calldata asset, uint256 keyAmount, bytes calldata signature)
-        external;
+    function createSingleAssetVault(Asset calldata asset, uint256 keyAmount, bytes calldata signature) external;
 
     /**
      * Function used to create a safe.

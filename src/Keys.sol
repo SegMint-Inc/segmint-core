@@ -5,6 +5,7 @@ import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
 import { ERC1155 } from "@openzeppelin/token/ERC1155/ERC1155.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
 import { IKYCRegistry } from "./interfaces/IKYCRegistry.sol";
+import { VaultType, KeyBinds } from "./types/DataTypes.sol";
 
 /**
  * @title Keys
@@ -24,8 +25,13 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     /// Maximum duration of a lend.
     uint256 private constant _MAX_LEND_DURATION = 365 days;
 
+    /// Maximum number of keys that can be created for a single identifier.
+    uint256 private constant _MAX_KEYS = 100;
+
     /// Denotes the concept of a key creator, or rather the account that initially minted the keys.
     mapping(uint256 keyId => address account) private _creators;
+
+    mapping(address vault => KeyBinds bindings) private _keyBinds;
 
     /// Interface for KYC registry.
     IKYCRegistry public kycRegistry;
@@ -35,6 +41,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     /// Counts the number of unique keys created.
     uint256 public keysCreated;
 
+    /// Mapping of active lends.
     mapping(address lendee => mapping(uint256 keyId => LendingTerms lendingTerm)) public activeLends;
     mapping(address vault => bool registered) public isRegistered;
     mapping(uint256 keyId => bool frozen) public isFrozen;
@@ -43,34 +50,34 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     constructor(
         address admin_,
         string memory uri_,
-        IKYCRegistry kycRegistry_,
-        address keyExchange_
+        IKYCRegistry kycRegistry_
     ) ERC1155(uri_) {
         _initializeOwner(msg.sender);
         _grantRoles(admin_, _ADMIN_ROLE);
 
         kycRegistry = kycRegistry_;
-        keyExchange = keyExchange_;
     }
 
     /**
      * @inheritdoc IKeys
      */
-    /// TODO: Discuss key creation limits as one needs to be imposed.
     /// TODO: Unregister a vault after keys have been created.
     function createKeys(uint256 amount, address receiver) external returns (uint256) {
-        /// Checks: Ensure a non-zero amount of keys are being created.
-        if (amount == 0) revert ZeroKeyAmount();
+        /// Checks: Ensure a valid amount of keys are being created.
+        if (amount == 0 || amount > _MAX_KEYS) revert InvalidKeyAmount();
 
         /// Checks: Ensure the caller is a registered vault or has the factory role.
         if (!isRegistered[msg.sender]) revert CallerNotRegistered();
 
         /// Increment the number of keys created and push this value to the stack. The pre-increment
-        /// is done to ensure that keys with an ID of 0 are never valid nor created.
+        /// is done to ensure that keys with an ID of 0 are never created.
         uint256 keyId = ++keysCreated;
 
-        /// Acknowledge the `receiver` as the master owner of this particular key ID.
+        /// Acknowledge the `receiver` as the creator of this particular key ID.
         _creators[keyId] = receiver;
+
+        /// Update the key bindings associated with the vault.
+        // keyBinds[msg.sender] = KeyBinds({ vaultType: vaultType, isFrozen: false, keyId: keyId, amount: amount });
 
         /// Mint keys to `receiver`.
         _mint({ to: receiver, id: keyId, value: amount, data: "" });
@@ -108,7 +115,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         if (activeLends[lendee][keyId].lender != address(0)) revert HasActiveLend();
 
         /// Checks: Ensure that a valid amount of keys are being lended.
-        if (lendAmount == 0) revert ZeroKeyAmount();
+        if (lendAmount == 0 || lendAmount > _MAX_KEYS) revert InvalidKeyAmount();
 
         /// Checks: Ensure a valid lend duration has been provided.
         if (lendDuration < _MIN_LEND_DURATION || lendDuration > _MAX_LEND_DURATION) revert InvalidLendDuration();
@@ -178,6 +185,13 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         isFrozen[keyId] = false;
 
         emit IKeys.KeyUnfrozen({ admin: msg.sender, keyId: keyId });
+    }
+
+    /**
+     * Function used to set the key exchange address.
+     */
+    function setKeyExchange(address _keyExchange) external onlyRoles(_ADMIN_ROLE) {
+        keyExchange = _keyExchange;
     }
 
     /**
@@ -266,5 +280,4 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     function setURI(string calldata newURI) external onlyRoles(_ADMIN_ROLE) {
         _setURI(newURI);
     }
-
 }

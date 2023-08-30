@@ -91,6 +91,18 @@ interface IKeyExchange {
 
     error NativeTransferFailed();
 
+    error FeeExceedsMaximum();
+
+    /**
+     * Thrown when a parameter array has a zero length.
+     */
+    error ZeroLengthArray();
+
+    /**
+     * Thrown when a non-open bid is trying to be cancelled.
+     */
+    error CannotCancelBid();
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           EVENTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -98,6 +110,8 @@ interface IKeyExchange {
     event OrderIsFilled();
 
     event OrderCancelled(bytes32 orderHash);
+
+    event BidCancelled(bytes32 bidHash);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ENUMS                            */
@@ -158,9 +172,23 @@ interface IKeyExchange {
         uint256 endTime;
     }
 
+    /// Bid(address maker,uint256 price,uint256 keyId,uint256 amount,uint256 startTime,uint256 endTime)
+    struct Bid {
+        address maker;
+        uint256 price;
+        uint256 keyId;
+        uint256 amount;
+        uint256 startTime;
+        uint256 endTime;
+    }
+
     struct OrderParams {
         Order order;
         bytes signature;
     }
 
+    struct BidParams {
+        Bid bid;
+        bytes signature;
+    }
 }
