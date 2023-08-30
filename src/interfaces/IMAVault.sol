@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import { IKeys } from "./IKeys.sol";
+import { Asset } from "../types/DataTypes.sol";
 
 /**
  * @title IMAVault
@@ -17,11 +18,6 @@ interface IMAVault {
      * Thrown when trying to unlock a zero amount of assets.
      */
     error ZeroAssetAmount();
-
-    /**
-     * Thrown when trying to unlock an amount of assets that exceeds the movement limit in one transaction.
-     */
-    error OverMovementLimit();
 
     /**
      * Thrown when trying to unlock an asset from a MAV without holding all keys.
@@ -49,49 +45,6 @@ interface IMAVault {
     error NoneAssetType();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                           ENUMS                            */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
-    /**
-     * Enum encapsulating the types of assets that can be stored in a multi-asset vault.
-     */
-    enum MAVAssetClass {
-        NONE,
-        ERC20,
-        ERC721,
-        ERC1155
-    }
-
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                          STRUCTS                           */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
-    /**
-     * Struct encapsulating the parameters for multi-asset vault creation.
-     * @param class Enum defining the class of the asset.
-     * @param token Contract address of the asset.
-     * @param identifier Unique token identifier.
-     * @param amount The amount of the asset being locked.
-     * @dev For ERC721 tokens, the `amount` should always be 1.
-     */
-    struct MAVAsset {
-        MAVAssetClass class;
-        address token;
-        uint256 identifier;
-        uint256 amount;
-    }
-
-    /**
-     * Struct encapsulating a the key bindings associated with a vault.
-     * @param keyId Unique key identifier.
-     * @param amount Number of keys associated with a vault.
-     */
-    struct KeyBinds {
-        uint256 keyId;
-        uint256 amount;
-    }
-
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                         FUNCTIONS                          */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
@@ -107,7 +60,7 @@ interface IMAVault {
      * @param assets Array of assets to lock.
      * @param receiver Receiving address of the assets being unlocked.
      */
-    function unlockAssets(MAVAsset[] calldata assets, address receiver) external;
+    function unlockAssets(Asset[] calldata assets, address receiver) external;
 
     /**
      * Function used to unlock the Native Token from the vault.

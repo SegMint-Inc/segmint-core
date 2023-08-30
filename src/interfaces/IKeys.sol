@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
+import { VaultType, KeyBinds } from "../types/DataTypes.sol";
+
 /**
  * @title IKeys
  * @notice This contract implements the ERC-1155 keys contract.
@@ -42,9 +44,9 @@ interface IKeys {
     error ZeroKeyTransfer();
 
     /**
-     * Thrown when trying to create a zero amount of keys.
+     * Thrown when trying to create an invalid number of keys.
      */
-    error ZeroKeyAmount();
+    error InvalidKeyAmount();
 
     /**
      * Thrown when trying to transfer a key that has been provided on a lend.
@@ -147,4 +149,16 @@ interface IKeys {
      * @param keyId Unique key identifier.
      */
     function unfreezeKeys(uint256 keyId) external;
+
+    /**
+     * Function used to view the original key creator.
+     * @param keyId Unique key identifier.
+     */
+    function creatorOf(uint256 keyId) external view returns (address);
+
+    /**
+     * Function used to view the bindings associated with a given vault.
+     * @param vault Vault address.
+     */
+    // function keyBinds(address vault) external view returns (KeyBinds memory);
 }

@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
 import { ECDSA } from "solady/src/utils/ECDSA.sol";
 import { LibClone } from "solady/src/utils/LibClone.sol";
-import { EIP712 } from "solady/src/utils/EIP712.sol";
 import { Initializable } from "@openzeppelin/proxy/utils/Initializable.sol";
 import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
@@ -16,13 +15,16 @@ import { IKYCRegistry } from "../interfaces/IKYCRegistry.sol";
 import { ISignerRegistry } from "../interfaces/ISignerRegistry.sol";
 import { IKeys } from "../interfaces/IKeys.sol";
 import { ISafe } from "../interfaces/ISafe.sol";
+import { Asset, AssetClass } from "../types/DataTypes.sol";
 
 /**
  * @title ServiceFactory
  * @notice See documentation for {IServiceFactory}.
  */
 
-contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initializable, EIP712 {
+/// TODO: Wrapper method for all creation functions handling fiat and crypto payments.
+
+contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initializable {
     using LibClone for address;
     using ECDSA for bytes32;
 
@@ -76,14 +78,14 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
         IKYCRegistry.AccessType _accessType = kycRegistry.accessType(msg.sender);
         if (_accessType == IKYCRegistry.AccessType.BLOCKED) revert IKYCRegistry.InvalidAccessType();
 
-        bytes32 digest = keccak256(abi.encodePacked(msg.sender, _accessType, "CREATE_VAULT"));
+        /// Cache current nonce and post-increment.
+        uint256 currentNonce = _maVaultNonce[msg.sender]++;
+
+        bytes32 digest = keccak256(abi.encodePacked(msg.sender, _accessType, block.chainid, currentNonce, "MAV"));
         address recoveredSigner = digest.toEthSignedMessageHash().recover(signature);
 
         /// Checks: Ensure the provided signature is valid.
         if (signerRegistry.getSigner() != recoveredSigner) revert ISignerRegistry.SignerMismatch();
-
-        /// Cache current nonce and post-increment.
-        uint256 currentNonce = _maVaultNonce[msg.sender]++;
 
         /// Caclulate CREATE2 salt.
         bytes32 salt = keccak256(abi.encodePacked(msg.sender, currentNonce));
@@ -110,7 +112,7 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
      */
     /// forgefmt: disable-next-item
     function createSingleAssetVault(
-        ISAVault.SAVAsset calldata asset,
+        Asset calldata asset,
         uint256 keyAmount,
         bytes calldata signature
     ) external {
@@ -121,25 +123,7 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
         /// Cache the current nonce value for the caller and post-increment.
         uint256 currentNonce = _maVaultNonce[msg.sender]++;
 
-        /// Checks: Ensure the provided signature is valid.
-        /// TODO: Fix signature validation.
-        bytes32 digest = _hashTypedData(
-            keccak256(
-                abi.encode(
-                    keccak256(
-                        abi.encode(
-                            _ASSET_TYPEHASH,
-                            asset.class,
-                            asset.token,
-                            asset.identifier,
-                            asset.amount
-                    )),
-                    keyAmount,
-                    currentNonce
-                )
-            )
-        );
-
+        bytes32 digest = keccak256(abi.encodePacked(msg.sender, _accessType, block.chainid, currentNonce, "SAV"));
         address recoveredSigner = digest.toEthSignedMessageHash().recover(signature);
         if (signerRegistry.getSigner() != recoveredSigner) revert ISignerRegistry.SignerMismatch();
 
@@ -155,7 +139,7 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
 
         /// forgefmt: disable-next-item
         /// Transfer asset to the newly created clone.
-        if (asset.class == ISAVault.SAVAssetClass.ERC721) {
+        if (asset.class == AssetClass.ERC721) {
             IERC721(asset.token).safeTransferFrom({
                 from: msg.sender,
                 to: newVault,
@@ -179,16 +163,17 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
      * @inheritdoc IServiceFactory
      */
     function createSafe(address[] calldata signers, uint256 quorum, bytes calldata signature) external {
-        /// Checks: Ensure the provided signature is valid.
-        bytes32 digest = keccak256(abi.encodePacked(msg.sender, "CREATE_SAFE"));
+        /// Cache current nonce and increment.
+        uint256 currentNonce = _safeNonce[msg.sender]++;
+
+        bytes32 digest = keccak256(abi.encodePacked(msg.sender, block.chainid, currentNonce, "SAFE"));
         address recoveredSigner = digest.toEthSignedMessageHash().recover(signature);
+
+        /// Checks: Ensure the provided signature is valid.
         if (signerRegistry.getSigner() != recoveredSigner) revert ISignerRegistry.SignerMismatch();
 
         /// Checks: Ensure that a valid quorum value has been provided.
         // if (quorum == 0 || quorum > signers.length) revert Errors.InvalidQuorumValue();
-
-        /// Cache current nonce and increment.
-        uint256 currentNonce = _safeNonce[msg.sender]++;
 
         /// Caclulate CREATE2 salt.
         bytes32 salt = keccak256(abi.encodePacked(msg.sender, currentNonce));
@@ -230,6 +215,15 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
         return _predictDeployments(account, safeNonce, safeImplementation);
     }
 
+    /**
+     * Function used to view the current nonces for each service of an account. This
+     * function will return the multi-asset vault, single-asset vault, and safe nonce in
+     * that respective order.
+     */
+    function getNonces(address account) external view returns (uint256, uint256, uint256) {
+        return (_maVaultNonce[account], _saVaultNonce[account], _safeNonce[account]);
+    }
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                     UPGRADE FUNCTIONS                      */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -261,33 +255,18 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
     function _authorizeUpgrade(address newImplementation) internal override onlyRoles(_ADMIN_ROLE) { }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                           EIP712                           */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
-    /**
-     * Overriden as required in Solady EIP712 documentation.
-     */
-    function _domainNameAndVersion() internal pure override returns (string memory name, string memory version) {
-        name = "Service Factory";
-        version = "1.0";
-    }
-
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       INTERNAL LOGIC                       */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     function _predictDeployments(address account, uint256 nonce, address implementation)
         private
         view
-        returns (address[] memory)
+        returns (address[] memory deployments)
     {
-        address[] memory deployments = new address[](nonce);
-
+        deployments = new address[](nonce);
         for (uint256 i = 0; i < nonce; i++) {
             bytes32 salt = keccak256(abi.encodePacked(account, i));
             deployments[i] = implementation.predictDeterministicAddress(salt, address(this));
         }
-
-        return deployments;
     }
 }

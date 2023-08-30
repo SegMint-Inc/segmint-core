@@ -9,17 +9,16 @@ import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
 import { IMAVault } from "./interfaces/IMAVault.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
+import { Multicall } from "./handlers/Multicall.sol";
+import { AssetClass, Asset, VaultType, KeyBinds } from "./types/DataTypes.sol";
 
 /**
  * @title MAVault - Multi Asset Vault
  * @notice See documentation for {IMAVault}.
  */
 
-contract MAVault is IMAVault, Ownable, Initializable {
+contract MAVault is IMAVault, Ownable, Multicall, Initializable {
     using SafeERC20 for IERC20;
-
-    /// @dev Maximum number of movable assets in one transaction.
-    uint256 private constant _ASSET_MOVEMENT_LIMIT = 25;
 
     /// Interface of Keys contract.
     IKeys public keys;
@@ -40,12 +39,9 @@ contract MAVault is IMAVault, Ownable, Initializable {
      * @dev Off-chain indexer will keep track of assets being locked and unlocked from a
      * vault using the transfer events emitted from each assets token standard.
      */
-    function unlockAssets(MAVAsset[] calldata assets, address receiver) external {
+    function unlockAssets(Asset[] calldata assets, address receiver) external {
         /// Checks: Ensure a non-zero amount of assets has been specified.
         if (assets.length == 0) revert ZeroAssetAmount();
-
-        /// Checks: Ensure the number of assets being unlocked doesn't exceed the movement limit.
-        if (assets.length > _ASSET_MOVEMENT_LIMIT) revert OverMovementLimit();
 
         /// Copy key binds into memory.
         KeyBinds memory _keyBinds = keyBinds;
@@ -61,21 +57,21 @@ contract MAVault is IMAVault, Ownable, Initializable {
         }
 
         for (uint256 i = 0; i < assets.length; i++) {
-            MAVAsset calldata asset = assets[i];
+            Asset calldata asset = assets[i];
 
             /// forgefmt: disable-next-item
-            if (asset.class == MAVAssetClass.ERC20) {
+            if (asset.class == AssetClass.ERC20) {
                 IERC20(asset.token).safeTransfer({
                     to: receiver,
                     value: asset.amount
                 });
-            } else if (asset.class == MAVAssetClass.ERC721) {
+            } else if (asset.class == AssetClass.ERC721) {
                 IERC721(asset.token).safeTransferFrom({
                     from: address(this),
                     to: receiver,
                     tokenId: asset.identifier
                 });
-            } else if (asset.class == MAVAssetClass.ERC1155) {
+            } else if (asset.class == AssetClass.ERC1155) {
                 IERC1155(asset.token).safeTransferFrom({
                     from: address(this),
                     to: receiver,
@@ -129,11 +125,11 @@ contract MAVault is IMAVault, Ownable, Initializable {
      * @inheritdoc IMAVault
      */
     function unbindKeys() external {
-        /// Checks: Ensure the vault has keys binded.
-        if (keyBinds.keyId == 0) revert NoKeysBinded();
-
         /// Cache key bindings in memory.
         KeyBinds memory _keyBinds = keyBinds;
+
+        /// Checks: Ensure the vault has keys binded.
+        if (_keyBinds.keyId == 0) revert NoKeysBinded();
 
         /// Checks: Ensure the caller holds the full amount of keys.
         uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, _keyBinds.keyId);
