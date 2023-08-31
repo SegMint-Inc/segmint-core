@@ -50,7 +50,7 @@ contract KYCRegistry is IKYCRegistry, OwnableRoles {
 
         accessType[msg.sender] = newAccessType;
 
-        emit AccessTypeSet({ account: msg.sender, accessType: newAccessType });
+        emit AccessTypeSet({ account: msg.sender, accessType: newAccessType, signature: signature });
     }
 
     /**
