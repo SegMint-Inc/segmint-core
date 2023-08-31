@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
-import { ERC20 } from "@openzeppelin/token/ERC20/ERC20.sol";
+import { ERC721A } from "erc721a/contracts/ERC721A.sol";
 
-contract DemoERC20 is ERC20 {
-    constructor() ERC20("Some ERC20", "SOME") { }
+contract MockERC721 is ERC721A {
+    constructor() ERC721A("Mock ERC721", "MOCK") { }
 
     function mint(address receiver, uint256 amount) external {
         _mint(receiver, amount);

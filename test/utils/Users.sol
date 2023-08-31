@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
+struct User {
+    address account;
+    uint256 privateKey;
+}
+
 struct Users {
-    /// Default administrator for all smart contracts.
-    address payable admin;
+    /// Default administrator.
+    address admin;
     /// Restricted KYC user.
-    address payable alice;
+    User alice;
     /// Unrestricted KYC user.
-    address payable bob;
+    User bob;
     /// Malicious user with no KYC verification.
-    address payable eve;
+    User eve;
 }
