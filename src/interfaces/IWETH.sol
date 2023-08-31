@@ -5,4 +5,8 @@ interface IWETH {
     function transferFrom(address src, address dst, uint256 wad) external returns (bool);
 
     function approve(address guy, uint256 wad) external returns (bool);
+
+    function deposit() external payable;
+
+    function transfer(address dst, uint wad) external returns (bool);
 }

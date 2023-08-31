@@ -34,7 +34,7 @@ contract DeployScript is Base {
         signerRegistry = new SignerRegistry({ admin_: admin, signer_: signer });
         kycRegistry = new KYCRegistry({ admin_: admin, signerRegistry_: ISignerRegistry(signerRegistry) });
         keys = new Keys({ admin_: admin, uri_: "", kycRegistry_: IKYCRegistry(kycRegistry) });
-        keyExchange = new KeyExchange({ admin_: admin, keys_: IKeys(keys), feeReceiver_: FEE_RECEIVER });
+        keyExchange = new KeyExchange({ admin_: admin, keys_: IKeys(keys), feeReceiver_: FEE_RECEIVER, weth_: WETH });
 
         /// Deploy implementation addresses for service factory.
         saVault = new SAVault();

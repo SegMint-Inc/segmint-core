@@ -26,7 +26,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     uint256 private constant _MAX_LEND_DURATION = 365 days;
 
     /// Maximum number of keys that can be created for a single identifier.
-    uint256 private constant _MAX_KEYS = 100;
+    uint256 private constant _MAX_KEYS = 50;
 
     /// Maps a key ID to an associated configuration.
     mapping(uint256 keyId => KeyConfig config) private _keyConfig;
@@ -34,6 +34,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     /// Interface for KYC registry.
     IKYCRegistry public kycRegistry;
 
+    /// Address of the key exchange.
     address public keyExchange;
 
     /// Counts the number of unique keys created.

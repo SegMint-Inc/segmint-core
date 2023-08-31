@@ -5,11 +5,13 @@ import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
 import { ECDSA } from "solady/src/utils/ECDSA.sol";
 import { EIP712 } from "solady/src/utils/EIP712.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
+import { NonceManager } from "./managers/NonceManager.sol";
 import { IKeyExchange } from "./interfaces/IKeyExchange.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
 import { IWETH } from "./interfaces/IWETH.sol";
+import { VaultType, KeyConfig } from "./types/DataTypes.sol";
 
-contract KeyExchange is IKeyExchange, OwnableRoles, EIP712 {
+contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, EIP712 {
     using ECDSA for bytes32;
 
     /// @dev keccak256("_ADMIN_ROLE")
@@ -20,97 +22,70 @@ contract KeyExchange is IKeyExchange, OwnableRoles, EIP712 {
 
     /// Bid(address maker,uint256 price,uint256 keyId,uint256 amount,uint256 startTime,uint256 endTime)
     bytes32 private constant _BID_TYPEHASH = 0xdf9d101dd2b60a9a7812e3b3efb62d0f6bbe4d5dbcc3c96268ee8c3f393dd534;
-
-    /// Wrapped Ether.
-    address private constant _WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-
+    
+    /// Used for fee calculation.
     uint256 private constant _BASIS_POINTS = 10_000;
 
+    /// Amount of gas to be forwarded with native token transfers.
     uint256 private constant _GAS_LIMIT_TRANSFER = 2_300;
+
+    /// Wrapped Ether.
+    address private immutable _WETH;
 
     uint256 public protocolFee = 500;
     address public feeReceiver;
+    bool public multiKeysRestricted = true;
 
     IKeys public keys;
 
-    mapping(bytes32 orderHash => OrderStatus orderStatus) public orderStatus;
-    mapping(bytes32 bidHash => OrderStatus orderStatus) public bidStatus;
+    mapping(bytes32 orderHash => Status orderStatus) public orderStatus;
+    mapping(bytes32 bidHash => Status orderStatus) public bidStatus;
     mapping(uint256 keyId => KeyTerms keyTerms) public keyTerms;
 
-    constructor(address admin_, IKeys keys_, address feeReceiver_) {
+    constructor(address admin_, IKeys keys_, address feeReceiver_, address weth_) {
         _initializeOwner(msg.sender);
         _grantRoles(admin_, _ADMIN_ROLE);
+
         keys = keys_;
         feeReceiver = feeReceiver_;
+
+        _WETH = weth_;
     }
 
-    /**
-     * Function used to execute an order.
-     */
-    function executeOrder(OrderParams calldata orderParams) external payable {
-        /// Cache order.
-        Order memory order = orderParams.order;
+    /// TODO: Implement multi-order execution.
+    function executeOrders(OrderParams[] calldata orders) external payable {
+        /// Checks: Ensure a non-zero amount of orders have been specified.
+        if (orders.length == 0) revert NoOrdersProvided();
 
-        /// Checks: Ensure that key terms have been defined for the key identifier.
-        if (keyTerms[order.keyId].market == MarketType.UNDEFINED) revert BuyOutTermsNotDefined();
-
-        /// Recreate the order digest.
-        bytes32 orderHash = _hashTypedData(
-            keccak256(
-                abi.encode(
-                    _ORDER_TYPEHASH,
-                    order.price,
-                    order.maker,
-                    order.taker,
-                    order.keyId,
-                    order.amount,
-                    order.nonce,
-                    order.startTime,
-                    order.endTime
-                )
-            )
-        );
-
-        /// Checks: Determine if the order has already been filled.
-        if (orderStatus[orderHash] != OrderStatus.OPEN) revert CannotFillOrder();
-
-        /// Checks: Confirm that the signature attached matches the order signer.
-        if (orderHash.recover(orderParams.signature) != order.maker) revert SignerMismatch();
-
-        /// Checks: Determine if an adequate amount of the native token has been supplied.
-        if (msg.value != order.price) revert InvalidNativeTokenAmount();
-
-        /// Checks: Determine if a taker has been specified and if the caller is the taker.
-        if (order.taker != address(0) && msg.sender != order.taker) revert CallerNotTaker();
-
-        /// Checks: Determine if the end time for the order has already passed.
-        if (block.timestamp > orderParams.order.endTime) revert EndTimePassed();
-
-        /// Acknowledge that the order will be filled upon success.
-        orderStatus[orderHash] = IKeyExchange.OrderStatus.FILLED;
-
-        /// Transfer asset to user.
-        IERC1155(address(keys)).safeTransferFrom({
-            from: order.maker,
-            to: msg.sender,
-            id: order.keyId,
-            value: order.amount,
-            data: ""
-        });
-
-        /// Calculate protocol fee and subtract from value.
+        /// Push initial `msg.value` to the stack.
         uint256 msgValue = msg.value;
-        uint256 fee = msgValue * protocolFee / _BASIS_POINTS;
-        uint256 earnings = msgValue - fee;
 
-        /// Pay the protocol fee.
-        (bool success,) = feeReceiver.call{ value: fee }("");
-        if (!success) revert NativeTransferFailed();
+        for (uint256 i = 0; i < orders.length; i++) {
+            OrderParams calldata singleOrder = orders[i];
+            
+            /// Validates the order criteria.
+            _validateOrderCriteria(singleOrder);
 
-        /// Pay maker.
-        /// TODO: Convert to WETH if fail.
-        (success,) = order.maker.call{ gas: _GAS_LIMIT_TRANSFER, value: earnings }("");
-        if (!success) revert NativeTransferFailed();
+            /// Transfer asset to taker.
+            IERC1155(address(keys)).safeTransferFrom({
+                from: singleOrder.order.maker,
+                to: msg.sender,
+                id: singleOrder.order.keyId,
+                value: singleOrder.order.amount,
+                data: ""
+            });
+
+            /// Pay protocol fee and maker.
+            _payFeesAndMaker(singleOrder.order);
+
+            /// Deduct the order price from the stored native token value.
+            msgValue -= singleOrder.order.price;
+        }
+
+        if (msgValue > 0) {
+            (bool refundSent,) = msg.sender.call{value: msgValue}("");
+            if (!refundSent) revert NativeTransferFailed();
+        }
     }
 
     /**
@@ -126,12 +101,21 @@ contract KeyExchange is IKeyExchange, OwnableRoles, EIP712 {
         /// Recreate the digest.
         bytes32 bidHash = _hashTypedData(
             keccak256(
-                abi.encode(_BID_TYPEHASH, bid.maker, bid.price, bid.keyId, bid.amount, bid.startTime, bid.endTime)
+                abi.encode(
+                    _BID_TYPEHASH,
+                    bid.maker,
+                    bid.price,
+                    bid.keyId,
+                    bid.amount,
+                    _nonces[bid.maker],
+                    bid.startTime,
+                    bid.endTime
+                )
             )
         );
 
         /// Checks: Determine if the order has already been filled.
-        if (bidStatus[bidHash] != OrderStatus.OPEN) revert CannotFillOrder();
+        if (bidStatus[bidHash] != Status.OPEN) revert CannotFillOrder();
 
         /// Checks: Confirm that the signature attached matches the order signer.
         if (bidHash.recover(bidParams.signature) != bid.maker) revert SignerMismatch();
@@ -140,7 +124,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, EIP712 {
         if (block.timestamp > bid.endTime) revert EndTimePassed();
 
         /// Acknowledge the bid will be filled.
-        bidStatus[bidHash] = IKeyExchange.OrderStatus.FILLED;
+        bidStatus[bidHash] = IKeyExchange.Status.FILLED;
 
         /// Transfer assets to the bid offerer.
         IERC1155(address(keys)).safeTransferFrom({
@@ -196,11 +180,13 @@ contract KeyExchange is IKeyExchange, OwnableRoles, EIP712 {
      * @param holders Holders of the associated key
      * @param amounts Number of keys to buy back.
      */
-    /// Ensure that ALL keys are bought back and reset key terms.
-    /// Need to query bindings to determine what the total supply is.
+    /// NOTE: Discuss how potential DoS attacks can be mitigated.
     function executeBuyBack(uint256 keyId, address[] calldata holders, uint256[] calldata amounts) external payable {
+        /// Cache key configuration in memory.
+        KeyConfig memory keyConfig = keys.getKeyConfig(keyId);
+
         /// Checks: Ensure the caller is the original creator of the keys.
-        if (msg.sender != keys.creatorOf(keyId)) revert NotKeyCreator();
+        if (msg.sender != keyConfig.creator) revert NotKeyCreator();
 
         /// Checks: Ensure the holders array length matches the amounts array length.
         if (holders.length != amounts.length) revert ArrayLengthMismatch();
@@ -239,6 +225,10 @@ contract KeyExchange is IKeyExchange, OwnableRoles, EIP712 {
 
         /// Checks: Ensure the full amount of native token was provided.
         if (msgValue != 0) revert InvalidNativeTokenAmount();
+
+        /// Checks: Ensure all keys were successfully transferred to the holder.
+        uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, keyId);
+        if (keysHeld != keyConfig.supply) revert BuyBackFailed();
     }
 
     function setProtocolFee(uint256 newProtocolFee) external onlyRoles(_ADMIN_ROLE) {
@@ -273,6 +263,21 @@ contract KeyExchange is IKeyExchange, OwnableRoles, EIP712 {
         keyTerms[keyId] = finalTerms;
     }
 
+    /**
+     * Function used to increment the nonce associated with the caller. Doing so will invalidate
+     * ALL orders and bids associated with the caller.
+     */
+    function incrementNonce() external {
+        _incrementNonce();
+    }
+
+    /**
+     * Function used to view the current nonce associated with the provided account.
+     */
+    function getNonce(address account) external view returns (uint256) {
+        return _getNonce(account);
+    }
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       INTERNAL LOGIC                       */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -299,10 +304,10 @@ contract KeyExchange is IKeyExchange, OwnableRoles, EIP712 {
         );
 
         /// Checks: Ensure the order isn't already cancelled or filled.
-        if (orderStatus[orderHash] != OrderStatus.OPEN) revert CannotCancelOrder();
+        if (orderStatus[orderHash] != Status.OPEN) revert CannotCancelOrder();
 
         /// Cancel the order by updating its status to cancelled.
-        orderStatus[orderHash] = OrderStatus.CANCELLED;
+        orderStatus[orderHash] = Status.CANCELLED;
 
         /// Emit event for order cancellation.
         emit OrderCancelled(orderHash);
@@ -320,13 +325,70 @@ contract KeyExchange is IKeyExchange, OwnableRoles, EIP712 {
         );
 
         /// Checks: Ensure the bid isn't cancelled of filled.
-        if (bidStatus[bidHash] != OrderStatus.OPEN) revert CannotCancelBid();
+        if (bidStatus[bidHash] != Status.OPEN) revert CannotCancelBid();
 
         /// Cancel the bid by updating its status.
-        bidStatus[bidHash] = OrderStatus.CANCELLED;
+        bidStatus[bidHash] = Status.CANCELLED;
 
         /// Emit event for bid cancellation.
         emit BidCancelled(bidHash);
+    }
+
+    function _validateOrderCriteria(OrderParams calldata singleOrder) internal {
+        /// Recreate the original order digest.
+        bytes32 orderHash = _hashTypedData(keccak256(abi.encode(
+            _ORDER_TYPEHASH,
+            singleOrder.order.price,
+            singleOrder.order.maker,
+            singleOrder.order.taker,
+            singleOrder.order.keyId,
+            singleOrder.order.amount,
+            _nonces[singleOrder.order.maker],
+            singleOrder.order.startTime,
+            singleOrder.order.endTime
+        )));
+
+        /// Checks: Confirm that the signature attached matches the order signer.
+        if (orderHash.recover(singleOrder.signature) != singleOrder.order.maker) revert SignerMismatch();
+
+        /// Checks: Ensure that key terms have been defined.
+        if (keyTerms[singleOrder.order.keyId].market == MarketType.UNDEFINED) revert BuyOutTermsNotDefined();
+
+        /// Checks: Ensure that multi-asset vault keys can be sold.
+        if (
+            multiKeysRestricted && keys.getKeyConfig(singleOrder.order.keyId).vaultType == VaultType.MULTI
+        ) revert MultiAssetKeysRestricted();
+
+        /// Checks: Determine if the order has already been filled.
+        if (orderStatus[orderHash] != Status.OPEN) revert CannotFillOrder();
+
+        /// Checks: Determine if a taker has been specified and if the caller is the taker.
+        if (singleOrder.order.taker != address(0) && msg.sender != singleOrder.order.taker) revert CallerNotTaker();
+
+        /// Checks: Determine if the end time for the order has already passed.
+        if (block.timestamp > singleOrder.order.endTime) revert EndTimePassed();
+
+        /// Acknowledge that the order will be filled upon success.
+        orderStatus[orderHash] = IKeyExchange.Status.FILLED;
+    }
+
+    function _payFeesAndMaker(Order calldata singleOrder) internal {
+        /// Calculate the protocol fee and subtract from the order price.
+        uint256 fee = singleOrder.price * protocolFee / _BASIS_POINTS;
+        uint256 earnings = singleOrder.price - fee;
+
+        /// Pay the protocol fee to the fee receiver.
+        (bool sentFee,) = feeReceiver.call{ value: fee }("");
+        if (!sentFee) revert NativeTransferFailed();
+
+        /// Pay the creator of the order, if the transfer of native token fails, wrap the native token
+        /// and transfer to the creator.
+        (bool sentEarnings,) = singleOrder.maker.call{ gas: _GAS_LIMIT_TRANSFER, value: earnings }("");
+        if (!sentEarnings) {
+            IWETH(_WETH).deposit{value: earnings}();
+            bool success = IWETH(_WETH).transfer(singleOrder.maker, earnings);
+            if (!success) revert NativeTransferFailed();
+        }
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -342,28 +404,29 @@ contract KeyExchange is IKeyExchange, OwnableRoles, EIP712 {
     }
 
     function hashOrder(Order calldata order) public view returns (bytes32) {
-        return _hashTypedData(
-            keccak256(
-                abi.encode(
-                    _ORDER_TYPEHASH,
-                    order.price,
-                    order.maker,
-                    order.taker,
-                    order.keyId,
-                    order.amount,
-                    order.nonce,
-                    order.startTime,
-                    order.endTime
-                )
-            )
-        );
+        return _hashTypedData(keccak256(abi.encode(
+            _ORDER_TYPEHASH,
+            order.price,
+            order.maker,
+            order.taker,
+            order.keyId,
+            order.amount,
+            order.nonce,
+            order.startTime,
+            order.endTime
+        )));
     }
 
     function hashBid(Bid calldata bid) public view returns (bytes32) {
-        return _hashTypedData(
-            keccak256(
-                abi.encode(_BID_TYPEHASH, bid.maker, bid.price, bid.keyId, bid.amount, bid.startTime, bid.endTime)
-            )
-        );
+        return _hashTypedData(keccak256(abi.encode(
+            _BID_TYPEHASH,
+            bid.maker,
+            bid.price,
+            bid.keyId,
+            bid.amount,
+            bid.nonce,
+            bid.startTime,
+            bid.endTime
+        )));
     }
 }

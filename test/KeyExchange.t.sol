@@ -56,7 +56,7 @@ contract KeyExchangeTest is Base {
             taker: address(0),
             keyId: keyId,
             amount: 3,
-            nonce: 0,
+            nonce: keyExchange.getNonce(users.alice),
             startTime: block.timestamp,
             endTime: block.timestamp + 5 days
         });
@@ -72,16 +72,19 @@ contract KeyExchangeTest is Base {
         uint256 bobInitialBalance = users.bob.balance;
         uint256 fee = userOrder.price * 500 / 10_000; // 5% fee.
 
+        IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](1);
+        orders[0] = orderParams;
+
         hoax(users.bob, users.bob);
-        keyExchange.executeOrder{ value: 0.1 ether }(orderParams);
+        keyExchange.executeOrders{ value: 0.1 ether }(orders);
 
         assertEq(users.alice.balance, aliceInitialBalance + userOrder.price - fee);
         assertEq(users.bob.balance, bobInitialBalance - userOrder.price);
         assertEq(keyExchange.feeReceiver().balance, fee);
         assertEq(keys.balanceOf(users.bob, userOrder.keyId), userOrder.amount);
 
-        IKeyExchange.OrderStatus orderStatus = keyExchange.orderStatus(orderHash);
-        assertEq(uint256(orderStatus), uint256(IKeyExchange.OrderStatus.FILLED));
+        IKeyExchange.Status orderStatus = keyExchange.orderStatus(orderHash);
+        assertEq(uint256(orderStatus), uint256(IKeyExchange.Status.FILLED));
     }
 
     function test_ExecuteBid() public {
@@ -93,6 +96,7 @@ contract KeyExchangeTest is Base {
             price: 0.1 ether,
             keyId: keyId,
             amount: 1,
+            nonce: keyExchange.getNonce(users.bob),
             startTime: block.timestamp,
             endTime: block.timestamp + 1 hours
         });

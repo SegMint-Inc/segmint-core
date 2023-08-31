@@ -43,6 +43,7 @@ abstract contract Base is Script, Test, Events {
     uint256 public constant ADMIN_ROLE = 0x4a4566510e9351b52a3e4f6550fc68d8577350bec07d7a69da4906b0efe533bc;
     uint256 public constant FACTORY_ROLE = 0xee961466e472802bc53e28ea01e7875c1285a5d1f1992f7b1aafc450304db8bc;
     address public constant FEE_RECEIVER = address(0xFEE5);
+    address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     bytes4 public constant UNAUTHORIZED_SELECTOR = 0x82b42900;
 
@@ -94,7 +95,7 @@ abstract contract Base is Script, Test, Events {
         signerRegistry = new SignerRegistry({ admin_: users.admin, signer_: signer });
         kycRegistry = new KYCRegistry({ admin_: users.admin, signerRegistry_: ISignerRegistry(signerRegistry) });
         keys = new Keys({ admin_: users.admin, uri_: "", kycRegistry_: IKYCRegistry(kycRegistry) });
-        keyExchange = new KeyExchange({ admin_: users.admin, keys_: IKeys(keys), feeReceiver_: FEE_RECEIVER });
+        keyExchange = new KeyExchange({ admin_: users.admin, keys_: IKeys(keys), feeReceiver_: FEE_RECEIVER, weth_: WETH });
 
         /// Set exchange address in keys contract.
         hoax(users.admin, users.admin);

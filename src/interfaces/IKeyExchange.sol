@@ -93,6 +93,10 @@ interface IKeyExchange {
 
     error FeeExceedsMaximum();
 
+    error NoOrdersProvided();
+
+    error MultiAssetKeysRestricted();
+
     /**
      * Thrown when a parameter array has a zero length.
      */
@@ -102,6 +106,8 @@ interface IKeyExchange {
      * Thrown when a non-open bid is trying to be cancelled.
      */
     error CannotCancelBid();
+
+    error BuyBackFailed();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           EVENTS                           */
@@ -128,7 +134,7 @@ interface IKeyExchange {
         BUY_OUT
     }
 
-    enum OrderStatus {
+    enum Status {
         OPEN,
         FILLED,
         CANCELLED
@@ -178,6 +184,7 @@ interface IKeyExchange {
         uint256 price;
         uint256 keyId;
         uint256 amount;
+        uint256 nonce;
         uint256 startTime;
         uint256 endTime;
     }
@@ -191,4 +198,12 @@ interface IKeyExchange {
         Bid bid;
         bytes signature;
     }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                         FUNCTIONS                          */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    function getNonce(address account) external view returns (uint256);
+
+    function incrementNonce() external;
 }
