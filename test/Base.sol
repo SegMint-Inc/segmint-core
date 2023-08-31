@@ -47,7 +47,6 @@ abstract contract Base is Script, Test {
     SAVault public saVault;
     Safe public safe;
 
-    /// TODO: Call `setKeyExchange` on keys contract.
     function coreSetup(address admin, address signer, address feeReceiver, address weth, uint256 factoryRole) public {
         /// Deploy registry contracts.
         signerRegistry = new SignerRegistry({ admin_: admin, signer_: signer });
@@ -84,5 +83,4 @@ abstract contract Base is Script, Test {
         /// Grant `factoryRole` to service factory.
         keys.grantRoles({ user: address(serviceFactoryProxy), roles: factoryRole });
     }
-
 }

@@ -12,7 +12,7 @@ abstract contract Events {
     event SignerUpdated(address indexed admin, address oldSigner, address newSigner);
 
     /// {IKYCRegistry} Events.
-    event AccessTypeSet(address indexed account, IKYCRegistry.AccessType accessType);
+    event AccessTypeSet(address indexed account, IKYCRegistry.AccessType accessType, bytes signature);
     event AccessTypeModified(
         address indexed admin,
         address indexed account,

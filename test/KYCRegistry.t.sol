@@ -4,125 +4,114 @@ pragma solidity ^0.8.0;
 import "./BaseTest.sol";
 
 contract KYCRegistryTest is BaseTest {
-    // function setUp() public override {
-    //     super.setUp();
-    // }
+    function setUp() public override {
+        super.setUp();
+    }
 
-    // function test_KYCRegistry_Deployment() public {
-    //     assertEq(kycRegistry.owner(), address(this));
-    //     assertEq(address(kycRegistry.signerRegistry()), address(signerRegistry));
-    //     assertTrue(kycRegistry.hasAllRoles({ user: users.admin, roles: ADMIN_ROLE }));
-    // }
+    function test_KYCRegistry_Deployment() public {
+        address owner = kycRegistry.owner();
+        assertEq(owner, address(this));
 
-    // function test_InitAccessType() public {
-    //     uint256 deadline = block.timestamp + 1 hours;
-    //     IKYCRegistry.AccessType accessType = IKYCRegistry.AccessType.RESTRICTED;
+        ISignerRegistry actualSignerRegistry = kycRegistry.signerRegistry();
+        assertEq(actualSignerRegistry, signerRegistry);
 
-    //     startHoax(users.alice, users.alice);
-    //     vm.expectEmit({
-    //         checkTopic1: true,
-    //         checkTopic2: true,
-    //         checkTopic3: false,
-    //         checkData: true,
-    //         emitter: address(kycRegistry)
-    //     });
-    //     emit AccessTypeSet({ account: users.alice, accessType: accessType });
-    //     kycRegistry.initAccessType({
-    //         signature: getAccessSignature(users.alice, deadline, accessType),
-    //         deadline: deadline,
-    //         newAccessType: accessType
-    //     });
+        bool result = kycRegistry.hasAllRoles({ user: users.admin, roles: signerRegistry.ADMIN_ROLE() });
+        assertTrue(result);
+    }
 
-    //     assertEq(uint256(kycRegistry.accessType({ account: users.alice })), uint256(accessType));
-    // }
+    function test_InitAccessType() public {
+        uint256 deadline = block.timestamp + 1 hours;
+        IKYCRegistry.AccessType accessType = IKYCRegistry.AccessType.RESTRICTED;
+        bytes memory signature = getAccessSignature(users.alice.account, deadline, accessType);
 
-    // function testCannot_InitAccessType_DeadlinePassed() public {
-    //     uint256 deadline = block.timestamp;
-    //     IKYCRegistry.AccessType accessType = IKYCRegistry.AccessType.RESTRICTED;
+        hoax(users.alice.account);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: true, checkData: true });
+        emit AccessTypeSet({ account: users.alice.account, accessType: accessType, signature: signature });
+        kycRegistry.initAccessType({ signature: signature, deadline: deadline, newAccessType: accessType });
 
-    //     vm.warp(deadline + 1 seconds);
+        assertEq(kycRegistry.accessType({ account: users.alice.account }), accessType);
+    }
 
-    //     startHoax(users.alice, users.alice);
-    //     vm.expectRevert(IKYCRegistry.DeadlinePassed.selector);
-    //     kycRegistry.initAccessType({
-    //         signature: getAccessSignature(users.alice, deadline, accessType),
-    //         deadline: deadline,
-    //         newAccessType: accessType
-    //     });
-    // }
+    function testCannot_InitAccessType_DeadlinePassed() public {
+        uint256 deadline = block.timestamp;
+        IKYCRegistry.AccessType accessType = IKYCRegistry.AccessType.RESTRICTED;
+        bytes memory signature = getAccessSignature(users.alice.account, deadline, accessType);
 
-    // function testCannot_InitAccessType_AccessTypeDefined() public {
-    //     uint256 deadline = block.timestamp + 1 hours;
-    //     IKYCRegistry.AccessType accessType = IKYCRegistry.AccessType.RESTRICTED;
-    //     bytes memory signature = getAccessSignature(users.alice, deadline, accessType);
+        vm.warp(deadline + 1 seconds);
 
-    //     startHoax(users.alice, users.alice);
-    //     kycRegistry.initAccessType({ signature: signature, deadline: deadline, newAccessType: accessType });
-    //     vm.expectRevert(IKYCRegistry.AccessTypeDefined.selector);
-    //     kycRegistry.initAccessType({ signature: signature, deadline: deadline, newAccessType: accessType });
-    // }
+        hoax(users.alice.account);
+        vm.expectRevert(IKYCRegistry.DeadlinePassed.selector);
+        kycRegistry.initAccessType({ signature: signature, deadline: deadline, newAccessType: accessType });
+    }
 
-    // function testCannot_InitAccessType_InvalidAccessType() public {
-    //     uint256 deadline = block.timestamp + 1 hours;
-    //     IKYCRegistry.AccessType accessType = IKYCRegistry.AccessType.BLOCKED;
+    function testCannot_InitAccessType_AccessTypeDefined() public {
+        uint256 deadline = block.timestamp + 1 hours;
+        IKYCRegistry.AccessType accessType = IKYCRegistry.AccessType.RESTRICTED;
+        bytes memory signature = getAccessSignature(users.alice.account, deadline, accessType);
 
-    //     startHoax(users.alice, users.alice);
-    //     vm.expectRevert(IKYCRegistry.InvalidAccessType.selector);
-    //     kycRegistry.initAccessType({
-    //         signature: getAccessSignature(users.alice, deadline, accessType),
-    //         deadline: deadline,
-    //         newAccessType: accessType
-    //     });
-    // }
+        startHoax(users.alice.account);
+        kycRegistry.initAccessType({ signature: signature, deadline: deadline, newAccessType: accessType });
+        vm.expectRevert(IKYCRegistry.AccessTypeDefined.selector);
+        kycRegistry.initAccessType({ signature: signature, deadline: deadline, newAccessType: accessType });
+    }
 
-    // function testCannot_InitAccessType_SignerMismatch() public {
-    //     uint256 deadline = block.timestamp + 1 hours;
-    //     IKYCRegistry.AccessType accessType = IKYCRegistry.AccessType.RESTRICTED;
+    function testCannot_InitAccessType_InvalidAccessType() public {
+        uint256 deadline = block.timestamp;
+        IKYCRegistry.AccessType accessType = IKYCRegistry.AccessType.BLOCKED;
+        bytes memory signature = getAccessSignature(users.alice.account, deadline, accessType);
 
-    //     startHoax(users.alice, users.alice);
-    //     vm.expectRevert(ISignerRegistry.SignerMismatch.selector);
-    //     kycRegistry.initAccessType({
-    //         signature: getAccessSignature(users.alice, deadline, accessType),
-    //         deadline: deadline,
-    //         newAccessType: IKYCRegistry.AccessType.UNRESTRICTED
-    //     });
-    // }
+        hoax(users.alice.account);
+        vm.expectRevert(IKYCRegistry.InvalidAccessType.selector);
+        kycRegistry.initAccessType({ signature: signature, deadline: deadline, newAccessType: accessType });
+    }
 
-    // function test_ModifyAccessType() public {
-    //     IKYCRegistry.AccessType accessType = IKYCRegistry.AccessType.RESTRICTED;
+    function testCannot_InitAccessType_SignerMismatch() public {
+        uint256 deadline = block.timestamp + 1 hours;
+        IKYCRegistry.AccessType accessType = IKYCRegistry.AccessType.RESTRICTED;
+        bytes memory signature = getAccessSignature(users.alice.account, deadline, accessType);
 
-    //     hoax(users.admin, users.admin);
-    //     vm.expectEmit({
-    //         checkTopic1: true,
-    //         checkTopic2: true,
-    //         checkTopic3: true,
-    //         checkData: true,
-    //         emitter: address(kycRegistry)
-    //     });
-    //     emit AccessTypeModified({
-    //         admin: users.admin,
-    //         account: users.alice,
-    //         oldAccessType: IKYCRegistry.AccessType.BLOCKED,
-    //         newAccessType: accessType
-    //     });
-    //     kycRegistry.modifyAccessType({ account: users.alice, newAccessType: accessType });
-    // }
+        hoax(users.alice.account);
+        vm.expectRevert(ISignerRegistry.SignerMismatch.selector);
+        kycRegistry.initAccessType({
+            signature: signature,
+            deadline: deadline,
+            newAccessType: IKYCRegistry.AccessType.UNRESTRICTED
+        });
+    }
 
-    // function testCannot_ModifyAccessType_Unauthorized() public {
-    //     hoax(users.eve, users.eve);
-    //     vm.expectRevert(UNAUTHORIZED_SELECTOR);
-    //     kycRegistry.modifyAccessType({ account: users.eve, newAccessType: IKYCRegistry.AccessType.UNRESTRICTED });
-    // }
+    function test_ModifyAccessType() public {
+        IKYCRegistry.AccessType accessType = IKYCRegistry.AccessType.RESTRICTED;
 
-    // function test_SetSignerRegistry(ISignerRegistry newSignerRegistry) public {
-    //     hoax(users.admin, users.admin);
-    //     kycRegistry.setSignerRegistry(newSignerRegistry);
-    //     assertEq(address(kycRegistry.signerRegistry()), address(newSignerRegistry));
-    // }
+        hoax(users.admin);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: true, checkData: true });
+        emit AccessTypeModified({
+            admin: users.admin,
+            account: users.alice.account,
+            oldAccessType: IKYCRegistry.AccessType.BLOCKED,
+            newAccessType: accessType
+        });
+        kycRegistry.modifyAccessType({ account: users.alice.account, newAccessType: accessType });
+    }
 
-    // function testCannot_SetSignerRegistry_Unauthorized() public {
-    //     hoax(users.eve, users.eve);
-    //     vm.expectRevert(UNAUTHORIZED_SELECTOR);
-    //     kycRegistry.setSignerRegistry(ISignerRegistry(users.eve));
-    // }
+    function testCannot_ModifyAccessType_Unauthorized_Fuzzed(address nonAdmin) public {
+        vm.assume(nonAdmin != users.admin);
+
+        hoax(nonAdmin);
+        vm.expectRevert(UNAUTHORIZED_SELECTOR);
+        kycRegistry.modifyAccessType({ account: nonAdmin, newAccessType: IKYCRegistry.AccessType.UNRESTRICTED });
+    }
+
+    function test_SetSignerRegistry_Fuzzed(ISignerRegistry newSignerRegistry) public {
+        hoax(users.admin);
+        kycRegistry.setSignerRegistry(newSignerRegistry);
+        assertEq(kycRegistry.signerRegistry(), newSignerRegistry);
+    }
+
+    function testCannot_SetSignerRegistry_Unauthorized_Fuzzed(address nonAdmin, ISignerRegistry badRegistry) public {
+        vm.assume(nonAdmin != users.admin);
+
+        hoax(nonAdmin);
+        vm.expectRevert(UNAUTHORIZED_SELECTOR);
+        kycRegistry.setSignerRegistry(badRegistry);
+    }
 }

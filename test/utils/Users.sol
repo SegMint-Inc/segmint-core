@@ -9,6 +9,8 @@ struct User {
 struct Users {
     /// Default administrator.
     address admin;
+    /// Contract signer.
+    User signer;
     /// Restricted KYC user.
     User alice;
     /// Unrestricted KYC user.
