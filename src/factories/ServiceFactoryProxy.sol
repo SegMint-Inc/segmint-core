@@ -10,7 +10,6 @@ import { IServiceFactoryProxy } from "../interfaces/IServiceFactoryProxy.sol";
  */
 
 contract ServiceFactoryProxy is IServiceFactoryProxy, ERC1967Proxy {
-    /// forgefmt: disable-next-item
     constructor(address implementation_, bytes memory payload_) ERC1967Proxy(implementation_, payload_) { }
 
     /**

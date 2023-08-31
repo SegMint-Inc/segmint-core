@@ -97,7 +97,7 @@ contract MAVault is IMAVault, Ownable, Multicall, Initializable {
             /// Get the total number of keys in circulation.
             uint256 keySupply = keys.getKeyConfig(boundKeyId).supply;
             uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, boundKeyId);
-            
+
             /// Checks: Ensure the caller holds the correct amount of keys.
             if (keysHeld != keySupply) revert InsufficientKeys();
         } else {

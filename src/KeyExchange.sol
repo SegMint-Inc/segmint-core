@@ -22,7 +22,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, EIP712 {
 
     /// Bid(address maker,uint256 price,uint256 keyId,uint256 amount,uint256 startTime,uint256 endTime)
     bytes32 private constant _BID_TYPEHASH = 0xdf9d101dd2b60a9a7812e3b3efb62d0f6bbe4d5dbcc3c96268ee8c3f393dd534;
-    
+
     /// Used for fee calculation.
     uint256 private constant _BASIS_POINTS = 10_000;
 
@@ -61,7 +61,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, EIP712 {
 
         for (uint256 i = 0; i < orders.length; i++) {
             OrderParams calldata singleOrder = orders[i];
-            
+
             /// Validates the order criteria.
             _validateOrderCriteria(singleOrder);
 
@@ -339,17 +339,21 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, EIP712 {
 
     function _validateOrderCriteria(OrderParams calldata singleOrder) internal {
         /// Recreate the original order digest.
-        bytes32 orderHash = _hashTypedData(keccak256(abi.encode(
-            _ORDER_TYPEHASH,
-            singleOrder.order.price,
-            singleOrder.order.maker,
-            singleOrder.order.taker,
-            singleOrder.order.keyId,
-            singleOrder.order.amount,
-            _nonces[singleOrder.order.maker],
-            singleOrder.order.startTime,
-            singleOrder.order.endTime
-        )));
+        bytes32 orderHash = _hashTypedData(
+            keccak256(
+                abi.encode(
+                    _ORDER_TYPEHASH,
+                    singleOrder.order.price,
+                    singleOrder.order.maker,
+                    singleOrder.order.taker,
+                    singleOrder.order.keyId,
+                    singleOrder.order.amount,
+                    _nonces[singleOrder.order.maker],
+                    singleOrder.order.startTime,
+                    singleOrder.order.endTime
+                )
+            )
+        );
 
         /// Checks: Confirm that the signature attached matches the order signer.
         if (orderHash.recover(singleOrder.signature) != singleOrder.order.maker) revert SignerMismatch();
@@ -358,9 +362,9 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, EIP712 {
         if (keyTerms[singleOrder.order.keyId].market == MarketType.UNDEFINED) revert BuyOutTermsNotDefined();
 
         /// Checks: Ensure that multi-asset vault keys can be sold.
-        if (
-            multiKeysRestricted && keys.getKeyConfig(singleOrder.order.keyId).vaultType == VaultType.MULTI
-        ) revert MultiAssetKeysRestricted();
+        if (multiKeysRestricted && keys.getKeyConfig(singleOrder.order.keyId).vaultType == VaultType.MULTI) {
+            revert MultiAssetKeysRestricted();
+        }
 
         /// Checks: Determine if the order has already been filled.
         if (orderStatus[orderHash] != Status.OPEN) revert CannotFillOrder();
@@ -388,7 +392,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, EIP712 {
         /// and transfer to the creator.
         (bool sentEarnings,) = singleOrder.maker.call{ gas: _GAS_LIMIT_TRANSFER, value: earnings }("");
         if (!sentEarnings) {
-            IWETH(_WETH).deposit{value: earnings}();
+            IWETH(_WETH).deposit{ value: earnings }();
             bool success = IWETH(_WETH).transfer(singleOrder.maker, earnings);
             if (!success) revert NativeTransferFailed();
         }
@@ -407,29 +411,30 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, EIP712 {
     }
 
     function hashOrder(Order calldata order) public view returns (bytes32) {
-        return _hashTypedData(keccak256(abi.encode(
-            _ORDER_TYPEHASH,
-            order.price,
-            order.maker,
-            order.taker,
-            order.keyId,
-            order.amount,
-            order.nonce,
-            order.startTime,
-            order.endTime
-        )));
+        return _hashTypedData(
+            keccak256(
+                abi.encode(
+                    _ORDER_TYPEHASH,
+                    order.price,
+                    order.maker,
+                    order.taker,
+                    order.keyId,
+                    order.amount,
+                    order.nonce,
+                    order.startTime,
+                    order.endTime
+                )
+            )
+        );
     }
 
     function hashBid(Bid calldata bid) public view returns (bytes32) {
-        return _hashTypedData(keccak256(abi.encode(
-            _BID_TYPEHASH,
-            bid.maker,
-            bid.price,
-            bid.keyId,
-            bid.amount,
-            bid.nonce,
-            bid.startTime,
-            bid.endTime
-        )));
+        return _hashTypedData(
+            keccak256(
+                abi.encode(
+                    _BID_TYPEHASH, bid.maker, bid.price, bid.keyId, bid.amount, bid.nonce, bid.startTime, bid.endTime
+                )
+            )
+        );
     }
 }

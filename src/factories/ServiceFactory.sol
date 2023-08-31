@@ -22,48 +22,57 @@ import { Asset, AssetClass } from "../types/DataTypes.sol";
  * @notice See documentation for {IServiceFactory}.
  */
 
-/// TODO: Wrapper method for all creation functions handling fiat and crypto payments.
-
 contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initializable {
     using LibClone for address;
     using ECDSA for bytes32;
 
-    /// @dev keccak256("_ADMIN_ROLE")
-    uint256 private constant _ADMIN_ROLE = 0x4a4566510e9351b52a3e4f6550fc68d8577350bec07d7a69da4906b0efe533bc;
+    // uint256 private constant _BITMASK_MA_VAULT_NONCE = (1 << 32) - 1;
 
-    /// keccak256("Asset(AssetType assetType,address token,uint256 identifier,uint256 amount)");
-    bytes32 private constant _ASSET_TYPEHASH = 0x9ce23549803f44f7a1bf6b3815b78fcd9f18c5db5bcfe1cc57a3d568d1f8ab7d;
+    // uint256 private constant _BITMASK_SA_VAULT_NONCE = (1 << 64) - 1;
+    // uint256 private constant _BITPOS_SA_VAULT_NONCE = 64;
+
+    // uint256 private constant _BITMASK_SAFE_NONCE = (1 << 92) - 1;
+    // uint256 private constant _BITPOS_SAFE_NONCE = 92;
+
+    /// `keccak256("ADMIN_ROLE");`
+    uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
 
     ISignerRegistry public signerRegistry;
     IKYCRegistry public kycRegistry;
     IKeys public keys;
 
-    address public mavImplementation;
-    address public savImplementation;
-    address public safeImplementation;
+    address public maVault;
+    address public saVault;
+    address public safe;
 
     mapping(address account => uint256 nonce) private _maVaultNonce;
     mapping(address account => uint256 nonce) private _saVaultNonce;
     mapping(address account => uint256 nonce) private _safeNonce;
+
+    /// Packed nonce values. Bit positions are as follows:
+    /// [0...31] Nonce for multi-asset vaults.
+    /// [32..63] Nonce for single-asset vaults.
+    /// [64..91] Nonce for safes.
+    // mapping(address account => uint256 packedNonces) private _packedNonces;
 
     /**
      * @inheritdoc IServiceFactory
      */
     function initialize(
         address admin_,
-        address mavImplementation_,
-        address savImplementation_,
-        address safeImplementation_,
+        address maVault_,
+        address saVault_,
+        address safe_,
         ISignerRegistry signerRegistry_,
         IKYCRegistry kycRegistry_,
         IKeys keys_
     ) external initializer {
         _initializeOwner(msg.sender);
-        _grantRoles(admin_, _ADMIN_ROLE);
+        _grantRoles(admin_, ADMIN_ROLE);
 
-        mavImplementation = mavImplementation_;
-        savImplementation = savImplementation_;
-        safeImplementation = safeImplementation_;
+        maVault = maVault_;
+        saVault = saVault_;
+        safe = safe_;
 
         signerRegistry = signerRegistry_;
         kycRegistry = kycRegistry_;
@@ -93,8 +102,8 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
         /// Sanity check to confirm the predicted address matches the actual addresses.
         /// This is done prior to any further storage updates. If this statement ever
         /// fails, chaos ensues.
-        address predictedVault = mavImplementation.predictDeterministicAddress(salt, address(this));
-        address newVault = mavImplementation.cloneDeterministic(salt);
+        address predictedVault = maVault.predictDeterministicAddress(salt, address(this));
+        address newVault = maVault.cloneDeterministic(salt);
         if (predictedVault != newVault) revert AddressMismatch();
 
         /// Initialize the newly created clone.
@@ -130,11 +139,11 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
         /// Caclulate CREATE2 salt.
         bytes32 salt = keccak256(abi.encodePacked(msg.sender, currentNonce));
 
-        address predictedVault = savImplementation.predictDeterministicAddress(salt, address(this));
+        address predictedVault = saVault.predictDeterministicAddress(salt, address(this));
 
         keys.registerVault(predictedVault);
 
-        address newVault = savImplementation.cloneDeterministic(salt);
+        address newVault = saVault.cloneDeterministic(salt);
         if (predictedVault != newVault) revert AddressMismatch();
 
         /// forgefmt: disable-next-item
@@ -181,8 +190,8 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
         /// Sanity check to confirm the predicted address matches the actual addresses.
         /// This is done prior to any further storage updates. If this statement ever
         /// fails, chaos ensues.
-        address predictedSafe = safeImplementation.predictDeterministicAddress(salt, address(this));
-        address newSafe = safeImplementation.cloneDeterministic(salt);
+        address predictedSafe = safe.predictDeterministicAddress(salt, address(this));
+        address newSafe = safe.cloneDeterministic(salt);
         if (predictedSafe != newSafe) revert AddressMismatch();
 
         /// Initialize the newly created clone.
@@ -196,7 +205,7 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
      */
     function getMultiAssetVaults(address account) external view returns (address[] memory) {
         uint256 mavNonce = _maVaultNonce[account];
-        return _predictDeployments(account, mavNonce, mavImplementation);
+        return _predictDeployments(account, mavNonce, maVault);
     }
 
     /**
@@ -204,7 +213,7 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
      */
     function getSingleAssetVaults(address account) external view returns (address[] memory) {
         uint256 savNonce = _maVaultNonce[account];
-        return _predictDeployments(account, savNonce, savImplementation);
+        return _predictDeployments(account, savNonce, saVault);
     }
 
     /**
@@ -212,7 +221,7 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
      */
     function getSafes(address account) external view returns (address[] memory) {
         uint256 safeNonce = _safeNonce[account];
-        return _predictDeployments(account, safeNonce, safeImplementation);
+        return _predictDeployments(account, safeNonce, safe);
     }
 
     /**
@@ -231,28 +240,23 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
     /**
      * @inheritdoc IServiceFactory
      */
-    function proposeUpgrade(address newImplementation) external onlyRoles(_ADMIN_ROLE) {
+    function proposeUpgrade(address newImplementation) external onlyRoles(ADMIN_ROLE) {
         _proposeUpgrade(newImplementation);
     }
 
     /**
      * @inheritdoc IServiceFactory
      */
-    function cancelUpgrade() external onlyRoles(_ADMIN_ROLE) {
+    function cancelUpgrade() external onlyRoles(ADMIN_ROLE) {
         _cancelUpgrade();
     }
 
     /**
      * @inheritdoc IServiceFactory
      */
-    function executeUpgrade(bytes memory payload) external onlyRoles(_ADMIN_ROLE) {
+    function executeUpgrade(bytes memory payload) external onlyRoles(ADMIN_ROLE) {
         _executeUpgrade(payload);
     }
-
-    /**
-     * Overriden to ensure that only callers with the correct role can upgrade the implementation.
-     */
-    function _authorizeUpgrade(address newImplementation) internal override onlyRoles(_ADMIN_ROLE) { }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       INTERNAL LOGIC                       */
@@ -269,4 +273,9 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
             deployments[i] = implementation.predictDeterministicAddress(salt, address(this));
         }
     }
+
+    /**
+     * Overriden to ensure that only callers with the correct role can upgrade the implementation.
+     */
+    function _authorizeUpgrade(address newImplementation) internal override onlyRoles(ADMIN_ROLE) { }
 }

@@ -199,7 +199,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     /**
      * Function used to set the key exchange address.
      */
-    function setKeyExchange(address _keyExchange) external onlyRoles(_ADMIN_ROLE) {
+    function setKeyExchange(address _keyExchange) external onlyOwnerOrRoles(_ADMIN_ROLE) {
         keyExchange = _keyExchange;
     }
 

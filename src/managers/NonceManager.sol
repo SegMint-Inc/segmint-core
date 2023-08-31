@@ -9,7 +9,6 @@ pragma solidity ^0.8.0;
  */
 
 abstract contract NonceManager {
-
     /**
      * Event for nonce increments.
      */
@@ -49,5 +48,4 @@ abstract contract NonceManager {
     function _getNonce(address account) internal view returns (uint256) {
         return _nonces[account];
     }
-
 }

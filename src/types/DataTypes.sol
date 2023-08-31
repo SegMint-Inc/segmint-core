@@ -35,6 +35,14 @@ enum VaultType {
     MULTI
 }
 
+/**
+ * Struct encapsulating the configuration associated with a specifc key ID.
+ * @param creator Address that minted the keys.
+ * @param vaultType Type of vault the keys are associated with.
+ * @param isFrozen Flag if the keys are tradeable.
+ * @param isBurned Flag if the keys have been burnt.
+ * @param supply Number of keys of key ID in circulation.
+ */
 struct KeyConfig {
     address creator;
     VaultType vaultType;
