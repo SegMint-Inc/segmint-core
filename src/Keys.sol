@@ -266,13 +266,6 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         }
     }
 
-    /**
-     * @inheritdoc IKeys
-     */
-    function creatorOf(uint256 keyId) external view returns (address) {
-        return _keyConfig[keyId].creator;
-    }
-
     function getKeyConfig(uint256 keyId) external view returns (KeyConfig memory) {
         return _keyConfig[keyId];
     }

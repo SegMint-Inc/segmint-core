@@ -52,7 +52,6 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, EIP712 {
         _WETH = weth_;
     }
 
-    /// TODO: Implement multi-order execution.
     function executeOrders(OrderParams[] calldata orders) external payable {
         /// Checks: Ensure a non-zero amount of orders have been specified.
         if (orders.length == 0) revert NoOrdersProvided();
@@ -66,7 +65,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, EIP712 {
             /// Validates the order criteria.
             _validateOrderCriteria(singleOrder);
 
-            /// Transfer asset to taker.
+            /// Transfer asset to caller.
             IERC1155(address(keys)).safeTransferFrom({
                 from: singleOrder.order.maker,
                 to: msg.sender,
@@ -82,8 +81,9 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, EIP712 {
             msgValue -= singleOrder.order.price;
         }
 
+        /// If some amount of native token remains, refund the caller.
         if (msgValue > 0) {
-            (bool refundSent,) = msg.sender.call{value: msgValue}("");
+            (bool refundSent,) = msg.sender.call{ gas: _GAS_LIMIT_TRANSFER, value: msgValue }("");
             if (!refundSent) revert NativeTransferFailed();
         }
     }
@@ -244,8 +244,11 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, EIP712 {
      * Reserve price should be higher than the buy out price.
      */
     function setKeyTerms(KeyTerms calldata finalTerms, uint256 keyId) external {
+        /// Cache key configuration in memory.
+        KeyConfig memory keyConfig = keys.getKeyConfig(keyId);
+
         /// Checks: Ensure the caller is the original creator of the keys.
-        if (msg.sender != keys.creatorOf(keyId)) revert NotKeyCreator();
+        if (msg.sender != keyConfig.creator) revert NotKeyCreator();
 
         /// Checks: Ensure that a valid market type has been provided.
         if (finalTerms.market == MarketType.UNDEFINED) revert InvalidMarketType();
