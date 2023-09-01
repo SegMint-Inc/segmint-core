@@ -13,17 +13,17 @@ import { VaultType, KeyConfig } from "./types/DataTypes.sol";
  */
 
 contract Keys is IKeys, OwnableRoles, ERC1155 {
-    /// @dev keccak256("_ADMIN_ROLE")
-    uint256 private constant _ADMIN_ROLE = 0x4a4566510e9351b52a3e4f6550fc68d8577350bec07d7a69da4906b0efe533bc;
+    /// `keccak256("ADMIN_ROLE");`
+    uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
 
-    /// @dev keccak256("_FACTORY_ROLE")
-    uint256 private constant _FACTORY_ROLE = 0xee961466e472802bc53e28ea01e7875c1285a5d1f1992f7b1aafc450304db8bc;
+    /// `keccak256("FACTORY_ROLE");`
+    uint256 public constant FACTORY_ROLE = 0xdfbefbf47cfe66b701d8cfdbce1de81c821590819cb07e71cb01b6602fb0ee27;
 
     /// Minimum duration of a lend.
-    uint256 private constant _MIN_LEND_DURATION = 1 days;
+    uint256 public constant MIN_LEND_DURATION = 1 days;
 
     /// Maximum duration of a lend.
-    uint256 private constant _MAX_LEND_DURATION = 365 days;
+    uint256 public constant MAX_LEND_DURATION = 365 days;
 
     /// Maximum number of keys that can be created for a single identifier.
     uint256 public constant MAX_KEYS = 100;
@@ -51,7 +51,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         IKYCRegistry kycRegistry_
     ) ERC1155(uri_) {
         _initializeOwner(msg.sender);
-        _grantRoles(admin_, _ADMIN_ROLE);
+        _grantRoles(admin_, ADMIN_ROLE);
 
         kycRegistry = kycRegistry_;
     }
@@ -124,7 +124,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         if (lendAmount == 0 || lendAmount > MAX_KEYS) revert InvalidKeyAmount();
 
         /// Checks: Ensure a valid lend duration has been provided.
-        if (lendDuration < _MIN_LEND_DURATION || lendDuration > _MAX_LEND_DURATION) revert InvalidLendDuration();
+        if (lendDuration < MIN_LEND_DURATION || lendDuration > MAX_LEND_DURATION) revert InvalidLendDuration();
 
         uint40 lendExpiryTime = uint40(block.timestamp + lendDuration);
 
@@ -174,14 +174,14 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     /**
      * @inheritdoc IKeys
      */
-    function registerVault(address vault) external onlyRoles(_FACTORY_ROLE) {
+    function registerVault(address vault) external onlyRoles(FACTORY_ROLE) {
         isRegistered[vault] = true;
     }
 
     /**
      * @inheritdoc IKeys
      */
-    function freezeKeys(uint256 keyId) external onlyRoles(_ADMIN_ROLE) {
+    function freezeKeys(uint256 keyId) external onlyRoles(ADMIN_ROLE) {
         _keyConfig[keyId].isFrozen = true;
 
         emit IKeys.KeyFrozen({ admin: msg.sender, keyId: keyId });
@@ -190,7 +190,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     /**
      * @inheritdoc IKeys
      */
-    function unfreezeKeys(uint256 keyId) external onlyRoles(_ADMIN_ROLE) {
+    function unfreezeKeys(uint256 keyId) external onlyRoles(ADMIN_ROLE) {
         _keyConfig[keyId].isFrozen = false;
 
         emit IKeys.KeyUnfrozen({ admin: msg.sender, keyId: keyId });
@@ -199,7 +199,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     /**
      * Function used to set the key exchange address.
      */
-    function setKeyExchange(address _keyExchange) external onlyOwnerOrRoles(_ADMIN_ROLE) {
+    function setKeyExchange(address _keyExchange) external onlyOwnerOrRoles(ADMIN_ROLE) {
         keyExchange = _keyExchange;
     }
 
@@ -283,7 +283,8 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     /**
      * Function used to set a new URI associated with key metadata.
      */
-    function setURI(string calldata newURI) external onlyRoles(_ADMIN_ROLE) {
+    function setURI(string calldata newURI) external onlyRoles(ADMIN_ROLE) {
         _setURI(newURI);
     }
+
 }
