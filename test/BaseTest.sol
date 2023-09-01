@@ -25,7 +25,20 @@ abstract contract BaseTest is Base, Assertions, Events {
     uint256 public constant FACTORY_ROLE = 0xee961466e472802bc53e28ea01e7875c1285a5d1f1992f7b1aafc450304db8bc;
     address public constant FEE_RECEIVER = address(0xFEE5);
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
     bytes4 public constant UNAUTHORIZED_SELECTOR = 0x82b42900;
+
+    /// Default amount of mock ERC20 tokens to give to a user.
+    uint256 public constant ERC20_BALANCE = 1_000_000 ether;
+    /// Default amount of mock ERC721 tokens to give to a user.
+    uint256 public constant ERC721_AMOUNT = 1;
+    /// Default ERC1155 ID.
+    uint256 public constant ERC1155_ID = 0;
+    /// Default amount of mock ERC1155 tokens to give to a user.
+    uint256 public constant ERC1155_AMOUNT = 1;
+
+    /// Alice's ERC721 token ID.
+    uint256 public constant ALICE_721_ID = 0;
 
     /// Define test users.
     Users public users;
@@ -63,19 +76,19 @@ abstract contract BaseTest is Base, Assertions, Events {
         (users.signer.account, users.signer.privateKey) = makeAddrAndKey("Signer");
 
         (users.alice.account, users.alice.privateKey) = makeAddrAndKey("Alice");
-        deal({ token: address(mockERC20), to: users.alice.account, give: 1_000_000 ether });
-        mockERC721.mint({ receiver: users.alice.account, amount: 1 });
-        mockERC1155.mint({ receiver: users.alice.account, id: 0, amount: 1 });
+        deal({ token: address(mockERC20), to: users.alice.account, give: ERC20_BALANCE });
+        mockERC721.mint({ receiver: users.alice.account, amount: ERC721_AMOUNT });
+        mockERC1155.mint({ receiver: users.alice.account, id: ERC1155_ID, amount: ERC1155_AMOUNT });
 
         (users.bob.account, users.bob.privateKey) = makeAddrAndKey("Bob");
-        deal({ token: address(mockERC20), to: users.bob.account, give: 1_000_000 ether });
-        mockERC721.mint({ receiver: users.bob.account, amount: 1 });
-        mockERC1155.mint({ receiver: users.bob.account, id: 0, amount: 1 });
+        deal({ token: address(mockERC20), to: users.bob.account, give: ERC20_BALANCE });
+        mockERC721.mint({ receiver: users.bob.account, amount: ERC721_AMOUNT });
+        mockERC1155.mint({ receiver: users.bob.account, id: ERC1155_ID, amount: ERC1155_AMOUNT });
 
         (users.eve.account, users.eve.privateKey) = makeAddrAndKey("Eve");
-        deal({ token: address(mockERC20), to: users.eve.account, give: 1_000_000 ether });
-        mockERC721.mint({ receiver: users.eve.account, amount: 1 });
-        mockERC1155.mint({ receiver: users.eve.account, id: 0, amount: 1 });
+        deal({ token: address(mockERC20), to: users.eve.account, give: ERC20_BALANCE });
+        mockERC721.mint({ receiver: users.eve.account, amount: ERC721_AMOUNT });
+        mockERC1155.mint({ receiver: users.eve.account, id: ERC1155_ID, amount: ERC1155_AMOUNT });
     }
 
     /// KYC'd the respective users, in this case Alice and Bob.
@@ -88,32 +101,17 @@ abstract contract BaseTest is Base, Assertions, Events {
 
     /// Returns an ERC20 asset owned by Alice.
     function getERC20Asset() internal view returns (Asset memory) {
-        return Asset({
-            class: AssetClass.ERC20,
-            token: address(mockERC20),
-            identifier: 0,
-            amount: 100 ether
-        });
+        return Asset({ class: AssetClass.ERC20, token: address(mockERC20), identifier: 0, amount: 100 ether });
     }
 
     /// Returns an ERC721 asset owned by Alice.
     function getERC721Asset() internal view returns (Asset memory) {
-        return Asset({
-            class: AssetClass.ERC721,
-            token: address(mockERC721),
-            identifier: 0,
-            amount: 1 
-        });
+        return Asset({ class: AssetClass.ERC721, token: address(mockERC721), identifier: 0, amount: 1 });
     }
 
     /// Returns an ERC1155 asset owned by Alice.
     function getERC1155Asset() internal view returns (Asset memory) {
-        return Asset({
-            class: AssetClass.ERC1155,
-            token: address(mockERC1155),
-            identifier: 0,
-            amount: 1 
-        });
+        return Asset({ class: AssetClass.ERC1155, token: address(mockERC1155), identifier: 0, amount: 1 });
     }
 
     /// Returns all assets owned by Alice.
