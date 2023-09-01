@@ -73,6 +73,9 @@ contract SAVault is ISAVault, Initializable {
         /// Burn the keys associated with the vault.
         keys.burnKeys(msg.sender, boundKeyId, keyConfig.supply);
 
+        /// Clear the bound key ID.
+        boundKeyId = 0;
+
         /// Transfer the locked asset to the receiver.
         /// forgefmt: disable-next-item
         if (_asset.class == AssetClass.ERC721) {
