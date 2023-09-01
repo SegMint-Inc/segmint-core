@@ -26,7 +26,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     uint256 private constant _MAX_LEND_DURATION = 365 days;
 
     /// Maximum number of keys that can be created for a single identifier.
-    uint256 private constant _MAX_KEYS = 50;
+    uint256 public constant MAX_KEYS = 100;
 
     /// Maps a key ID to an associated configuration.
     mapping(uint256 keyId => KeyConfig config) private _keyConfig;
@@ -58,7 +58,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
 
     function createKeys(uint256 amount, address receiver, VaultType vaultType) external returns (uint256) {
         /// Checks: Ensure a valid amount of keys are being created.
-        if (amount == 0 || amount > _MAX_KEYS) revert InvalidKeyAmount();
+        if (amount == 0 || amount > MAX_KEYS) revert InvalidKeyAmount();
 
         /// Checks: Ensure the caller is a registered vault or has the factory role.
         if (!isRegistered[msg.sender]) revert CallerNotRegistered();
@@ -121,7 +121,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         if (activeLends[lendee][keyId].lender != address(0)) revert HasActiveLend();
 
         /// Checks: Ensure that a valid amount of keys are being lended.
-        if (lendAmount == 0 || lendAmount > _MAX_KEYS) revert InvalidKeyAmount();
+        if (lendAmount == 0 || lendAmount > MAX_KEYS) revert InvalidKeyAmount();
 
         /// Checks: Ensure a valid lend duration has been provided.
         if (lendDuration < _MIN_LEND_DURATION || lendDuration > _MAX_LEND_DURATION) revert InvalidLendDuration();

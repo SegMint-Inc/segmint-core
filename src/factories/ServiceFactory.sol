@@ -15,7 +15,7 @@ import { IKYCRegistry } from "../interfaces/IKYCRegistry.sol";
 import { ISignerRegistry } from "../interfaces/ISignerRegistry.sol";
 import { IKeys } from "../interfaces/IKeys.sol";
 import { ISafe } from "../interfaces/ISafe.sol";
-import { Asset, AssetClass } from "../types/DataTypes.sol";
+import { Asset, AssetClass, VaultType } from "../types/DataTypes.sol";
 
 /**
  * @title ServiceFactory
@@ -25,14 +25,6 @@ import { Asset, AssetClass } from "../types/DataTypes.sol";
 contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initializable {
     using LibClone for address;
     using ECDSA for bytes32;
-
-    // uint256 private constant _BITMASK_MA_VAULT_NONCE = (1 << 32) - 1;
-
-    // uint256 private constant _BITMASK_SA_VAULT_NONCE = (1 << 64) - 1;
-    // uint256 private constant _BITPOS_SA_VAULT_NONCE = 64;
-
-    // uint256 private constant _BITMASK_SAFE_NONCE = (1 << 92) - 1;
-    // uint256 private constant _BITPOS_SAFE_NONCE = 92;
 
     /// `keccak256("ADMIN_ROLE");`
     uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
@@ -45,15 +37,10 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
     address public saVault;
     address public safe;
 
+    /// TODO: Optimize this with bit packing, allocating 32 bits for each nonce.
     mapping(address account => uint256 nonce) private _maVaultNonce;
     mapping(address account => uint256 nonce) private _saVaultNonce;
     mapping(address account => uint256 nonce) private _safeNonce;
-
-    /// Packed nonce values. Bit positions are as follows:
-    /// [0...31] Nonce for multi-asset vaults.
-    /// [32..63] Nonce for single-asset vaults.
-    /// [64..91] Nonce for safes.
-    // mapping(address account => uint256 packedNonces) private _packedNonces;
 
     /**
      * @inheritdoc IServiceFactory
@@ -88,23 +75,19 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
         if (_accessType == IKYCRegistry.AccessType.BLOCKED) revert IKYCRegistry.InvalidAccessType();
 
         /// Cache current nonce and post-increment.
-        uint256 currentNonce = _maVaultNonce[msg.sender]++;
+        uint256 maNonce = _maVaultNonce[msg.sender]++;
 
-        bytes32 digest = keccak256(abi.encodePacked(msg.sender, _accessType, block.chainid, currentNonce, "MAV"));
+        bytes32 digest = keccak256(abi.encodePacked(msg.sender, block.chainid, maNonce, VaultType.MULTI));
         address recoveredSigner = digest.toEthSignedMessageHash().recover(signature);
 
         /// Checks: Ensure the provided signature is valid.
         if (signerRegistry.getSigner() != recoveredSigner) revert ISignerRegistry.SignerMismatch();
 
         /// Caclulate CREATE2 salt.
-        bytes32 salt = keccak256(abi.encodePacked(msg.sender, currentNonce));
+        bytes32 salt = keccak256(abi.encodePacked(msg.sender, maNonce));
 
-        /// Sanity check to confirm the predicted address matches the actual addresses.
-        /// This is done prior to any further storage updates. If this statement ever
-        /// fails, chaos ensues.
-        address predictedVault = maVault.predictDeterministicAddress(salt, address(this));
+        /// Create a clone of the `maVault` implementation.
         address newVault = maVault.cloneDeterministic(salt);
-        if (predictedVault != newVault) revert AddressMismatch();
 
         /// Initialize the newly created clone.
         IMAVault(newVault).initialize({ owner_: msg.sender, keys_: keys });
@@ -113,7 +96,7 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
         /// further interactions with `keys` to be decoupled from this contract.
         keys.registerVault(newVault);
 
-        emit IServiceFactory.VaultCreated({ user: msg.sender, vault: newVault });
+        emit IServiceFactory.VaultCreated({ user: msg.sender, vault: newVault, vaultType: VaultType.MULTI });
     }
 
     /**
@@ -130,24 +113,29 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
         if (_accessType == IKYCRegistry.AccessType.BLOCKED) revert IKYCRegistry.InvalidAccessType();
 
         /// Cache the current nonce value for the caller and post-increment.
-        uint256 currentNonce = _maVaultNonce[msg.sender]++;
+        uint256 saNonce = _saVaultNonce[msg.sender]++;
 
-        bytes32 digest = keccak256(abi.encodePacked(msg.sender, _accessType, block.chainid, currentNonce, "SAV"));
+        bytes32 digest = keccak256(abi.encodePacked(msg.sender, block.chainid, saNonce, VaultType.SINGLE));
         address recoveredSigner = digest.toEthSignedMessageHash().recover(signature);
+
+        /// Checks: Ensure the recovered signer matches the registered signer.
         if (signerRegistry.getSigner() != recoveredSigner) revert ISignerRegistry.SignerMismatch();
 
         /// Caclulate CREATE2 salt.
-        bytes32 salt = keccak256(abi.encodePacked(msg.sender, currentNonce));
+        bytes32 salt = keccak256(abi.encodePacked(msg.sender, saNonce));
 
-        address predictedVault = saVault.predictDeterministicAddress(salt, address(this));
-
-        keys.registerVault(predictedVault);
-
+        /// Create a clone of the `saVault` implementation.
         address newVault = saVault.cloneDeterministic(salt);
-        if (predictedVault != newVault) revert AddressMismatch();
+
+        /// Approve the newly created vault with the keys contract to allow for
+        /// further interactions with `keys` to be decoupled from this contract.
+        keys.registerVault(newVault);
+
+        /// Initialize the newly created clone.
+        ISAVault(newVault).initialize({ _asset: asset, _keys: keys, _keyAmount: keyAmount, _receiver: msg.sender });
 
         /// forgefmt: disable-next-item
-        /// Transfer asset to the newly created clone.
+        /// Transfer asset to the newly created clone after initialization.
         if (asset.class == AssetClass.ERC721) {
             IERC721(asset.token).safeTransferFrom({
                 from: msg.sender,
@@ -164,8 +152,8 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
             });
         }
 
-        /// Initialize the newly created clone.
-        ISAVault(newVault).initialize({ _asset: asset, _keys: keys, _keyAmount: keyAmount, _receiver: msg.sender });
+        /// Emit vault creation event.
+        emit IServiceFactory.VaultCreated({ user: msg.sender, vault: newVault, vaultType: VaultType.SINGLE });
     }
 
     /**
@@ -212,7 +200,7 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
      * @inheritdoc IServiceFactory
      */
     function getSingleAssetVaults(address account) external view returns (address[] memory) {
-        uint256 savNonce = _maVaultNonce[account];
+        uint256 savNonce = _saVaultNonce[account];
         return _predictDeployments(account, savNonce, saVault);
     }
 
@@ -256,6 +244,15 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
      */
     function executeUpgrade(bytes memory payload) external onlyRoles(ADMIN_ROLE) {
         _executeUpgrade(payload);
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                      VERSION CONTROL                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    function nameAndVersion() external view virtual returns (string memory name, string memory version) {
+        name = "Service Factory";
+        version = "1.0";
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/

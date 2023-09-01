@@ -5,7 +5,7 @@ import { ISignerRegistry } from "./ISignerRegistry.sol";
 import { IKYCRegistry } from "./IKYCRegistry.sol";
 import { ISAVault } from "./ISAVault.sol";
 import { IKeys } from "./IKeys.sol";
-import { Asset } from "../types/DataTypes.sol";
+import { Asset, VaultType } from "../types/DataTypes.sol";
 
 /**
  * @title IServiceFactory
@@ -30,8 +30,9 @@ interface IServiceFactory {
      * Emitted when a new vault is created.
      * @param user Address of the account that created the vault.
      * @param vault Address of the newly created vault.
+     * @param vaultType The type of vault created.
      */
-    event VaultCreated(address indexed user, address indexed vault);
+    event VaultCreated(address indexed user, address indexed vault, VaultType vaultType);
 
     /**
      * Emitted when a new safe is created.

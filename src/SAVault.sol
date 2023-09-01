@@ -17,13 +17,15 @@ contract SAVault is ISAVault, Initializable {
     /// Interface of Keys contract.
     IKeys public keys;
 
-    /// Encapsulates the singular locked asset.
-    Asset public lockedAsset;
+    /// Encapsulates the locked asset.
+    Asset private _lockedAsset;
 
     /**
      * @inheritdoc ISAVault
      */
     uint256 public boundKeyId;
+
+    /// TODO: Gas optimise by using immutable args for `keys` address and `asset`.
 
     /**
      * @inheritdoc ISAVault
@@ -32,19 +34,16 @@ contract SAVault is ISAVault, Initializable {
         external
         initializer
     {
-        /// Checks: Ensure the asset being locked is not a key.
-        if (_asset.token == address(keys)) revert CannotLockKeys();
-
-        /// Checks: Ensure the asset being locked has a valid type.
-        if (_asset.class == AssetClass.NONE || _asset.class == AssetClass.ERC20) revert InvalidAssetType();
-
         /// Checks: Ensure the asset has a non-zero amount value.
         if (_asset.amount == 0) revert ZeroAmountValue();
+
+        /// Checks: Ensure the asset being locked is a valid type.
+        if (_asset.class == AssetClass.NONE || _asset.class == AssetClass.ERC20) revert InvalidAssetType();
 
         /// Checks: Ensure that if the asset is an ERC721 token, the amount is 1.
         if (_asset.class == AssetClass.ERC721 && _asset.amount != 1) revert Invalid721Amount();
 
-        lockedAsset = _asset;
+        _lockedAsset = _asset;
         keys = _keys;
 
         /// Create the keys and mint them to the receiver.
@@ -56,7 +55,7 @@ contract SAVault is ISAVault, Initializable {
      */
     function unlockAsset(address receiver) external {
         /// Copy `Asset` struct into memory.
-        Asset memory _asset = lockedAsset;
+        Asset memory _asset = _lockedAsset;
 
         /// Checks: Ensure that the locked asset has not already been unlocked.
         if (_asset.class == AssetClass.NONE) revert NoAssetLocked();
@@ -69,7 +68,7 @@ contract SAVault is ISAVault, Initializable {
         if (keysHeld != keyConfig.supply) revert InsufficientKeys();
 
         /// Clear the locked asset.
-        lockedAsset = Asset({ class: AssetClass.NONE, token: address(0), identifier: 0, amount: 0 });
+        _lockedAsset = Asset({ class: AssetClass.NONE, token: address(0), identifier: 0, amount: 0 });
 
         /// Burn the keys associated with the vault.
         keys.burnKeys(msg.sender, boundKeyId, keyConfig.supply);
@@ -98,6 +97,10 @@ contract SAVault is ISAVault, Initializable {
      */
     function getKeyConfig() external view returns (KeyConfig memory) {
         return keys.getKeyConfig(boundKeyId);
+    }
+
+    function lockedAsset() external view returns (Asset memory) {
+        return _lockedAsset;
     }
 
     /**
