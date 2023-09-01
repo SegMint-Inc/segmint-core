@@ -4,7 +4,11 @@ pragma solidity ^0.8.0;
 import "./Base.sol";
 
 import { ECDSA } from "solady/src/utils/ECDSA.sol";
+import { IERC20 } from "@openzeppelin/token/ERC20/IERC20.sol";
+import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
+import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
 
+import { UpgradeTest } from "./mocks/UpgradeTest.sol";
 import { MockERC20 } from "./mocks/MockERC20.sol";
 import { MockERC721 } from "./mocks/MockERC721.sol";
 import { MockERC1155 } from "./mocks/MockERC1155.sol";
@@ -26,13 +30,15 @@ abstract contract BaseTest is Base, Assertions, Events {
     /// Define test users.
     Users public users;
 
-    /// Mock token contracts.
+    /// Mock contracts.
+    UpgradeTest public upgradeTest;
     MockERC20 public mockERC20;
     MockERC721 public mockERC721;
     MockERC1155 public mockERC1155;
 
     function setUp() public virtual {
-        /// Deploy mock tokens.
+        /// Deploy mocks.
+        upgradeTest = new UpgradeTest();
         mockERC20 = new MockERC20();
         mockERC721 = new MockERC721();
         mockERC1155 = new MockERC1155();
@@ -80,6 +86,45 @@ abstract contract BaseTest is Base, Assertions, Events {
         vm.stopPrank();
     }
 
+    /// Returns an ERC20 asset owned by Alice.
+    function getERC20Asset() internal view returns (Asset memory) {
+        return Asset({
+            class: AssetClass.ERC20,
+            token: address(mockERC20),
+            identifier: 0,
+            amount: 100 ether
+        });
+    }
+
+    /// Returns an ERC721 asset owned by Alice.
+    function getERC721Asset() internal view returns (Asset memory) {
+        return Asset({
+            class: AssetClass.ERC721,
+            token: address(mockERC721),
+            identifier: 0,
+            amount: 1 
+        });
+    }
+
+    /// Returns an ERC1155 asset owned by Alice.
+    function getERC1155Asset() internal view returns (Asset memory) {
+        return Asset({
+            class: AssetClass.ERC1155,
+            token: address(mockERC1155),
+            identifier: 0,
+            amount: 1 
+        });
+    }
+
+    /// Returns all assets owned by Alice.
+    function getAssets() internal view returns (Asset[] memory) {
+        Asset[] memory assets = new Asset[](3);
+        assets[0] = getERC20Asset();
+        assets[1] = getERC721Asset();
+        assets[2] = getERC1155Asset();
+        return assets;
+    }
+
     /// Used for {KYCRegistry.initAccessType}.
     function getAccessSignature(address account, uint256 deadline, IKYCRegistry.AccessType accessType)
         internal
@@ -92,15 +137,12 @@ abstract contract BaseTest is Base, Assertions, Events {
     }
 
     /// Used for {ServiceFactory} vault creation functions.
-    function getVaultCreateSignature(
-        address account,
-        IKYCRegistry.AccessType accessType,
-        uint256 nonce,
-        string memory discriminator
-    ) internal view returns (bytes memory) {
-        bytes32 digest = keccak256(abi.encodePacked(account, accessType, block.chainid, nonce, discriminator))
-            .toEthSignedMessageHash();
-
+    function getVaultCreationSignature(address account, uint256 nonce, VaultType vaultType)
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes32 digest = keccak256(abi.encodePacked(account, block.chainid, nonce, vaultType)).toEthSignedMessageHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign({ privateKey: users.signer.privateKey, digest: digest });
         return abi.encodePacked(r, s, v);
     }

@@ -6,6 +6,7 @@ import { IKYCRegistry } from "../../src/interfaces/IKYCRegistry.sol";
 import { IKeyExchange } from "../../src/interfaces/IKeyExchange.sol";
 import { IServiceFactory } from "../../src/interfaces/IServiceFactory.sol";
 import { IKeys } from "../../src/interfaces/IKeys.sol";
+import { VaultType } from "../../src/types/DataTypes.sol";
 
 abstract contract Events {
     /// {ISignerRegistry} Events.
@@ -25,7 +26,7 @@ abstract contract Events {
     event OrderCancelled(bytes32 orderHash);
 
     /// {IServiceFactory} Events.
-    event VaultCreated(address indexed user, address indexed vault);
+    event VaultCreated(address indexed user, address indexed vault, VaultType vaultType);
     event SafeCreated(address indexed user, address indexed safe);
 
     /// {IKeys} Events.

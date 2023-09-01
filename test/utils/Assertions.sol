@@ -12,6 +12,8 @@ import { ISAVault } from "../../src/interfaces/ISAVault.sol";
 // import { ISafe } from "../src/interfaces/ISafe.sol";
 // import { IWETH } from "../src/interfaces/IWETH.sol";
 
+import { AssetClass, VaultType } from "../../src/types/DataTypes.sol";
+
 abstract contract Assertions is Test {
     /// Asserts two {ISignerRegistry} interface values match.
     function assertEq(ISignerRegistry a, ISignerRegistry b) internal {
@@ -46,5 +48,15 @@ abstract contract Assertions is Test {
     /// Assets two {IKeyExchange} interface values match.
     function assertEq(IKeyExchange a, IKeyExchange b) internal {
         assertEq(address(a), address(b));
+    }
+
+    /// Asserts two {AssetClass} enum values match.
+    function assertEq(AssetClass a, AssetClass b) internal {
+        assertEq(uint256(a), uint256(b));
+    }
+
+    /// Assets two {VaultType} enum values match.
+    function assertEq(VaultType a, VaultType b) internal {
+        assertEq(uint256(a), uint256(b));
     }
 }
