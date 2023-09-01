@@ -8,10 +8,10 @@ import { IERC20 } from "@openzeppelin/token/ERC20/IERC20.sol";
 import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
 
-import { UpgradeTest } from "./mocks/UpgradeTest.sol";
 import { MockERC20 } from "./mocks/MockERC20.sol";
 import { MockERC721 } from "./mocks/MockERC721.sol";
 import { MockERC1155 } from "./mocks/MockERC1155.sol";
+import { MockUpgrade } from "./mocks/MockUpgrade.sol";
 
 import { Assertions } from "./utils/Assertions.sol";
 import { Events } from "./utils/Events.sol";
@@ -31,17 +31,17 @@ abstract contract BaseTest is Base, Assertions, Events {
     Users public users;
 
     /// Mock contracts.
-    UpgradeTest public upgradeTest;
     MockERC20 public mockERC20;
     MockERC721 public mockERC721;
     MockERC1155 public mockERC1155;
+    address public mockUpgrade;
 
     function setUp() public virtual {
         /// Deploy mocks.
-        upgradeTest = new UpgradeTest();
         mockERC20 = new MockERC20();
         mockERC721 = new MockERC721();
         mockERC1155 = new MockERC1155();
+        mockUpgrade = address(new MockUpgrade());
 
         /// Initialize users.
         createUsers();

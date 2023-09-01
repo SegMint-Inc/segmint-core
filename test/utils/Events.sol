@@ -32,4 +32,8 @@ abstract contract Events {
     /// {IKeys} Events.
     event KeyFrozen(address indexed admin, uint256 keyId);
     event KeyUnfrozen(address indexed admin, uint256 keyId);
+
+    /// {IUpgradeHandler} Events.
+    event UpgradeProposed(address indexed admin, address implementation, uint40 deadline);
+    event UpgradeCancelled(address indexed admin, address implementation);
 }

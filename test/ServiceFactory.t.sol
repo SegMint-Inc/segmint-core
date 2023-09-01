@@ -28,7 +28,11 @@ contract ServiceFactoryTest is BaseTest {
     }
 
     function test_CreateMultiAssetVault() public {
-        (uint256 maNonce,,) = serviceFactory.getNonces({ account: users.alice.account });
+        (uint256 maNonce, uint256 saNonce, uint256 safeNonce) = serviceFactory.getNonces({ account: users.alice.account });
+        assertEq(maNonce, 0);
+        assertEq(saNonce, 0);
+        assertEq(safeNonce, 0);
+
         bytes memory signature = getVaultCreationSignature({
             account: users.alice.account,
             nonce: maNonce,
@@ -125,7 +129,12 @@ contract ServiceFactoryTest is BaseTest {
         uint256 keyAmount = keys.MAX_KEYS();
 
         Asset memory asset = getERC721Asset();
-        (,uint256 saNonce,) = serviceFactory.getNonces({ account: users.alice.account });
+
+        (uint256 maNonce, uint256 saNonce, uint256 safeNonce) = serviceFactory.getNonces({ account: users.alice.account });
+        assertEq(maNonce, 0);
+        assertEq(saNonce, 0);
+        assertEq(safeNonce, 0);
+
         bytes memory signature = getVaultCreationSignature({
             account: users.alice.account,
             nonce: saNonce,
@@ -456,5 +465,110 @@ contract ServiceFactoryTest is BaseTest {
         hoax(users.alice.account);
         vm.expectRevert(IKeys.InvalidKeyAmount.selector);
         serviceFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, signature: signature });
+    }
+
+    /// NOTE: Safe Creation Tests Here
+
+    function test_ProposeUpgrade() public {
+        uint40 expectedDeadline = uint40(block.timestamp + serviceFactory.UPGRADE_TIMELOCK());
+
+        hoax(users.admin);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: true, checkData: true });
+        emit UpgradeProposed({ admin: users.admin, implementation: mockUpgrade, deadline: expectedDeadline });
+        serviceFactory.proposeUpgrade({ newImplementation: mockUpgrade });
+
+        (address implementation, uint40 deadline) = serviceFactory.upgradeProposal();
+
+        assertEq(implementation, mockUpgrade);
+        assertEq(deadline, expectedDeadline);
+    }
+
+    function testCannot_ProposeUpgrade_Unauthorized_Fuzzed(address nonAdmin) public {
+        vm.assume(nonAdmin != users.admin);
+
+        hoax(nonAdmin);
+        vm.expectRevert(UNAUTHORIZED_SELECTOR);
+        serviceFactory.proposeUpgrade({ newImplementation: mockUpgrade });
+    }
+
+    function testCannot_ProposeUpgrade_ProposalInProgress() public {
+        startHoax(users.admin);
+        serviceFactory.proposeUpgrade({ newImplementation: mockUpgrade });
+        vm.expectRevert(IUpgradeHandler.ProposalInProgress.selector);
+        serviceFactory.proposeUpgrade({ newImplementation: mockUpgrade });
+    }
+
+    function test_CancelUpgrade() public {
+        startHoax(users.admin);
+        serviceFactory.proposeUpgrade({ newImplementation: mockUpgrade });
+
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
+        emit UpgradeCancelled({ admin: users.admin, implementation: mockUpgrade });
+        serviceFactory.cancelUpgrade();
+
+        (address implementation, uint40 deadline) = serviceFactory.upgradeProposal();
+        assertEq(implementation, address(0));
+        assertEq(deadline, 0);
+    }
+
+    function testCannot_CancelUpgrade_Unauthorized_Fuzzed(address nonAdmin) public {
+        vm.assume(nonAdmin != users.admin);
+
+        hoax(nonAdmin);
+        vm.expectRevert(UNAUTHORIZED_SELECTOR);
+        serviceFactory.cancelUpgrade();
+    }
+
+    function testCannot_CancelUpgrade_NoProposalExists() public {
+        hoax(users.admin);
+        vm.expectRevert(IUpgradeHandler.NoProposalExists.selector);
+        serviceFactory.cancelUpgrade();
+    }
+
+    function test_ExecuteUpgrade() public {
+        startHoax(users.admin);
+        serviceFactory.proposeUpgrade({ newImplementation: mockUpgrade });
+
+        (, uint40 deadline) = serviceFactory.upgradeProposal();
+        vm.warp(deadline);
+
+        serviceFactory.executeUpgrade("");
+
+        (string memory name, string memory version) = serviceFactory.nameAndVersion();
+        assertEq(name, "Upgraded Service Factory");
+        assertEq(version, "2.0");
+
+        /// Ensure that all previous defined storage values are retained after upgrade.
+        bool result = serviceFactory.hasAllRoles({ user: users.admin, roles: serviceFactory.ADMIN_ROLE() });
+        assertTrue(result);
+
+        assertEq(serviceFactory.owner(), address(this));
+        assertEq(serviceFactory.maVault(), address(maVault));
+        assertEq(serviceFactory.saVault(), address(saVault));
+        assertEq(serviceFactory.safe(), address(safe));
+        assertEq(serviceFactory.signerRegistry(), signerRegistry);
+        assertEq(serviceFactory.kycRegistry(), kycRegistry);
+        assertEq(serviceFactory.keys(), keys);
+    }
+
+    function testCannot_ExecuteUpgrade_Unauthorized_Fuzzed(address nonAdmin) public {
+        vm.assume(nonAdmin != users.admin);
+
+        hoax(nonAdmin);
+        vm.expectRevert(UNAUTHORIZED_SELECTOR);
+        serviceFactory.executeUpgrade({ payload: "" });
+    }
+
+    function testCannot_ExecuteUpgrade_NoProposalExists() public {
+        hoax(users.admin);
+        vm.expectRevert(IUpgradeHandler.NoProposalExists.selector);
+        serviceFactory.executeUpgrade({ payload: "" });
+    }
+
+    function testCannot_ExecuteUpgrade_UpgradeTimeLocked() public {
+        startHoax(users.admin);
+        serviceFactory.proposeUpgrade({ newImplementation: mockUpgrade });
+        vm.expectRevert(IUpgradeHandler.UpgradeTimeLocked.selector);
+        serviceFactory.executeUpgrade({ payload: "" });
     }
 }
