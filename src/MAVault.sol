@@ -33,6 +33,16 @@ contract MAVault is IMAVault, Ownable, Initializable {
     uint256 public boundKeyId;
 
     /**
+     * Modifier used to ensure the caller is either the owner of the vault if no keys
+     * are currently binded, or the holder of all keys. This logic has been moved
+     * to an internal function to reduce bytecode size.
+     */
+    modifier ownerOrKeyHolder() {
+        _ownerOrKeyHolder();
+        _;
+    }
+
+    /**
      * @inheritdoc IMAVault
      */
     function initialize(address owner_, IKeys keys_) external initializer {
@@ -42,25 +52,12 @@ contract MAVault is IMAVault, Ownable, Initializable {
 
     /**
      * @inheritdoc IMAVault
-     * @dev Off-chain indexer will keep track of assets being locked into a
+     * @dev Off-chain indexer will keep track of assets being locked and unlocked from a
      * vault using the transfer events emitted from each assets token standard.
      */
-    function unlockAssets(Asset[] calldata assets, address receiver) external {
+    function unlockAssets(Asset[] calldata assets, address receiver) external ownerOrKeyHolder {
         /// Checks: Ensure a non-zero amount of assets has been specified.
-        if (assets.length == 0) revert ZeroAssetAmount();
-
-        /// If a vault is key binded, only the holder of all keys can unlock assets.
-        if (boundKeyId != 0) {
-            /// Get the total number of keys in circulation.
-            uint256 keySupply = keys.getKeyConfig(boundKeyId).supply;
-            uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, boundKeyId);
-
-            /// Checks: Ensure the caller holds the correct amount of keys.
-            if (keysHeld != keySupply) revert InsufficientKeys();
-        } else {
-            /// Reverts with `Unauthorized()` if caller is not the owner.
-            _checkOwner();
-        }
+        if (assets.length == 0) revert IMAVault.ZeroAssetAmount();
 
         for (uint256 i = 0; i < assets.length; i++) {
             Asset calldata asset = assets[i];
@@ -87,7 +84,7 @@ contract MAVault is IMAVault, Ownable, Initializable {
                 });
             } else {
                 /// Checks: Ensure the asset being unlocked has a valid asset class.
-                revert NoneAssetType();
+                revert IMAVault.NoneAssetType();
             }
         }
     }
@@ -95,20 +92,7 @@ contract MAVault is IMAVault, Ownable, Initializable {
     /**
      * @inheritdoc IMAVault
      */
-    function unlockNativeToken(uint256 amount, address receiver) external {
-        /// If a vault is key binded, only the holder of all keys can unlock the native token.
-        if (boundKeyId != 0) {
-            /// Get the total number of keys in circulation.
-            uint256 keySupply = keys.getKeyConfig(boundKeyId).supply;
-            uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, boundKeyId);
-
-            /// Checks: Ensure the caller holds the correct amount of keys.
-            if (keysHeld != keySupply) revert InsufficientKeys();
-        } else {
-            /// Reverts with `Unauthorized()` if caller is not the owner.
-            _checkOwner();
-        }
-
+    function unlockNativeToken(uint256 amount, address receiver) external ownerOrKeyHolder {
         (bool success,) = receiver.call{ value: amount }("");
         if (!success) revert NativeTokenUnlockFailed();
     }
@@ -140,6 +124,9 @@ contract MAVault is IMAVault, Ownable, Initializable {
 
         /// Burn the associated keys.
         keys.burnKeys(msg.sender, boundKeyId, keySupply);
+
+        /// Return the `boundKeyId` value to 0.
+        boundKeyId = 0;
     }
 
     /**
@@ -172,6 +159,20 @@ contract MAVault is IMAVault, Ownable, Initializable {
         returns (bytes4)
     {
         return this.onERC1155BatchReceived.selector;
+    }
+
+    function _ownerOrKeyHolder() internal view {
+        if (boundKeyId != 0) {
+            /// Get the total number of keys in circulation.
+            uint256 keySupply = keys.getKeyConfig(boundKeyId).supply;
+            uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, boundKeyId);
+
+            /// Checks: Ensure the caller holds the correct amount of keys.
+            if (keysHeld != keySupply) revert InsufficientKeys();
+        } else {
+            /// Reverts with `Unauthorized()` if caller is not the owner.
+            _checkOwner();
+        }
     }
 
     /**

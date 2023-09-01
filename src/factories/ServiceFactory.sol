@@ -250,7 +250,7 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
     /*                      VERSION CONTROL                       */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    function nameAndVersion() external view virtual returns (string memory name, string memory version) {
+    function nameAndVersion() external pure virtual returns (string memory name, string memory version) {
         name = "Service Factory";
         version = "1.0";
     }
