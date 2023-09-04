@@ -41,7 +41,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     uint256 public keysCreated;
 
     /// Mapping of active lends.
-    mapping(address lendee => mapping(uint256 keyId => LendingTerms lendingTerm)) public activeLends;
+    mapping(address lendee => mapping(uint256 keyId => LendingTerms lendingTerm)) private _activeLends;
     mapping(address vault => bool registered) public isRegistered;
 
     /// forgefmt: disable-next-item
@@ -57,11 +57,11 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     }
 
     function createKeys(uint256 amount, address receiver, VaultType vaultType) external returns (uint256) {
-        /// Checks: Ensure a valid amount of keys are being created.
-        if (amount == 0 || amount > MAX_KEYS) revert InvalidKeyAmount();
-
         /// Checks: Ensure the caller is a registered vault or has the factory role.
         if (!isRegistered[msg.sender]) revert CallerNotRegistered();
+        
+        /// Checks: Ensure a valid amount of keys are being created.
+        if (amount == 0 || amount > MAX_KEYS) revert InvalidKeyAmount();
 
         /// Increment the number of keys created and push this value to the stack. The pre-increment
         /// is done to ensure that keys with an ID of 0 are never created.
@@ -86,14 +86,11 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
      * @inheritdoc IKeys
      */
     function burnKeys(address holder, uint256 keyId, uint256 amount) external {
-        /// Cache key configuration in memory.
-        KeyConfig memory keyConfig = _keyConfig[keyId];
-
-        /// Checks: Ensure that frozen keys cannot be destroyed.
-        if (keyConfig.isFrozen) revert KeysFrozen();
-
         /// Checks: Ensure the caller is a registered vault.
         if (!isRegistered[msg.sender]) revert CallerNotRegistered();
+
+        /// Checks: Ensure that frozen keys cannot be destroyed.
+        if (_keyConfig[keyId].isFrozen) revert KeysFrozen();
 
         /// Acknowledge that the keys have been burned.
         _keyConfig[keyId].isBurned = true;
@@ -107,21 +104,18 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
      * @inheritdoc IKeys
      */
     function lendKeys(address lendee, uint256 keyId, uint256 lendAmount, uint256 lendDuration) external {
-        /// Cache key configuration in memory.
-        KeyConfig memory keyConfig = _keyConfig[keyId];
-
         /// Checks: Ensure the key idenitifier is not frozen.
-        if (keyConfig.isFrozen) revert KeysFrozen();
+        if (_keyConfig[keyId].isFrozen) revert KeysFrozen();
 
         /// Checks: Ensure the lendee has valid access.
         IKYCRegistry.AccessType accessType = kycRegistry.accessType(lendee);
         if (accessType == IKYCRegistry.AccessType.BLOCKED) revert IKYCRegistry.InvalidAccessType();
 
         /// Checks: Ensure the lendee does not already have an active lend for `keyId`.
-        if (activeLends[lendee][keyId].lender != address(0)) revert HasActiveLend();
+        if (_activeLends[lendee][keyId].lender != address(0)) revert HasActiveLend();
 
         /// Checks: Ensure that a valid amount of keys are being lended.
-        if (lendAmount == 0 || lendAmount > MAX_KEYS) revert InvalidKeyAmount();
+        if (lendAmount == 0) revert ZeroLendAmount();
 
         /// Checks: Ensure a valid lend duration has been provided.
         if (lendDuration < MIN_LEND_DURATION || lendDuration > MAX_LEND_DURATION) revert InvalidLendDuration();
@@ -130,7 +124,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
 
         /// Define the lending terms.
         /// forgefmt: disable-next-item
-        activeLends[lendee][keyId] = LendingTerms({
+        _activeLends[lendee][keyId] = LendingTerms({
             lender: msg.sender,
             amount: uint56(lendAmount),
             expiryTime: lendExpiryTime
@@ -145,16 +139,12 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     /**
      * @inheritdoc IKeys
      */
-    // TODO: Check if reclaim should only be callable after a lend has expired.
     function reclaimKeys(address lendee, uint256 keyId) external {
-        /// Cache key configuration in memory.
-        KeyConfig memory keyConfig = _keyConfig[keyId];
-
         /// Checks: Ensure the key idenitifier is not frozen.
-        if (keyConfig.isFrozen) revert KeysFrozen();
+        if (_keyConfig[keyId].isFrozen) revert KeysFrozen();
 
         /// Cache lending terms in memory.
-        LendingTerms memory lendingTerms = activeLends[lendee][keyId];
+        LendingTerms memory lendingTerms = _activeLends[lendee][keyId];
 
         /// Checks: Ensure lendee has an active lend.
         if (lendingTerms.expiryTime == 0) revert NoActiveLend();
@@ -163,7 +153,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         if (lendingTerms.expiryTime > block.timestamp) revert LendStillActive();
 
         /// Clear lending terms.
-        activeLends[lendee][keyId] = LendingTerms({ lender: address(0), amount: 0, expiryTime: 0 });
+        _activeLends[lendee][keyId] = LendingTerms({ lender: address(0), amount: 0, expiryTime: 0 });
 
         /// `keyId` does not need to be sanitized as `_safeTransferFrom` will fail if `keyId` does not exist.
         /// We use `_safeTransferFrom` here to circumvent the `isApprovedForAll` check but retain the zero address
@@ -199,7 +189,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     /**
      * Function used to set the key exchange address.
      */
-    function setKeyExchange(address _keyExchange) external onlyOwnerOrRoles(ADMIN_ROLE) {
+    function setKeyExchange(address _keyExchange) external onlyOwner {
         keyExchange = _keyExchange;
     }
 
@@ -229,9 +219,9 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         if (value == 0) revert ZeroKeyTransfer();
 
         /// Check the lending status of the key.
-        LendingTerms memory lendingTerms = activeLends[from][id];
+        LendingTerms memory lendingTerms = _activeLends[from][id];
 
-        /// If `from` has no activeLends associated with `id`.
+        /// If `from` has no _activeLends associated with `id`.
         if (lendingTerms.expiryTime == 0) {
             _safeTransferFrom(from, to, id, value, data);
 
@@ -242,7 +232,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
             /// TODO: Ensure that returning 1 key doesn't fully clear the lending terms.
 
             /// Clear lending terms.
-            activeLends[from][value] = LendingTerms({ lender: address(0), amount: 0, expiryTime: 0 });
+            _activeLends[from][value] = LendingTerms({ lender: address(0), amount: 0, expiryTime: 0 });
 
             _safeTransferFrom(from, to, id, value, data);
 
@@ -268,6 +258,10 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
 
     function getKeyConfig(uint256 keyId) external view returns (KeyConfig memory) {
         return _keyConfig[keyId];
+    }
+
+    function activeLends(address lendee, uint256 keyId) external view returns (LendingTerms memory) {
+        return _activeLends[lendee][keyId];
     }
 
     /**
