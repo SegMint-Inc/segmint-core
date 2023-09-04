@@ -111,6 +111,9 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         IKYCRegistry.AccessType accessType = kycRegistry.accessType(lendee);
         if (accessType == IKYCRegistry.AccessType.BLOCKED) revert IKYCRegistry.InvalidAccessType();
 
+        /// Checks: Ensure keys aren't being lended to self.
+        if (msg.sender == lendee) revert CannotLendToSelf();
+
         /// Checks: Ensure the lendee does not already have an active lend for `keyId`.
         if (_activeLends[lendee][keyId].lender != address(0)) revert HasActiveLend();
 
@@ -221,39 +224,43 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         /// Check the lending status of the key.
         LendingTerms memory lendingTerms = _activeLends[from][id];
 
-        /// If `from` has no _activeLends associated with `id`.
-        if (lendingTerms.expiryTime == 0) {
+        /// If `from` has no active lends associated with `id`.
+        if (lendingTerms.lender == address(0)) {
             _safeTransferFrom(from, to, id, value, data);
 
             /// If some amount of keys are being transferred to the lender. We don't need to check
             /// the value here as we can guarantee that it is non-zero and a transfer of any non-zero
             /// amount of keys should clear the lending terms.
         } else if (to == lendingTerms.lender) {
-            /// TODO: Ensure that returning 1 key doesn't fully clear the lending terms.
-
-            /// Clear lending terms.
-            _activeLends[from][value] = LendingTerms({ lender: address(0), amount: 0, expiryTime: 0 });
+            /// Calculate the amount of lended keys being returned to the lender.
+            uint256 remainingKeys = lendingTerms.amount - value;
+            /// Lend has been returned in full.
+            if (remainingKeys == 0) {
+                /// Clear lending terms.
+                _activeLends[from][value] = LendingTerms({ lender: address(0), amount: 0, expiryTime: 0 });    
+            } else {
+                /// Update lending terms to reflect the remaining amount of keys on lend.
+                _activeLends[from][value].amount = uint56(remainingKeys);
+            }
 
             _safeTransferFrom(from, to, id, value, data);
 
             /// If a transfer is being attempted with a lend active to a non-lender.
         } else {
-            /// Get the number of keys held by `from`.
+            /// Get the total number of keys held by `from` and then calculate how many 'free' keys
+            /// `from` has. Free keys in this context refers to how many keys `from` owns that are not
+            /// on lend.
             uint256 keysHeld = this.balanceOf({ account: from, id: id });
+            uint256 freeKeys = keysHeld - lendingTerms.amount;
 
-            /// Calculate the number of 'free' keys. A free key in this context is a key
-            /// that is not owned on lend. Since lended keys are soulbound, we can expect
-            /// `from` to be in posessesion of at least ONE key. Due to this, the operation
-            /// `keysHeld - 1` should never revert.
-            uint256 freeKeys = keysHeld - 1;
-
-            // if (freeKeys == 0) revert SoulboundKey();
-
-            /// If `from` has an insufficient free keys value.
+            /// If the number of keys being transferred exceeds the number of free keys owned by
+            /// `from`, they shouldn't be able to move any keys.
             if (value > freeKeys) revert OverFreeKeyBalance();
 
             _safeTransferFrom(from, to, id, value, data);
         }
+
+        // _safeTransferFrom(from, to, id, value, data);
     }
 
     function getKeyConfig(uint256 keyId) external view returns (KeyConfig memory) {
