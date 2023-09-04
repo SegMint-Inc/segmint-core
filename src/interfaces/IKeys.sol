@@ -68,6 +68,11 @@ interface IKeys {
      */
     error ZeroLendAmount();
 
+    /**
+     * Thrown when trying to lend keys to self.
+     */
+    error CannotLendToSelf();
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           EVENTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
