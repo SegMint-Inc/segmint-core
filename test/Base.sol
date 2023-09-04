@@ -17,7 +17,6 @@ import { Safe } from "../src/Safe.sol";
 import { ISignerRegistry } from "../src/interfaces/ISignerRegistry.sol";
 import { IKYCRegistry } from "../src/interfaces/IKYCRegistry.sol";
 import { IKeyExchange } from "../src/interfaces/IKeyExchange.sol";
-import { IServiceFactoryProxy } from "../src/interfaces/IServiceFactoryProxy.sol";
 import { IServiceFactory } from "../src/interfaces/IServiceFactory.sol";
 import { IKeys } from "../src/interfaces/IKeys.sol";
 import { IMAVault } from "../src/interfaces/IMAVault.sol";

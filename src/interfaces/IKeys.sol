@@ -63,6 +63,11 @@ interface IKeys {
      */
     error CallerNotRegistered();
 
+    /**
+     * Thrown when attempting to lend out zero keys.
+     */
+    error ZeroLendAmount();
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           EVENTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
