@@ -39,11 +39,11 @@ contract ServiceFactoryTest is BaseTest {
         kycUsers(); // KYC both Alice and Bob.
 
         /// Create a multi-asset vault for Alice.
-        startHoax(users.alice.account);
-        serviceFactory.createMultiAssetVault({
-            signature: getVaultCreationSignature(users.alice.account, 0, VaultType.MULTI)
-        });
-        vm.stopPrank();
+        (uint256 maNonce,,) = serviceFactory.getNonces(users.alice.account);
+        bytes memory signature = getVaultCreationSignature(users.alice.account, maNonce, VaultType.MULTI);        
+        
+        hoax(users.alice.account);
+        serviceFactory.createMultiAssetVault({ signature: signature });
 
         vault = MAVault(payable(serviceFactory.getMultiAssetVaults({ account: users.alice.account })[0]));
     }
