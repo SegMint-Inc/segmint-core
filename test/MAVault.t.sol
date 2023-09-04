@@ -38,9 +38,6 @@ contract ServiceFactoryTest is BaseTest {
         super.setUp();
         kycUsers(); // KYC both Alice and Bob.
 
-        /// Interface the proxy contract with the implementation so that calls are delegated correctly.
-        serviceFactory = ServiceFactory(address(serviceFactoryProxy));
-
         /// Create a multi-asset vault for Alice.
         startHoax(users.alice.account);
         serviceFactory.createMultiAssetVault({

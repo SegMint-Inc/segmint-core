@@ -82,5 +82,8 @@ abstract contract Base is Script, Test {
 
         /// Grant `factoryRole` to service factory.
         keys.grantRoles({ user: address(serviceFactoryProxy), roles: factoryRole });
+
+        /// Interface the proxy contract with the implementation so that calls are delegated correctly.
+        serviceFactory = ServiceFactory(address(serviceFactoryProxy));
     }
 }

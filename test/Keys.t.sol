@@ -10,9 +10,6 @@ contract KeysTest is BaseTest {
         super.setUp();
         kycUsers(); // KYC both Alice and Bob.
 
-        /// Interface the proxy contract with the implementation so that calls are delegated correctly.
-        serviceFactory = ServiceFactory(address(serviceFactoryProxy));
-
         /// Spoof storage so that Alice is a registered vault.
         stdstore.target(address(keys)).sig("isRegistered(address)").with_key(users.alice.account).checked_write(true);
         assertTrue(keys.isRegistered(users.alice.account));   

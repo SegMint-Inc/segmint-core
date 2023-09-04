@@ -35,9 +35,6 @@ contract ServiceFactoryTest is BaseTest {
     function setUp() public override {
         super.setUp();
         kycUsers(); // KYC both Alice and Bob.
-
-        /// Interface the proxy contract with the implementation so that calls are delegated correctly.
-        serviceFactory = ServiceFactory(address(serviceFactoryProxy));
     }
 
     function test_UnlockAsset_ERC721() public createVault(AssetClass.ERC721) {
