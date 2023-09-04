@@ -38,7 +38,7 @@ contract KeysTest is BaseTest {
         vm.assume(nonRegistered != users.alice.account);
     
         hoax(nonRegistered);
-        vm.expectRevert(IKeys.CallerNotRegistered.selector);
+        vm.expectRevert(IKeys.CallerNotVault.selector);
         keys.createKeys({ amount: 1, receiver: nonRegistered, vaultType: VaultType.SINGLE });
     }
 
@@ -69,7 +69,7 @@ contract KeysTest is BaseTest {
         vm.assume(nonRegistered != users.alice.account);
 
         hoax(nonRegistered);
-        vm.expectRevert(IKeys.CallerNotRegistered.selector);
+        vm.expectRevert(IKeys.CallerNotVault.selector);
         keys.createKeys({ amount: 1, receiver: nonRegistered, vaultType: VaultType.SINGLE });
     }
 
@@ -131,6 +131,15 @@ contract KeysTest is BaseTest {
         keys.lendKeys({ lendee: users.eve.account, keyId: keyId, lendAmount: keyAmount, lendDuration: 1 days });
     }
 
+    function testCannot_LendKeys_CannotLendToSelf() public {
+        uint256 keyAmount = keys.MAX_KEYS();
+
+        startHoax(users.alice.account);
+        uint256 keyId = _createKeys(keyAmount);
+        vm.expectRevert(IKeys.CannotLendToSelf.selector);
+        keys.lendKeys({ lendee: users.alice.account, keyId: keyId, lendAmount: keyAmount, lendDuration: 1 days });
+    }
+
     function testCannot_LendKeys_HasActiveLend() public {
         uint256 keyAmount = keys.MAX_KEYS();
 
@@ -159,6 +168,15 @@ contract KeysTest is BaseTest {
         keys.lendKeys({ lendee: users.bob.account, keyId: keyId, lendAmount: keyAmount, lendDuration: badMinDuration });
         vm.expectRevert(IKeys.InvalidLendDuration.selector);
         keys.lendKeys({ lendee: users.bob.account, keyId: keyId, lendAmount: keyAmount, lendDuration: badMaxDuration });
+    }
+
+    function testCannot_LendKeys_NonExistentKeyId_Fuzzed(uint256 keyId, uint256 keyAmount) public {
+        keyId = bound(keyId, 2, type(uint256).max);
+        keyAmount = bound(keyAmount, 1, type(uint256).max);
+
+        hoax(users.alice.account);
+        vm.expectRevert();
+        keys.lendKeys({ lendee: users.bob.account, keyId: keyId, lendAmount: keyAmount, lendDuration: 3 days });
     }
 
     function testCannot_TransferKeys_OnLend_OverFreeKeyBalance_Fuzzed(uint256 lendAmount, uint256 lendDuration) public {
@@ -353,6 +371,7 @@ contract KeysTest is BaseTest {
         assertTrue(keys.getKeyConfig(keyId).isFrozen);
     }
 
+    /// TODO: Check why `0x2a07706473244BC757E10F2a9E86fB532828afe3` doesn't revert.
     function testCannot_FreezeKeys_Unauthorized_Fuzzed(address nonAdmin) public {
         vm.assume(nonAdmin != users.admin);
 
@@ -395,6 +414,72 @@ contract KeysTest is BaseTest {
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
         keys.setKeyExchange({ _keyExchange: nonOwner });
     }
+
+    function testCannot_SafeTransferFrom_MissingApproval() public {
+        startHoax(users.alice.account);
+        uint256 keyId = _createKeys(keys.MAX_KEYS());
+        vm.stopPrank();
+
+        hoax(users.bob.account);
+        vm.expectRevert();
+        keys.safeTransferFrom({
+            from: users.alice.account,
+            to: users.bob.account,
+            id: keyId,
+            value: 1,
+            data: ""
+        });
+    }
+
+    function testCannot_SafeTransferFrom_KeysFrozen() public {
+        startHoax(users.alice.account);
+        uint256 keyId = _createKeys(keys.MAX_KEYS());
+        vm.stopPrank();
+
+        hoax(users.admin);
+        keys.freezeKeys(keyId);
+
+        hoax(users.alice.account);
+        vm.expectRevert(IKeys.KeysFrozen.selector);
+        keys.safeTransferFrom({
+            from: users.alice.account,
+            to: users.bob.account,
+            id: keyId,
+            value: 1,
+            data: ""
+        });
+    }
+
+    function testCannot_SafeTransferFrom_ZeroKeyTransfer() public {
+        startHoax(users.alice.account);
+        uint256 keyId = _createKeys(keys.MAX_KEYS());
+
+        vm.expectRevert(IKeys.ZeroKeyTransfer.selector);
+        keys.safeTransferFrom({
+            from: users.alice.account,
+            to: users.bob.account,
+            id: keyId,
+            value: 0,
+            data: ""
+        });
+    }
+
+    function test_SetURI_Fuzzed(string memory newURI) public {
+        hoax(users.admin);
+        keys.setURI(newURI);
+
+        assertEq(keys.uri(0), newURI);
+    }
+
+    function testCannot_SetURI_Unauthorized_Fuzzed(address nonAdmin) public {
+        vm.assume(nonAdmin != users.admin);
+        
+        hoax(nonAdmin);
+        vm.expectRevert(UNAUTHORIZED_SELECTOR);
+        keys.setURI("");
+    }
+
+    /// Helper Function
 
     function _createKeys(uint256 amount) internal returns (uint256) {
         return keys.createKeys({ amount: amount, receiver: users.alice.account, vaultType: VaultType.SINGLE });
