@@ -59,9 +59,9 @@ interface IKeys {
     error KeysFrozen();
 
     /**
-     * Thrown when an non-registered address attempts to create keys.
+     * Thrown when an non-registered vault address attempts to create keys.
      */
-    error CallerNotRegistered();
+    error CallerNotVault();
 
     /**
      * Thrown when attempting to lend out zero keys.
@@ -112,9 +112,9 @@ interface IKeys {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * Function used to create keys and return the key ID associated with them.
-     * @param amount Number of keys being created.
-     * @param receiver Address receiving the newly created keys.
+     * Function used to mint new keys and return the key ID associated with them.
+     * @param amount Number of keys to create.
+     * @param receiver Address that will receive the newly created keys.
      * @param vaultType Type of vault that keys are being associated with.
      */
     function createKeys(uint256 amount, address receiver, VaultType vaultType) external returns (uint256);
@@ -166,4 +166,11 @@ interface IKeys {
      * @param keyId Unique key identifier.
      */
     function getKeyConfig(uint256 keyId) external view returns (KeyConfig memory);
+
+    /**
+     * Function used to view the lending terms associated with a lendee and key ID.
+     * @param lendee Address to check active lends for.
+     * @param keyId Unique key identifier.
+     */
+    function activeLends(address lendee, uint256 keyId) external view returns (LendingTerms memory);
 }

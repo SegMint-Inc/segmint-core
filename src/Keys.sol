@@ -31,6 +31,9 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     /// Maps a key ID to an associated configuration.
     mapping(uint256 keyId => KeyConfig config) private _keyConfig;
 
+    /// Mapping of active lends.
+    mapping(address lendee => mapping(uint256 keyId => LendingTerms lendingTerm)) private _activeLends;
+
     /// Interface for KYC registry.
     IKYCRegistry public kycRegistry;
 
@@ -40,26 +43,29 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     /// Counts the number of unique keys created.
     uint256 public keysCreated;
 
-    /// Mapping of active lends.
-    mapping(address lendee => mapping(uint256 keyId => LendingTerms lendingTerm)) private _activeLends;
     mapping(address vault => bool registered) public isRegistered;
 
-    /// forgefmt: disable-next-item
-    constructor(
-        address admin_,
-        string memory uri_,
-        IKYCRegistry kycRegistry_
-    ) ERC1155(uri_) {
+    /**
+     * Ensure the caller is a registered vault. This modifier calls an internal function
+     * to reduce bytecode size.
+     */
+    modifier isVault {
+        _isVault();
+        _;
+    }
+
+    constructor(address admin_, string memory uri_, IKYCRegistry kycRegistry_) ERC1155(uri_) {
         _initializeOwner(msg.sender);
         _grantRoles(admin_, ADMIN_ROLE);
 
         kycRegistry = kycRegistry_;
     }
 
-    function createKeys(uint256 amount, address receiver, VaultType vaultType) external returns (uint256) {
-        /// Checks: Ensure the caller is a registered vault or has the factory role.
-        if (!isRegistered[msg.sender]) revert CallerNotRegistered();
-        
+    /**
+     * @inheritdoc IKeys
+     * @dev This function should only be callable by vaults that have been created through the Service Factory.
+     */
+    function createKeys(uint256 amount, address receiver, VaultType vaultType) external isVault returns (uint256) {
         /// Checks: Ensure a valid amount of keys are being created.
         if (amount == 0 || amount > MAX_KEYS) revert InvalidKeyAmount();
 
@@ -67,7 +73,8 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         /// is done to ensure that keys with an ID of 0 are never created.
         uint256 keyId = ++keysCreated;
 
-        /// Update the key bindings associated with the vault.
+        /// Update the key bindings associated with the vault. `amount` can be safely casted to type uint8
+        /// as this value is bounded between 1 and `MAX_KEYS`.
         _keyConfig[keyId] = KeyConfig({
             creator: receiver,
             vaultType: vaultType,
@@ -84,11 +91,9 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
 
     /**
      * @inheritdoc IKeys
+     * @dev This function should only be callable by vaults that have been created through the Service Factory.
      */
-    function burnKeys(address holder, uint256 keyId, uint256 amount) external {
-        /// Checks: Ensure the caller is a registered vault.
-        if (!isRegistered[msg.sender]) revert CallerNotRegistered();
-
+    function burnKeys(address holder, uint256 keyId, uint256 amount) external isVault {
         /// Checks: Ensure that frozen keys cannot be destroyed.
         if (_keyConfig[keyId].isFrozen) revert KeysFrozen();
 
@@ -190,23 +195,31 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     }
 
     /**
+     * @inheritdoc IKeys
+     */
+    function getKeyConfig(uint256 keyId) external view returns (KeyConfig memory) {
+        return _keyConfig[keyId];
+    }
+
+    /**
+     * @inheritdoc IKeys
+     */
+    function activeLends(address lendee, uint256 keyId) external view returns (LendingTerms memory) {
+        return _activeLends[lendee][keyId];
+    }
+
+    /**
      * Function used to set the key exchange address.
      */
     function setKeyExchange(address _keyExchange) external onlyOwner {
         keyExchange = _keyExchange;
     }
 
+
     /**
      * Overriden to ensure that `to` has a valid access type.
      */
-    /// forgefmt: disable-next-item
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 id,
-        uint256 value,
-        bytes memory data
-    ) public override {
+    function safeTransferFrom(address from, address to, uint256 id, uint256 value, bytes memory data) public override {
         /// Checks: Ensure the caller is either the owner of the token or is an approved operator.
         address sender = _msgSender();
         if (from != sender && !isApprovedForAll(from, sender)) revert ERC1155MissingApprovalForAll(sender, from);
@@ -224,17 +237,16 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         /// Check the lending status of the key.
         LendingTerms memory lendingTerms = _activeLends[from][id];
 
-        /// If `from` has no active lends associated with `id`.
+        /// If `from` has no active lends associated with `id`, conduct no checks and continue.
         if (lendingTerms.lender == address(0)) {
-            _safeTransferFrom(from, to, id, value, data);
 
-            /// If some amount of keys are being transferred to the lender. We don't need to check
-            /// the value here as we can guarantee that it is non-zero and a transfer of any non-zero
-            /// amount of keys should clear the lending terms.
+        /// If some amount of keys are being transferred to the lender. We don't need to check
+        /// the value here as we can guarantee that it is non-zero and a transfer of any non-zero
+        /// amount of keys should clear the lending terms.
         } else if (to == lendingTerms.lender) {
             /// Calculate the amount of lended keys being returned to the lender.
             uint256 remainingKeys = lendingTerms.amount - value;
-            /// Lend has been returned in full.
+            /// Lended keys have been returned in full.
             if (remainingKeys == 0) {
                 /// Clear lending terms.
                 _activeLends[from][value] = LendingTerms({ lender: address(0), amount: 0, expiryTime: 0 });    
@@ -243,33 +255,22 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
                 _activeLends[from][value].amount = uint56(remainingKeys);
             }
 
-            _safeTransferFrom(from, to, id, value, data);
-
-            /// If a transfer is being attempted with a lend active to a non-lender.
+        /// If a transfer is being attempted with a lend active to a non-lender.
         } else {
             /// Get the total number of keys held by `from` and then calculate how many 'free' keys
             /// `from` has. Free keys in this context refers to how many keys `from` owns that are not
             /// on lend.
-            uint256 keysHeld = this.balanceOf({ account: from, id: id });
-            uint256 freeKeys = keysHeld - lendingTerms.amount;
+            uint256 freeKeys = this.balanceOf({ account: from, id: id }) - lendingTerms.amount;
 
             /// If the number of keys being transferred exceeds the number of free keys owned by
             /// `from`, they shouldn't be able to move any keys.
             if (value > freeKeys) revert OverFreeKeyBalance();
-
-            _safeTransferFrom(from, to, id, value, data);
         }
 
-        // _safeTransferFrom(from, to, id, value, data);
+        _safeTransferFrom(from, to, id, value, data);
     }
 
-    function getKeyConfig(uint256 keyId) external view returns (KeyConfig memory) {
-        return _keyConfig[keyId];
-    }
-
-    function activeLends(address lendee, uint256 keyId) external view returns (LendingTerms memory) {
-        return _activeLends[lendee][keyId];
-    }
+    // TODO: Override `safeBatchTransferFrom` logic.
 
     /**
      * @dev See {IERC1155-isApprovedForAll}.
@@ -279,13 +280,15 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         return operator == keyExchange ? true : super.isApprovedForAll(account, operator);
     }
 
-    // TODO: Override `safeBatchTransferFrom` logic.
-
     /**
      * Function used to set a new URI associated with key metadata.
      */
     function setURI(string calldata newURI) external onlyRoles(ADMIN_ROLE) {
         _setURI(newURI);
+    }
+
+    function _isVault() internal view {
+        if (!isRegistered[msg.sender]) revert CallerNotVault();
     }
 
 }
