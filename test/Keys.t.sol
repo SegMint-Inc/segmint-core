@@ -12,7 +12,7 @@ contract KeysTest is BaseTest {
 
         /// Spoof storage so that Alice is a registered vault.
         stdstore.target(address(keys)).sig("isRegistered(address)").with_key(users.alice.account).checked_write(true);
-        assertTrue(keys.isRegistered(users.alice.account));   
+        assertTrue(keys.isRegistered(users.alice.account));
     }
 
     function test_CreateKeys_Fuzzed(uint256 keyAmount) public {
@@ -20,12 +20,13 @@ contract KeysTest is BaseTest {
         uint256 oldKeysCreated = keys.keysCreated();
 
         hoax(users.alice.account);
-        uint256 newKeyId = keys.createKeys({ amount: keyAmount, receiver: users.alice.account, vaultType: VaultType.SINGLE });
+        uint256 newKeyId =
+            keys.createKeys({ amount: keyAmount, receiver: users.alice.account, vaultType: VaultType.SINGLE });
 
         uint256 newKeysCreated = keys.keysCreated();
         assertEq(newKeysCreated, oldKeysCreated + 1);
         assertEq(keys.balanceOf({ account: users.alice.account, id: newKeyId }), keyAmount);
-        
+
         KeyConfig memory keyConfig = keys.getKeyConfig(newKeyId);
         assertEq(keyConfig.creator, users.alice.account);
         assertEq(keyConfig.vaultType, VaultType.SINGLE);
@@ -34,9 +35,9 @@ contract KeysTest is BaseTest {
         assertEq(keyConfig.supply, keyAmount);
     }
 
-    function testCannot_CreateKeys_CallerNotRegistered_Fuzzed(address nonRegistered) public {        
+    function testCannot_CreateKeys_CallerNotRegistered_Fuzzed(address nonRegistered) public {
         vm.assume(nonRegistered != users.alice.account);
-    
+
         hoax(nonRegistered);
         vm.expectRevert(IKeys.CallerNotVault.selector);
         keys.createKeys({ amount: 1, receiver: nonRegistered, vaultType: VaultType.SINGLE });
@@ -84,7 +85,7 @@ contract KeysTest is BaseTest {
 
         hoax(users.alice.account);
         vm.expectRevert(IKeys.KeysFrozen.selector);
-        keys.burnKeys({ holder: users.alice.account, keyId: keyId, amount: keyAmount});
+        keys.burnKeys({ holder: users.alice.account, keyId: keyId, amount: keyAmount });
     }
 
     function test_LendKeys_Fuzzed(uint256 lendAmount, uint256 lendDuration) public {
@@ -110,10 +111,10 @@ contract KeysTest is BaseTest {
         uint256 keyAmount = keys.MAX_KEYS();
         lendAmount = bound(lendAmount, 1, keyAmount);
         lendDuration = bound(lendDuration, keys.MIN_LEND_DURATION(), keys.MAX_LEND_DURATION());
-        
+
         hoax(users.alice.account);
         uint256 keyId = _createKeys(keyAmount);
-        
+
         hoax(users.admin);
         keys.freezeKeys(keyId);
 
@@ -179,7 +180,9 @@ contract KeysTest is BaseTest {
         keys.lendKeys({ lendee: users.bob.account, keyId: keyId, lendAmount: keyAmount, lendDuration: 3 days });
     }
 
-    function testCannot_TransferKeys_OnLend_OverFreeKeyBalance_Fuzzed(uint256 lendAmount, uint256 lendDuration) public {
+    function testCannot_TransferKeys_OnLend_OverFreeKeyBalance_Fuzzed(uint256 lendAmount, uint256 lendDuration)
+        public
+    {
         /// For this test, grant Eve KYC access.
         hoax(users.admin);
         kycRegistry.modifyAccessType({ account: users.eve.account, newAccessType: IKYCRegistry.AccessType.RESTRICTED });
@@ -196,13 +199,7 @@ contract KeysTest is BaseTest {
         startHoax(users.bob.account);
         for (uint256 i = 1; i <= lendAmount; i++) {
             vm.expectRevert(IKeys.OverFreeKeyBalance.selector);
-            keys.safeTransferFrom({
-                from: users.bob.account,
-                to: users.eve.account,
-                id: keyId,
-                value: i,
-                data: ""
-            });
+            keys.safeTransferFrom({ from: users.bob.account, to: users.eve.account, id: keyId, value: i, data: "" });
         }
     }
 
@@ -244,13 +241,7 @@ contract KeysTest is BaseTest {
         /// At this point, Bob should only hold lended keys.
         for (uint256 amount = 1; amount <= lendAmount; amount++) {
             vm.expectRevert(IKeys.OverFreeKeyBalance.selector);
-            keys.safeTransferFrom({
-                from: users.bob.account,
-                to: users.eve.account,
-                id: keyId,
-                value: amount,
-                data: ""
-            });
+            keys.safeTransferFrom({ from: users.bob.account, to: users.eve.account, id: keyId, value: amount, data: "" });
         }
     }
 
@@ -422,13 +413,7 @@ contract KeysTest is BaseTest {
 
         hoax(users.bob.account);
         vm.expectRevert();
-        keys.safeTransferFrom({
-            from: users.alice.account,
-            to: users.bob.account,
-            id: keyId,
-            value: 1,
-            data: ""
-        });
+        keys.safeTransferFrom({ from: users.alice.account, to: users.bob.account, id: keyId, value: 1, data: "" });
     }
 
     function testCannot_SafeTransferFrom_KeysFrozen() public {
@@ -441,13 +426,7 @@ contract KeysTest is BaseTest {
 
         hoax(users.alice.account);
         vm.expectRevert(IKeys.KeysFrozen.selector);
-        keys.safeTransferFrom({
-            from: users.alice.account,
-            to: users.bob.account,
-            id: keyId,
-            value: 1,
-            data: ""
-        });
+        keys.safeTransferFrom({ from: users.alice.account, to: users.bob.account, id: keyId, value: 1, data: "" });
     }
 
     function testCannot_SafeTransferFrom_ZeroKeyTransfer() public {
@@ -455,13 +434,7 @@ contract KeysTest is BaseTest {
         uint256 keyId = _createKeys(keys.MAX_KEYS());
 
         vm.expectRevert(IKeys.ZeroKeyTransfer.selector);
-        keys.safeTransferFrom({
-            from: users.alice.account,
-            to: users.bob.account,
-            id: keyId,
-            value: 0,
-            data: ""
-        });
+        keys.safeTransferFrom({ from: users.alice.account, to: users.bob.account, id: keyId, value: 0, data: "" });
     }
 
     function test_SetURI_Fuzzed(string memory newURI) public {
@@ -473,7 +446,7 @@ contract KeysTest is BaseTest {
 
     function testCannot_SetURI_Unauthorized_Fuzzed(address nonAdmin) public {
         vm.assume(nonAdmin != users.admin);
-        
+
         hoax(nonAdmin);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
         keys.setURI("");
@@ -484,5 +457,4 @@ contract KeysTest is BaseTest {
     function _createKeys(uint256 amount) internal returns (uint256) {
         return keys.createKeys({ amount: amount, receiver: users.alice.account, vaultType: VaultType.SINGLE });
     }
-
 }

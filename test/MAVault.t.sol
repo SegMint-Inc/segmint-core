@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import "./BaseTest.sol";
 
-contract ServiceFactoryTest is BaseTest {
+contract MAVaultTest is BaseTest {
     MAVault public vault;
 
     /// Deposit assets into the multi-asset vault.
@@ -39,13 +39,13 @@ contract ServiceFactoryTest is BaseTest {
         kycUsers(); // KYC both Alice and Bob.
 
         /// Create a multi-asset vault for Alice.
-        (uint256 maNonce,) = serviceFactory.getNonces(users.alice.account);
-        bytes memory signature = getVaultCreationSignature(users.alice.account, maNonce, VaultType.MULTI);        
-        
-        hoax(users.alice.account);
-        serviceFactory.createMultiAssetVault({ signature: signature });
+        (uint256 maNonce,) = vaultFactory.getNonces(users.alice.account);
+        bytes memory signature = getVaultCreationSignature(users.alice.account, maNonce, VaultType.MULTI);
 
-        vault = MAVault(payable(serviceFactory.getMultiAssetVaults({ account: users.alice.account })[0]));
+        hoax(users.alice.account);
+        vaultFactory.createMultiAssetVault({ signature: signature });
+
+        vault = MAVault(payable(vaultFactory.getMultiAssetVaults({ account: users.alice.account })[0]));
     }
 
     function test_UnlockAssets() public depositAssets {
@@ -257,5 +257,4 @@ contract ServiceFactoryTest is BaseTest {
         vm.expectRevert(IMAVault.InsufficientKeys.selector);
         vault.unbindKeys();
     }
-
 }

@@ -41,8 +41,8 @@ abstract contract Base is Script, Test {
     SignerRegistry public signerRegistry;
     KYCRegistry public kycRegistry;
     KeyExchange public keyExchange;
-    VaultFactory public serviceFactory;
-    ERC1967Proxy public serviceFactoryProxy;
+    VaultFactory public vaultFactory;
+    ERC1967Proxy public vaultFactoryProxy;
     Keys public keys;
     MAVault public maVault;
     SAVault public saVault;
@@ -66,9 +66,9 @@ abstract contract Base is Script, Test {
         safe = new Safe();
 
         /// Deploy service factory implementation and proxy.
-        serviceFactory = new VaultFactory();
-        serviceFactoryProxy = new ERC1967Proxy({
-            implementation: address(serviceFactory),
+        vaultFactory = new VaultFactory();
+        vaultFactoryProxy = new ERC1967Proxy({
+            implementation: address(vaultFactory),
             _data: abi.encodeWithSelector(
                 VaultFactory.initialize.selector,
                 admin,
@@ -81,9 +81,9 @@ abstract contract Base is Script, Test {
         });
 
         /// Grant `factoryRole` to service factory.
-        keys.grantRoles({ user: address(serviceFactoryProxy), roles: factoryRole });
+        keys.grantRoles({ user: address(vaultFactoryProxy), roles: factoryRole });
 
         /// Interface the proxy contract with the implementation so that calls are delegated correctly.
-        serviceFactory = VaultFactory(address(serviceFactoryProxy));
+        vaultFactory = VaultFactory(address(vaultFactoryProxy));
     }
 }
