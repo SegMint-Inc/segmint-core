@@ -10,22 +10,20 @@ import { AssetClass, Asset, VaultType, KeyConfig } from "./types/DataTypes.sol";
 
 /**
  * @title SAVault - Single Asset Vault
- * @notice See documentation for {ISAVault}.
+ * @notice Locks a single asset upon creation and mints the desired number of keys to the creator. From this
+ * point onwards, a future caller must hold all keys to unlock the underlying asset.
  */
 
 contract SAVault is ISAVault, Initializable {
-    /// Interface of Keys contract.
-    IKeys public keys;
-
-    /// Encapsulates the locked asset.
+    /// Encapsulates the underlying locked asset.
     Asset private _lockedAsset;
+
+    IKeys public keys;
 
     /**
      * @inheritdoc ISAVault
      */
     uint256 public boundKeyId;
-
-    /// TODO: Gas optimise by using immutable args for `keys` address and `asset`.
 
     /**
      * @inheritdoc ISAVault
@@ -35,7 +33,7 @@ contract SAVault is ISAVault, Initializable {
         initializer
     {
         /// Checks: Ensure the asset has a non-zero amount value.
-        if (_asset.amount == 0) revert ZeroAmountValue();
+        if (_asset.amount == 0) revert ZeroAssetAmount();
 
         /// Checks: Ensure the asset being locked is a valid type.
         if (_asset.class == AssetClass.NONE || _asset.class == AssetClass.ERC20) revert InvalidAssetType();
@@ -54,18 +52,18 @@ contract SAVault is ISAVault, Initializable {
      * @inheritdoc ISAVault
      */
     function unlockAsset(address receiver) external {
-        /// Copy `Asset` struct into memory.
-        Asset memory _asset = _lockedAsset;
-
-        /// Checks: Ensure that the locked asset has not already been unlocked.
-        if (_asset.class == AssetClass.NONE) revert NoAssetLocked();
-
         /// Copy `KeyBinds` struct into memory.
         KeyConfig memory keyConfig = keys.getKeyConfig(boundKeyId);
 
         /// Checks: Ensure the caller holds all the keys.
         uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, boundKeyId);
         if (keysHeld != keyConfig.supply) revert InsufficientKeys();
+
+        /// Copy `Asset` struct into memory.
+        Asset memory _asset = _lockedAsset;
+
+        /// Checks: Ensure that the locked asset has not already been unlocked.
+        if (_asset.class == AssetClass.NONE) revert NoAssetLocked();
 
         /// Clear the locked asset.
         _lockedAsset = Asset({ class: AssetClass.NONE, token: address(0), identifier: 0, amount: 0 });
@@ -102,6 +100,9 @@ contract SAVault is ISAVault, Initializable {
         return keys.getKeyConfig(boundKeyId);
     }
 
+    /**
+     * @inheritdoc ISAVault
+     */
     function lockedAsset() external view returns (Asset memory) {
         return _lockedAsset;
     }

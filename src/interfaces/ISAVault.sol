@@ -4,11 +4,6 @@ pragma solidity ^0.8.0;
 import { IKeys } from "./IKeys.sol";
 import { Asset, KeyConfig } from "../types/DataTypes.sol";
 
-/**
- * @title ISAVault
- * @notice N/A
- */
-
 interface ISAVault {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ERRORS                           */
@@ -25,11 +20,6 @@ interface ISAVault {
     error InsufficientKeys();
 
     /**
-     * Thrown when the asset being locked belongs to the Keys contract.
-     */
-    error CannotLockKeys();
-
-    /**
      * Thrown when trying to unlock an asset of class `NONE` OR `ERC20`.
      */
     error InvalidAssetType();
@@ -42,14 +32,14 @@ interface ISAVault {
     /**
      * Thrown when trying to lock an asset with a zero amount.
      */
-    error ZeroAmountValue();
+    error ZeroAssetAmount();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                         FUNCTIONS                          */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * Function used to return the key ID associated with a vault.
+     * Function used to view the key ID associated with the vault.
      */
     function boundKeyId() external view returns (uint256);
 
@@ -64,7 +54,7 @@ interface ISAVault {
 
     /**
      * Function used to unlock the underlying asset within a vault.
-     * @param receiver Address of the account receiving the unlocked asset.
+     * @param receiver Account that will receive the unlocked asset.
      */
     function unlockAsset(address receiver) external;
 
@@ -72,4 +62,9 @@ interface ISAVault {
      * Function used to view the key config associated the vaults key ID.
      */
     function getKeyConfig() external view returns (KeyConfig memory);
+
+    /**
+     * Function used to view the specified locked asset associated with the vault.
+     */
+    function lockedAsset() external view returns (Asset memory);
 }
