@@ -11,6 +11,8 @@ import { ISignerRegistry } from "../interfaces/ISignerRegistry.sol";
  * @notice See documentation for {IKYCRegistry}.
  */
 
+/// TODO: Rename KYCRegistry to AccessRegistry. Wait for confirmation before doing this.
+
 contract KYCRegistry is IKYCRegistry, OwnableRoles {
     using ECDSA for bytes32;
 
