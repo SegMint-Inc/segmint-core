@@ -271,6 +271,15 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     }
 
     // TODO: Override `safeBatchTransferFrom` logic.
+    function safeBatchTransferFrom(
+        address from,
+        address to,
+        uint256[] memory ids,
+        uint256[] memory amounts,
+        bytes memory data
+    ) public override {
+
+    }
 
     /**
      * @dev See {IERC1155-isApprovedForAll}.
