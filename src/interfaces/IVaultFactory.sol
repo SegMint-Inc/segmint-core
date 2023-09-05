@@ -8,11 +8,11 @@ import { IKeys } from "./IKeys.sol";
 import { Asset, VaultType } from "../types/DataTypes.sol";
 
 /**
- * @title IServiceFactory
+ * @title IVaultFactory
  * @notice N/A
  */
 
-interface IServiceFactory {
+interface IVaultFactory {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ERRORS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -34,23 +34,15 @@ interface IServiceFactory {
      */
     event VaultCreated(address indexed user, address indexed vault, VaultType vaultType);
 
-    /**
-     * Emitted when a new safe is created.
-     * @param user Address of the account that created the safe.
-     * @param safe Address of the newly created safe.
-     */
-    event SafeCreated(address indexed user, address indexed safe);
-
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                         FUNCTIONS                          */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * Function used to initialize {ServiceFactory}.
+     * Function used to initialize {VaultFactory}.
      * @param admin_ Address to asign the admin role.
      * @param mavImplementation_ Address of multi-asset vault implementation.
      * @param savImplementation_ Address of single-asset vault implementation.
-     * @param safeImplementation_ Address of safe implementation.
      * @param signerRegistry_ Address of signer registry.
      * @param kycRegistry_ Address of KYC registry.
      * @param keys_ Address of keys.
@@ -59,7 +51,6 @@ interface IServiceFactory {
         address admin_,
         address mavImplementation_,
         address savImplementation_,
-        address safeImplementation_,
         ISignerRegistry signerRegistry_,
         IKYCRegistry kycRegistry_,
         IKeys keys_
@@ -80,14 +71,6 @@ interface IServiceFactory {
     function createSingleAssetVault(Asset calldata asset, uint256 keyAmount, bytes calldata signature) external;
 
     /**
-     * Function used to create a safe.
-     * @param signers List of signer addresses to initialize the safe with.
-     * @param quorum Initial quorum value that all proposals must reach.
-     * @param signature Signed message digest.
-     */
-    function createSafe(address[] calldata signers, uint256 quorum, bytes calldata signature) external;
-
-    /**
      * Function used to get all the multi-asset vaults created by a given account.
      * @param account Address of the account to check.
      */
@@ -100,14 +83,8 @@ interface IServiceFactory {
     function getSingleAssetVaults(address account) external view returns (address[] memory);
 
     /**
-     * Function used to get all the safes created by a given account.
-     * @param account Address of the account to check.
-     */
-    function getSafes(address account) external view returns (address[] memory);
-
-    /**
-     * Function used to propose an upgrade to the implementation address of {ServiceFactory}.
-     * @param newImplementation Newly proposed {ServiceFactory} address.
+     * Function used to propose an upgrade to the implementation address of {VaultFactory}.
+     * @param newImplementation Newly proposed {VaultFactory} address.
      */
     function proposeUpgrade(address newImplementation) external;
 
@@ -117,7 +94,7 @@ interface IServiceFactory {
     function cancelUpgrade() external;
 
     /**
-     * Function used to execute an upgrade to the implementation address of {ServiceFactory}.
+     * Function used to execute an upgrade to the implementation address of {VaultFactory}.
      * @param payload Encoded calldata that will be used to initialize the new implementation.
      */
     function executeUpgrade(bytes memory payload) external;

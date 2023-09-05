@@ -8,21 +8,20 @@ import { Initializable } from "@openzeppelin/proxy/utils/Initializable.sol";
 import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
 import { UpgradeHandler } from "../handlers/UpgradeHandler.sol";
-import { IServiceFactory } from "../interfaces/IServiceFactory.sol";
+import { IVaultFactory } from "../interfaces/IVaultFactory.sol";
 import { IMAVault } from "../interfaces/IMAVault.sol";
 import { ISAVault } from "../interfaces/ISAVault.sol";
 import { IKYCRegistry } from "../interfaces/IKYCRegistry.sol";
 import { ISignerRegistry } from "../interfaces/ISignerRegistry.sol";
 import { IKeys } from "../interfaces/IKeys.sol";
-import { ISafe } from "../interfaces/ISafe.sol";
 import { Asset, AssetClass, VaultType } from "../types/DataTypes.sol";
 
 /**
- * @title ServiceFactory
- * @notice See documentation for {IServiceFactory}.
+ * @title VaultFactory
+ * @notice See documentation for {IVaultFactory}.
  */
 
-contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initializable {
+contract VaultFactory is IVaultFactory, OwnableRoles, UpgradeHandler, Initializable {
     using LibClone for address;
     using ECDSA for bytes32;
 
@@ -35,21 +34,18 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
 
     address public maVault;
     address public saVault;
-    address public safe;
 
     /// TODO: Optimize this with bit packing, allocating 32 bits for each nonce.
     mapping(address account => uint256 nonce) private _maVaultNonce;
     mapping(address account => uint256 nonce) private _saVaultNonce;
-    mapping(address account => uint256 nonce) private _safeNonce;
 
     /**
-     * @inheritdoc IServiceFactory
+     * @inheritdoc IVaultFactory
      */
     function initialize(
         address admin_,
         address maVault_,
         address saVault_,
-        address safe_,
         ISignerRegistry signerRegistry_,
         IKYCRegistry kycRegistry_,
         IKeys keys_
@@ -59,7 +55,6 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
 
         maVault = maVault_;
         saVault = saVault_;
-        safe = safe_;
 
         signerRegistry = signerRegistry_;
         kycRegistry = kycRegistry_;
@@ -67,7 +62,7 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
     }
 
     /**
-     * @inheritdoc IServiceFactory
+     * @inheritdoc IVaultFactory
      */
     function createMultiAssetVault(bytes calldata signature) external {
         /// Checks: Ensure the caller has valid access.
@@ -96,7 +91,7 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
         /// further interactions with `keys` to be decoupled from this contract.
         keys.registerVault(newVault);
 
-        emit IServiceFactory.VaultCreated({ user: msg.sender, vault: newVault, vaultType: VaultType.MULTI });
+        emit IVaultFactory.VaultCreated({ user: msg.sender, vault: newVault, vaultType: VaultType.MULTI });
     }
 
     /**
@@ -153,43 +148,11 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
         }
 
         /// Emit vault creation event.
-        emit IServiceFactory.VaultCreated({ user: msg.sender, vault: newVault, vaultType: VaultType.SINGLE });
+        emit IVaultFactory.VaultCreated({ user: msg.sender, vault: newVault, vaultType: VaultType.SINGLE });
     }
 
     /**
-     * @inheritdoc IServiceFactory
-     */
-    function createSafe(address[] calldata signers, uint256 quorum, bytes calldata signature) external {
-        /// Cache current nonce and increment.
-        uint256 currentNonce = _safeNonce[msg.sender]++;
-
-        bytes32 digest = keccak256(abi.encodePacked(msg.sender, block.chainid, currentNonce, "SAFE"));
-        address recoveredSigner = digest.toEthSignedMessageHash().recover(signature);
-
-        /// Checks: Ensure the provided signature is valid.
-        if (signerRegistry.getSigner() != recoveredSigner) revert ISignerRegistry.SignerMismatch();
-
-        /// Checks: Ensure that a valid quorum value has been provided.
-        // if (quorum == 0 || quorum > signers.length) revert Errors.InvalidQuorumValue();
-
-        /// Caclulate CREATE2 salt.
-        bytes32 salt = keccak256(abi.encodePacked(msg.sender, currentNonce));
-
-        /// Sanity check to confirm the predicted address matches the actual addresses.
-        /// This is done prior to any further storage updates. If this statement ever
-        /// fails, chaos ensues.
-        address predictedSafe = safe.predictDeterministicAddress(salt, address(this));
-        address newSafe = safe.cloneDeterministic(salt);
-        if (predictedSafe != newSafe) revert AddressMismatch();
-
-        /// Initialize the newly created clone.
-        ISafe(newSafe).initialize(signers, quorum);
-
-        emit IServiceFactory.SafeCreated({ user: msg.sender, safe: newSafe });
-    }
-
-    /**
-     * @inheritdoc IServiceFactory
+     * @inheritdoc IVaultFactory
      */
     function getMultiAssetVaults(address account) external view returns (address[] memory) {
         uint256 mavNonce = _maVaultNonce[account];
@@ -197,7 +160,7 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
     }
 
     /**
-     * @inheritdoc IServiceFactory
+     * @inheritdoc IVaultFactory
      */
     function getSingleAssetVaults(address account) external view returns (address[] memory) {
         uint256 savNonce = _saVaultNonce[account];
@@ -205,20 +168,12 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
     }
 
     /**
-     * @inheritdoc IServiceFactory
-     */
-    function getSafes(address account) external view returns (address[] memory) {
-        uint256 safeNonce = _safeNonce[account];
-        return _predictDeployments(account, safeNonce, safe);
-    }
-
-    /**
      * Function used to view the current nonces for each service of an account. This
      * function will return the multi-asset vault, single-asset vault, and safe nonce in
      * that respective order.
      */
-    function getNonces(address account) external view returns (uint256, uint256, uint256) {
-        return (_maVaultNonce[account], _saVaultNonce[account], _safeNonce[account]);
+    function getNonces(address account) external view returns (uint256, uint256) {
+        return (_maVaultNonce[account], _saVaultNonce[account]);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -226,21 +181,21 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * @inheritdoc IServiceFactory
+     * @inheritdoc IVaultFactory
      */
     function proposeUpgrade(address newImplementation) external onlyRoles(ADMIN_ROLE) {
         _proposeUpgrade(newImplementation);
     }
 
     /**
-     * @inheritdoc IServiceFactory
+     * @inheritdoc IVaultFactory
      */
     function cancelUpgrade() external onlyRoles(ADMIN_ROLE) {
         _cancelUpgrade();
     }
 
     /**
-     * @inheritdoc IServiceFactory
+     * @inheritdoc IVaultFactory
      */
     function executeUpgrade(bytes memory payload) external onlyRoles(ADMIN_ROLE) {
         _executeUpgrade(payload);
@@ -251,7 +206,7 @@ contract ServiceFactory is IServiceFactory, OwnableRoles, UpgradeHandler, Initia
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     function nameAndVersion() external pure virtual returns (string memory name, string memory version) {
-        name = "Service Factory";
+        name = "Vault Factory";
         version = "1.0";
     }
 

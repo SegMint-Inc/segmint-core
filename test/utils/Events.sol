@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import { ISignerRegistry } from "../../src/interfaces/ISignerRegistry.sol";
 import { IKYCRegistry } from "../../src/interfaces/IKYCRegistry.sol";
 import { IKeyExchange } from "../../src/interfaces/IKeyExchange.sol";
-import { IServiceFactory } from "../../src/interfaces/IServiceFactory.sol";
+import { IVaultFactory } from "../../src/interfaces/IVaultFactory.sol";
 import { IKeys } from "../../src/interfaces/IKeys.sol";
 import { VaultType } from "../../src/types/DataTypes.sol";
 
@@ -25,7 +25,7 @@ abstract contract Events {
     event OrderIsFilled();
     event OrderCancelled(bytes32 orderHash);
 
-    /// {IServiceFactory} Events.
+    /// {IVaultFactory} Events.
     event VaultCreated(address indexed user, address indexed vault, VaultType vaultType);
     event SafeCreated(address indexed user, address indexed safe);
 

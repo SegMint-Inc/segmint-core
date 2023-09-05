@@ -9,9 +9,6 @@ contract ServiceFactoryTest is BaseTest {
     function setUp() public override {
         super.setUp();
         kycUsers(); // KYC both Alice and Bob.
-
-        /// Interface the proxy contract with the implementation so that calls are delegated correctly.
-        serviceFactory = ServiceFactory(address(serviceFactoryProxy));
     }
 
     function test_ServiceFactory_Deployment() public {
@@ -21,18 +18,15 @@ contract ServiceFactoryTest is BaseTest {
         assertEq(serviceFactory.owner(), address(this));
         assertEq(serviceFactory.maVault(), address(maVault));
         assertEq(serviceFactory.saVault(), address(saVault));
-        assertEq(serviceFactory.safe(), address(safe));
         assertEq(serviceFactory.signerRegistry(), signerRegistry);
         assertEq(serviceFactory.kycRegistry(), kycRegistry);
         assertEq(serviceFactory.keys(), keys);
     }
 
     function test_CreateMultiAssetVault() public {
-        (uint256 maNonce, uint256 saNonce, uint256 safeNonce) =
-            serviceFactory.getNonces({ account: users.alice.account });
+        (uint256 maNonce, uint256 saNonce) = serviceFactory.getNonces({ account: users.alice.account });
         assertEq(maNonce, 0);
         assertEq(saNonce, 0);
-        assertEq(safeNonce, 0);
 
         bytes memory signature =
             getVaultCreationSignature({ account: users.alice.account, nonce: maNonce, vaultType: VaultType.MULTI });
@@ -42,7 +36,7 @@ contract ServiceFactoryTest is BaseTest {
         emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.MULTI });
         serviceFactory.createMultiAssetVault(signature);
 
-        (uint256 newMaNonce,,) = serviceFactory.getNonces({ account: users.alice.account });
+        (uint256 newMaNonce,) = serviceFactory.getNonces({ account: users.alice.account });
         assertEq(newMaNonce, maNonce + 1);
 
         address[] memory maVaults = serviceFactory.getMultiAssetVaults({ account: users.alice.account });
@@ -77,7 +71,7 @@ contract ServiceFactoryTest is BaseTest {
         }
         vm.stopPrank();
 
-        (uint256 maNonce,,) = serviceFactory.getNonces({ account: users.alice.account });
+        (uint256 maNonce,) = serviceFactory.getNonces({ account: users.alice.account });
         assertEq(maNonce, amount);
 
         address[] memory maVaults = serviceFactory.getMultiAssetVaults({ account: users.alice.account });
@@ -99,7 +93,7 @@ contract ServiceFactoryTest is BaseTest {
     }
 
     function testCannot_CreateMultiAssetVault_InvalidAccessType() public {
-        (uint256 maNonce,,) = serviceFactory.getNonces({ account: users.eve.account });
+        (uint256 maNonce,) = serviceFactory.getNonces({ account: users.eve.account });
         bytes memory signature =
             getVaultCreationSignature({ account: users.eve.account, nonce: maNonce, vaultType: VaultType.MULTI });
 
@@ -124,11 +118,9 @@ contract ServiceFactoryTest is BaseTest {
 
         Asset memory asset = getERC721Asset();
 
-        (uint256 maNonce, uint256 saNonce, uint256 safeNonce) =
-            serviceFactory.getNonces({ account: users.alice.account });
+        (uint256 maNonce, uint256 saNonce) = serviceFactory.getNonces({ account: users.alice.account });
         assertEq(maNonce, 0);
         assertEq(saNonce, 0);
-        assertEq(safeNonce, 0);
 
         bytes memory signature =
             getVaultCreationSignature({ account: users.alice.account, nonce: saNonce, vaultType: VaultType.SINGLE });
@@ -142,7 +134,7 @@ contract ServiceFactoryTest is BaseTest {
         serviceFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, signature: signature });
         vm.stopPrank();
 
-        (, uint256 newSaNonce,) = serviceFactory.getNonces({ account: users.alice.account });
+        (, uint256 newSaNonce) = serviceFactory.getNonces({ account: users.alice.account });
         assertEq(newSaNonce, saNonce + 1);
 
         address[] memory saVaults = serviceFactory.getSingleAssetVaults({ account: users.alice.account });
@@ -199,7 +191,7 @@ contract ServiceFactoryTest is BaseTest {
         uint256 keyAmount = keys.MAX_KEYS();
 
         Asset memory asset = getERC1155Asset();
-        (, uint256 saNonce,) = serviceFactory.getNonces({ account: users.alice.account });
+        (, uint256 saNonce) = serviceFactory.getNonces({ account: users.alice.account });
         bytes memory signature =
             getVaultCreationSignature({ account: users.alice.account, nonce: saNonce, vaultType: VaultType.SINGLE });
 
@@ -212,7 +204,7 @@ contract ServiceFactoryTest is BaseTest {
         serviceFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, signature: signature });
         vm.stopPrank();
 
-        (, uint256 newSaNonce,) = serviceFactory.getNonces({ account: users.alice.account });
+        (, uint256 newSaNonce) = serviceFactory.getNonces({ account: users.alice.account });
         assertEq(newSaNonce, saNonce + 1);
 
         address[] memory saVaults = serviceFactory.getSingleAssetVaults({ account: users.alice.account });
@@ -287,7 +279,7 @@ contract ServiceFactoryTest is BaseTest {
         }
         vm.stopPrank();
 
-        (, uint256 newSaNonce,) = serviceFactory.getNonces({ account: users.alice.account });
+        (, uint256 newSaNonce) = serviceFactory.getNonces({ account: users.alice.account });
         assertEq(newSaNonce, assets.length);
 
         address[] memory saVaults = serviceFactory.getSingleAssetVaults({ account: users.alice.account });
@@ -347,7 +339,7 @@ contract ServiceFactoryTest is BaseTest {
         /// Use Alice's asset for Eve, doesn't matter as revert occurs before transfer.
         Asset memory asset = getERC721Asset();
 
-        (, uint256 saNonce,) = serviceFactory.getNonces({ account: users.eve.account });
+        (, uint256 saNonce) = serviceFactory.getNonces({ account: users.eve.account });
         bytes memory signature =
             getVaultCreationSignature({ account: users.eve.account, nonce: saNonce, vaultType: VaultType.SINGLE });
 
@@ -374,7 +366,7 @@ contract ServiceFactoryTest is BaseTest {
         Asset memory asset = getERC721Asset();
         asset.amount = 0;
 
-        (, uint256 saNonce,) = serviceFactory.getNonces({ account: users.alice.account });
+        (, uint256 saNonce) = serviceFactory.getNonces({ account: users.alice.account });
         bytes memory signature =
             getVaultCreationSignature({ account: users.alice.account, nonce: saNonce, vaultType: VaultType.SINGLE });
 
@@ -387,7 +379,7 @@ contract ServiceFactoryTest is BaseTest {
         uint256 keyAmount = keys.MAX_KEYS();
 
         Asset memory asset = getERC20Asset();
-        (, uint256 saNonce,) = serviceFactory.getNonces({ account: users.alice.account });
+        (, uint256 saNonce) = serviceFactory.getNonces({ account: users.alice.account });
         bytes memory signature =
             getVaultCreationSignature({ account: users.alice.account, nonce: saNonce, vaultType: VaultType.SINGLE });
 
@@ -411,7 +403,7 @@ contract ServiceFactoryTest is BaseTest {
         Asset memory asset = getERC721Asset();
         asset.amount = badAmount;
 
-        (, uint256 saNonce,) = serviceFactory.getNonces({ account: users.alice.account });
+        (, uint256 saNonce) = serviceFactory.getNonces({ account: users.alice.account });
         bytes memory signature =
             getVaultCreationSignature({ account: users.alice.account, nonce: saNonce, vaultType: VaultType.SINGLE });
 
@@ -426,7 +418,7 @@ contract ServiceFactoryTest is BaseTest {
 
         Asset memory asset = getERC721Asset();
 
-        (, uint256 saNonce,) = serviceFactory.getNonces({ account: users.alice.account });
+        (, uint256 saNonce) = serviceFactory.getNonces({ account: users.alice.account });
         bytes memory signature =
             getVaultCreationSignature({ account: users.alice.account, nonce: saNonce, vaultType: VaultType.SINGLE });
 
@@ -503,7 +495,7 @@ contract ServiceFactoryTest is BaseTest {
         serviceFactory.executeUpgrade("");
 
         (string memory name, string memory version) = serviceFactory.nameAndVersion();
-        assertEq(name, "Upgraded Service Factory");
+        assertEq(name, "Upgraded Vault Factory");
         assertEq(version, "2.0");
 
         /// Ensure that all previous defined storage values are retained after upgrade.
@@ -513,7 +505,6 @@ contract ServiceFactoryTest is BaseTest {
         assertEq(serviceFactory.owner(), address(this));
         assertEq(serviceFactory.maVault(), address(maVault));
         assertEq(serviceFactory.saVault(), address(saVault));
-        assertEq(serviceFactory.safe(), address(safe));
         assertEq(serviceFactory.signerRegistry(), signerRegistry);
         assertEq(serviceFactory.kycRegistry(), kycRegistry);
         assertEq(serviceFactory.keys(), keys);

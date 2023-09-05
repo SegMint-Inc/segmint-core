@@ -39,7 +39,7 @@ contract ServiceFactoryTest is BaseTest {
         kycUsers(); // KYC both Alice and Bob.
 
         /// Create a multi-asset vault for Alice.
-        (uint256 maNonce,,) = serviceFactory.getNonces(users.alice.account);
+        (uint256 maNonce,) = serviceFactory.getNonces(users.alice.account);
         bytes memory signature = getVaultCreationSignature(users.alice.account, maNonce, VaultType.MULTI);        
         
         hoax(users.alice.account);

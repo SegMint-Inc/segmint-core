@@ -4,11 +4,12 @@ pragma solidity ^0.8.0;
 import "forge-std/Script.sol";
 import "forge-std/Test.sol";
 
+import { ERC1967Proxy } from "@openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
+
 import { SignerRegistry } from "../src/registries/SignerRegistry.sol";
 import { KYCRegistry } from "../src/registries/KYCRegistry.sol";
 import { KeyExchange } from "../src/KeyExchange.sol";
-import { ServiceFactoryProxy } from "../src/factories/ServiceFactoryProxy.sol";
-import { ServiceFactory } from "../src/factories/ServiceFactory.sol";
+import { VaultFactory } from "../src/factories/VaultFactory.sol";
 import { Keys } from "../src/Keys.sol";
 import { MAVault } from "../src/MAVault.sol";
 import { SAVault } from "../src/SAVault.sol";
@@ -17,7 +18,7 @@ import { Safe } from "../src/Safe.sol";
 import { ISignerRegistry } from "../src/interfaces/ISignerRegistry.sol";
 import { IKYCRegistry } from "../src/interfaces/IKYCRegistry.sol";
 import { IKeyExchange } from "../src/interfaces/IKeyExchange.sol";
-import { IServiceFactory } from "../src/interfaces/IServiceFactory.sol";
+import { IVaultFactory } from "../src/interfaces/IVaultFactory.sol";
 import { IKeys } from "../src/interfaces/IKeys.sol";
 import { IMAVault } from "../src/interfaces/IMAVault.sol";
 import { ISAVault } from "../src/interfaces/ISAVault.sol";
@@ -40,8 +41,8 @@ abstract contract Base is Script, Test {
     SignerRegistry public signerRegistry;
     KYCRegistry public kycRegistry;
     KeyExchange public keyExchange;
-    ServiceFactory public serviceFactory;
-    ServiceFactoryProxy public serviceFactoryProxy;
+    VaultFactory public serviceFactory;
+    ERC1967Proxy public serviceFactoryProxy;
     Keys public keys;
     MAVault public maVault;
     SAVault public saVault;
@@ -65,15 +66,14 @@ abstract contract Base is Script, Test {
         safe = new Safe();
 
         /// Deploy service factory implementation and proxy.
-        serviceFactory = new ServiceFactory();
-        serviceFactoryProxy = new ServiceFactoryProxy({
-            implementation_: address(serviceFactory),
-            payload_: abi.encodeWithSelector(
-                ServiceFactory.initialize.selector,
+        serviceFactory = new VaultFactory();
+        serviceFactoryProxy = new ERC1967Proxy({
+            implementation: address(serviceFactory),
+            _data: abi.encodeWithSelector(
+                VaultFactory.initialize.selector,
                 admin,
                 address(maVault),
                 address(saVault),
-                address(safe),
                 ISignerRegistry(signerRegistry),
                 IKYCRegistry(kycRegistry),
                 IKeys(keys)
@@ -84,6 +84,6 @@ abstract contract Base is Script, Test {
         keys.grantRoles({ user: address(serviceFactoryProxy), roles: factoryRole });
 
         /// Interface the proxy contract with the implementation so that calls are delegated correctly.
-        serviceFactory = ServiceFactory(address(serviceFactoryProxy));
+        serviceFactory = VaultFactory(address(serviceFactoryProxy));
     }
 }
