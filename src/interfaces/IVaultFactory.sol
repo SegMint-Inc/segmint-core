@@ -41,16 +41,16 @@ interface IVaultFactory {
     /**
      * Function used to initialize {VaultFactory}.
      * @param admin_ Address to asign the admin role.
-     * @param mavImplementation_ Address of multi-asset vault implementation.
-     * @param savImplementation_ Address of single-asset vault implementation.
+     * @param maVault_ Multi asset vault implementation.
+     * @param saVault_ Single asset vault implementation.
      * @param signerRegistry_ Address of signer registry.
      * @param kycRegistry_ Address of KYC registry.
      * @param keys_ Address of keys.
      */
     function initialize(
         address admin_,
-        address mavImplementation_,
-        address savImplementation_,
+        address maVault_,
+        address saVault_,
         ISignerRegistry signerRegistry_,
         IKYCRegistry kycRegistry_,
         IKeys keys_
@@ -83,6 +83,12 @@ interface IVaultFactory {
     function getSingleAssetVaults(address account) external view returns (address[] memory);
 
     /**
+     * Function used to view the current nonces associated with a given account for each vault type.
+     * @param account Address of the account to check.
+     */
+    function getNonces(address account) external view returns (uint256, uint256);
+
+    /**
      * Function used to propose an upgrade to the implementation address of {VaultFactory}.
      * @param newImplementation Newly proposed {VaultFactory} address.
      */
@@ -98,4 +104,9 @@ interface IVaultFactory {
      * @param payload Encoded calldata that will be used to initialize the new implementation.
      */
     function executeUpgrade(bytes memory payload) external;
+
+    /**
+     * Function used to view the current name and version of the Vault Factory.
+     */
+    function nameAndVersion() external view returns (string memory, string memory);
 }

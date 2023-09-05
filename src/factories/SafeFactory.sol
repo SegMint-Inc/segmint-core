@@ -36,8 +36,8 @@ contract SafeFactory is ISafeFactory, OwnableRoles, UpgradeHandler, Initializabl
         /// Cache current nonce and increment.
         uint256 currentNonce = _safeNonce[msg.sender]++;
 
-        bytes32 digest = keccak256(abi.encodePacked(msg.sender, block.chainid, currentNonce, "SAFE"));
-        address recoveredSigner = digest.toEthSignedMessageHash().recover(signature);
+        // bytes32 digest = keccak256(abi.encodePacked(msg.sender, block.chainid, currentNonce, "SAFE"));
+        // address recoveredSigner = digest.toEthSignedMessageHash().recover(signature);
 
         /// Checks: Ensure that a valid quorum value has been provided.
         // if (quorum == 0 || quorum > signers.length) revert Errors.InvalidQuorumValue();
@@ -58,9 +58,15 @@ contract SafeFactory is ISafeFactory, OwnableRoles, UpgradeHandler, Initializabl
         emit ISafeFactory.SafeCreated({ user: msg.sender, safe: newSafe });
     }
 
-    function getSafes(address account) external view returns (address[] memory) {
+    function getSafes(address account) external view returns (address[] memory deployments) {
         uint256 safeNonce = _safeNonce[account];
-        return _predictDeployments(account, safeNonce, safe);
+
+        for (uint256 i = 0; i < safeNonce; i++) {
+            bytes32 salt = keccak256(abi.encodePacked(account, i));
+            deployments[i] = safe.predictDeterministicAddress(salt, address(this));
+        }
+
+        return deployments;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -93,7 +99,7 @@ contract SafeFactory is ISafeFactory, OwnableRoles, UpgradeHandler, Initializabl
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     function nameAndVersion() external pure virtual returns (string memory name, string memory version) {
-        name = "Vault Factory";
+        name = "Safe Factory";
         version = "1.0";
     }
 
@@ -101,21 +107,8 @@ contract SafeFactory is ISafeFactory, OwnableRoles, UpgradeHandler, Initializabl
     /*                       INTERNAL LOGIC                       */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    function _predictDeployments(address account, uint256 nonce, address implementation)
-        private
-        view
-        returns (address[] memory deployments)
-    {
-        deployments = new address[](nonce);
-        for (uint256 i = 0; i < nonce; i++) {
-            bytes32 salt = keccak256(abi.encodePacked(account, i));
-            deployments[i] = implementation.predictDeterministicAddress(salt, address(this));
-        }
-    }
-
     /**
      * Overriden to ensure that only callers with the correct role can upgrade the implementation.
      */
     function _authorizeUpgrade(address newImplementation) internal override onlyRoles(ADMIN_ROLE) { }
-
 }

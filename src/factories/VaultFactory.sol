@@ -21,9 +21,12 @@ import { Asset, AssetClass, VaultType } from "../types/DataTypes.sol";
  * @notice See documentation for {IVaultFactory}.
  */
 
-contract VaultFactory is IVaultFactory, OwnableRoles, UpgradeHandler, Initializable {
+contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHandler {
     using LibClone for address;
     using ECDSA for bytes32;
+
+    uint256 private constant _BITMASK_NONCE = (1 << 128) - 1;
+    uint256 private constant _BITPOS_SINGLE = 128;
 
     /// `keccak256("ADMIN_ROLE");`
     uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
@@ -35,7 +38,7 @@ contract VaultFactory is IVaultFactory, OwnableRoles, UpgradeHandler, Initializa
     address public maVault;
     address public saVault;
 
-    /// TODO: Optimize this with bit packing, allocating 32 bits for each nonce.
+    /// TODO: Optimise this by using 1 mapping.
     mapping(address account => uint256 nonce) private _maVaultNonce;
     mapping(address account => uint256 nonce) private _saVaultNonce;
 
@@ -95,14 +98,9 @@ contract VaultFactory is IVaultFactory, OwnableRoles, UpgradeHandler, Initializa
     }
 
     /**
-     * Function used to create a new single asset vault and fractionalize an asset via a signature.
+     * @inheritdoc IVaultFactory
      */
-    /// forgefmt: disable-next-item
-    function createSingleAssetVault(
-        Asset calldata asset,
-        uint256 keyAmount,
-        bytes calldata signature
-    ) external {
+    function createSingleAssetVault(Asset calldata asset, uint256 keyAmount, bytes calldata signature) external {
         /// Checks: Ensure the caller has valid access.
         IKYCRegistry.AccessType _accessType = kycRegistry.accessType(msg.sender);
         if (_accessType == IKYCRegistry.AccessType.BLOCKED) revert IKYCRegistry.InvalidAccessType();
@@ -168,12 +166,11 @@ contract VaultFactory is IVaultFactory, OwnableRoles, UpgradeHandler, Initializa
     }
 
     /**
-     * Function used to view the current nonces for each service of an account. This
-     * function will return the multi-asset vault, single-asset vault, and safe nonce in
-     * that respective order.
+     * @inheritdoc IVaultFactory
      */
-    function getNonces(address account) external view returns (uint256, uint256) {
-        return (_maVaultNonce[account], _saVaultNonce[account]);
+    function getNonces(address account) external view returns (uint256 maNonce, uint256 saNonce) {
+        maNonce = _maVaultNonce[account];
+        saNonce = _saVaultNonce[account];
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -205,6 +202,9 @@ contract VaultFactory is IVaultFactory, OwnableRoles, UpgradeHandler, Initializa
     /*                      VERSION CONTROL                       */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
+    /**
+     * @inheritdoc IVaultFactory
+     */
     function nameAndVersion() external pure virtual returns (string memory name, string memory version) {
         name = "Vault Factory";
         version = "1.0";
@@ -217,17 +217,20 @@ contract VaultFactory is IVaultFactory, OwnableRoles, UpgradeHandler, Initializa
     function _predictDeployments(address account, uint256 nonce, address implementation)
         private
         view
-        returns (address[] memory deployments)
+        returns (address[] memory)
     {
-        deployments = new address[](nonce);
+        address[] memory deployments = new address[](nonce);
+
         for (uint256 i = 0; i < nonce; i++) {
             bytes32 salt = keccak256(abi.encodePacked(account, i));
             deployments[i] = implementation.predictDeterministicAddress(salt, address(this));
         }
+
+        return deployments;
     }
 
     /**
-     * Overriden to ensure that only callers with the correct role can upgrade the implementation.
+     * Overriden to ensure that only callers with the correct role can perform an upgrade.
      */
     function _authorizeUpgrade(address newImplementation) internal override onlyRoles(ADMIN_ROLE) { }
 }
