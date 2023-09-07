@@ -58,7 +58,7 @@ abstract contract Base is Script, Test {
         keyExchange = new KeyExchange({ admin_: admin, keys_: IKeys(keys), feeReceiver_: feeReceiver, weth_: weth });
 
         /// Call `setKeyExchange` on keys contract due to circular dependency.
-        keys.setKeyExchange({ _keyExchange: address(keyExchange) });
+        keys.setKeyExchange({ newKeyExchange: address(keyExchange) });
 
         /// Deploy implementation contracts for each service.
         maVault = new MAVault();

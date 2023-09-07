@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
+import "forge-std/console2.sol";
 import "./Base.sol";
 
 import { ECDSA } from "solady/src/utils/ECDSA.sol";
@@ -12,6 +13,7 @@ import { MockERC20 } from "./mocks/MockERC20.sol";
 import { MockERC721 } from "./mocks/MockERC721.sol";
 import { MockERC1155 } from "./mocks/MockERC1155.sol";
 import { MockUpgrade } from "./mocks/MockUpgrade.sol";
+import { MockWETH } from "./mocks/MockWETH.sol";
 
 import { Assertions } from "./utils/Assertions.sol";
 import { Events } from "./utils/Events.sol";
@@ -23,7 +25,6 @@ abstract contract BaseTest is Base, Assertions, Events {
     /// Constants.
     uint256 public constant FACTORY_ROLE = 0xdfbefbf47cfe66b701d8cfdbce1de81c821590819cb07e71cb01b6602fb0ee27;
     address public constant FEE_RECEIVER = address(0xFEE5);
-    address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     bytes4 public constant UNAUTHORIZED_SELECTOR = 0x82b42900;
 
@@ -47,6 +48,7 @@ abstract contract BaseTest is Base, Assertions, Events {
     MockERC721 public mockERC721;
     MockERC1155 public mockERC1155;
     address public mockUpgrade;
+    MockWETH public mockWETH;
 
     function setUp() public virtual {
         /// Deploy mocks.
@@ -54,6 +56,7 @@ abstract contract BaseTest is Base, Assertions, Events {
         mockERC721 = new MockERC721();
         mockERC1155 = new MockERC1155();
         mockUpgrade = address(new MockUpgrade());
+        mockWETH = new MockWETH();
 
         /// Initialize users.
         createUsers();
@@ -63,7 +66,7 @@ abstract contract BaseTest is Base, Assertions, Events {
             admin: users.admin,
             signer: users.signer.account,
             feeReceiver: FEE_RECEIVER,
-            weth: WETH,
+            weth: address(mockWETH),
             factoryRole: FACTORY_ROLE
         });
     }
@@ -75,16 +78,19 @@ abstract contract BaseTest is Base, Assertions, Events {
         (users.signer.account, users.signer.privateKey) = makeAddrAndKey("Signer");
 
         (users.alice.account, users.alice.privateKey) = makeAddrAndKey("Alice");
+        deal({ to: users.alice.account, give: 1_000 ether });
         deal({ token: address(mockERC20), to: users.alice.account, give: ERC20_BALANCE });
         mockERC721.mint({ receiver: users.alice.account, amount: ERC721_AMOUNT });
         mockERC1155.mint({ receiver: users.alice.account, id: ERC1155_ID, amount: ERC1155_AMOUNT });
 
         (users.bob.account, users.bob.privateKey) = makeAddrAndKey("Bob");
+        deal({ to: users.bob.account, give: 1_000 ether });
         deal({ token: address(mockERC20), to: users.bob.account, give: ERC20_BALANCE });
         mockERC721.mint({ receiver: users.bob.account, amount: ERC721_AMOUNT });
         mockERC1155.mint({ receiver: users.bob.account, id: ERC1155_ID, amount: ERC1155_AMOUNT });
 
         (users.eve.account, users.eve.privateKey) = makeAddrAndKey("Eve");
+        deal({ to: users.eve.account, give: 1_000 ether });
         deal({ token: address(mockERC20), to: users.eve.account, give: ERC20_BALANCE });
         mockERC721.mint({ receiver: users.eve.account, amount: ERC721_AMOUNT });
         mockERC1155.mint({ receiver: users.eve.account, id: ERC1155_ID, amount: ERC1155_AMOUNT });
@@ -120,6 +126,23 @@ abstract contract BaseTest is Base, Assertions, Events {
         assets[1] = getERC721Asset();
         assets[2] = getERC1155Asset();
         return assets;
+    }
+
+    /// Returns an array of random addresses.
+    function getHolders(uint256 amount) internal pure returns (address[] memory) {
+        address[] memory addresses = new address[](amount);
+        for (uint256 i = 0; i < amount; i++) {
+            addresses[i] = address(uint160(uint256(keccak256(abi.encodePacked(i)))));
+        }
+        return addresses;
+    }
+
+    function getAmounts(uint256 length) internal pure returns (uint256[] memory) {
+        uint256[] memory amounts = new uint256[](length);
+        for (uint256 i = 0; i < length; i++) {
+            amounts[i] = 1;
+        }
+        return amounts;
     }
 
     /// Used for {KYCRegistry.initAccessType}.
