@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "forge-std/console2.sol";
-
 import { Ownable } from "solady/src/auth/Ownable.sol";
-// import { Clone } from "solady/src/utils/Clone.sol";
 import { Initializable } from "@openzeppelin/proxy/utils/Initializable.sol";
 import { SafeERC20 } from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/token/ERC20/IERC20.sol";
@@ -18,8 +15,6 @@ import { AssetClass, Asset, VaultType, KeyConfig } from "./types/DataTypes.sol";
  * @title MAVault - Multi Asset Vault
  * @notice See documentation for {IMAVault}.
  */
-
-/// TODO: Gas optimise by using immutable args for `keys` address.
 
 contract MAVault is IMAVault, Ownable, Initializable {
     using SafeERC20 for IERC20;
