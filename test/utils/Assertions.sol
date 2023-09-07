@@ -59,4 +59,14 @@ abstract contract Assertions is Test {
     function assertEq(VaultType a, VaultType b) internal {
         assertEq(uint256(a), uint256(b));
     }
+
+    /// Assets two {IKeyExchange.MarketType} enum values match.
+    function assertEq(IKeyExchange.MarketType a, IKeyExchange.MarketType b) internal {
+        assertEq(uint256(a), uint256(b));
+    }
+
+    /// Assets two {IKeyExchange.Status} enum values match.
+    function assertEq(IKeyExchange.Status a, IKeyExchange.Status b) internal {
+        assertEq(uint256(a), uint256(b));
+    }
 }

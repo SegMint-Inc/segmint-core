@@ -22,8 +22,10 @@ abstract contract Events {
     );
 
     /// {IKeyExchange} Events.
-    event OrderIsFilled();
+    event OrderFilled(bytes32 orderHash);
+    event BidFilled(bytes32 bidHash);
     event OrderCancelled(bytes32 orderHash);
+    event BidCancelled(bytes32 bidHash);
 
     /// {IVaultFactory} Events.
     event VaultCreated(address indexed user, address indexed vault, VaultType vaultType);
