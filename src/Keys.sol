@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+pragma solidity 0.8.20;
 
 import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
 import { ERC1155 } from "@openzeppelin/token/ERC1155/ERC1155.sol";
@@ -49,7 +49,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
      * Ensure the caller is a registered vault. This modifier calls an internal function
      * to reduce bytecode size.
      */
-    modifier isVault {
+    modifier isVault() {
         _isVault();
         _;
     }
@@ -63,7 +63,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
 
     /**
      * @inheritdoc IKeys
-     * @dev This function should only be callable by vaults that have been created through the Service Factory.
+     * @dev This function should only be callable by vaults that have been created through the Vault Factory.
      */
     function createKeys(uint256 amount, address receiver, VaultType vaultType) external isVault returns (uint256) {
         /// Checks: Ensure a valid amount of keys are being created.
@@ -91,7 +91,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
 
     /**
      * @inheritdoc IKeys
-     * @dev This function should only be callable by vaults that have been created through the Service Factory.
+     * @dev This function should only be callable by vaults that have been created through the Vault Factory.
      */
     function burnKeys(address holder, uint256 keyId, uint256 amount) external isVault {
         /// Checks: Ensure that frozen keys cannot be destroyed.
@@ -139,8 +139,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         });
 
         /// `keyId` and `lendAmount` do not need to be sanitized as `safeTransferFrom` will fail
-        /// if either `keyId` does not exist of `lendAmount` exceeds the lenders balance. We use
-        /// `_safeTransferFrom` here to circumvent the `isApprovedForAll` check.
+        /// if either `keyId` does not exist of `lendAmount` exceeds the lenders balance.
         _safeTransferFrom({ from: msg.sender, to: lendee, id: keyId, value: lendAmount, data: "" });
     }
 
@@ -164,8 +163,6 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         _activeLends[lendee][keyId] = LendingTerms({ lender: address(0), amount: 0, expiryTime: 0 });
 
         /// `keyId` does not need to be sanitized as `_safeTransferFrom` will fail if `keyId` does not exist.
-        /// We use `_safeTransferFrom` here to circumvent the `isApprovedForAll` check but retain the zero address
-        /// checks to prevent an alternative method of burning keys.
         _safeTransferFrom({ from: lendee, to: lendingTerms.lender, id: keyId, value: lendingTerms.amount, data: "" });
     }
 
@@ -210,30 +207,101 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
 
     /**
      * Function used to set the key exchange address.
+     * @dev This function may only be called once during deployment.
      */
-    function setKeyExchange(address _keyExchange) external onlyOwner {
-        keyExchange = _keyExchange;
+    function setKeyExchange(address newKeyExchange) external onlyOwner {
+        keyExchange = newKeyExchange;
     }
 
+    /**
+     * Function used to set a new URI associated with key metadata.
+     */
+    function setURI(string calldata newURI) external onlyRoles(ADMIN_ROLE) {
+        _setURI(newURI);
+    }
 
     /**
-     * Overriden to ensure that `to` has a valid access type.
+     * Overriden to provide additional checks prior to transfer.
      */
     function safeTransferFrom(address from, address to, uint256 id, uint256 value, bytes memory data) public override {
         /// Checks: Ensure the caller is either the owner of the token or is an approved operator.
         address sender = _msgSender();
         if (from != sender && !isApprovedForAll(from, sender)) revert ERC1155MissingApprovalForAll(sender, from);
 
+        /// Checks: Ensure that `to` has a valid access type.
+        IKYCRegistry.AccessType accessType = kycRegistry.accessType(to);
+        if (accessType == IKYCRegistry.AccessType.BLOCKED) revert IKYCRegistry.InvalidAccessType();
+
         /// Checks: Ensure the key idenitifier is not frozen.
         if (_keyConfig[id].isFrozen) revert KeysFrozen();
+
+        /// Checks: Ensure zero value transfers are not allowed.
+        if (value == 0) revert ZeroKeyTransfer();
+
+        /// Handles token transfers for addresses that may have a lend active.
+        _checkLends(from, to, id, value);
+
+        /// Transfer tokens.
+        _safeTransferFrom(from, to, id, value, data);
+    }
+
+    /**
+     * Overriden to provide additional checks prior to transfer.
+     */
+    function safeBatchTransferFrom(
+        address from,
+        address to,
+        uint256[] memory ids,
+        uint256[] memory amounts,
+        bytes memory data
+    ) public override {
+        /// Checks: Ensure the caller is either the owner of the token or is an approved operator.
+        address sender = _msgSender();
+        if (from != sender && !isApprovedForAll(from, sender)) revert ERC1155MissingApprovalForAll(sender, from);
 
         /// Checks: Ensure that `to` has a valid access type.
         IKYCRegistry.AccessType accessType = kycRegistry.accessType(to);
         if (accessType == IKYCRegistry.AccessType.BLOCKED) revert IKYCRegistry.InvalidAccessType();
 
-        /// Checks: Ensure zero value transfers are not allowed.
-        if (value == 0) revert ZeroKeyTransfer();
+        /// Checks: Ensure that each `id` of `ids` can be transferred.
+        for (uint256 i = 0; i < ids.length; i++) {
+            /// Cache variables used multiple times.
+            uint256 id = ids[i];
+            uint256 amount = amounts[i];
 
+            /// Checks: Ensure the key idenitifier is not frozen.
+            if (_keyConfig[id].isFrozen) revert KeysFrozen();
+
+            /// Checks: Ensure zero value transfers are not allowed.
+            if (amount == 0) revert ZeroKeyTransfer();
+
+            /// Handles token transfers for addresses that may have a lend active.
+            _checkLends(from, to, id, amount);
+        }
+        
+        _safeBatchTransferFrom(from, to, ids, amounts, data);
+    }
+
+    /**
+     * @dev See {IERC1155-isApprovedForAll}.
+     * This function has been overridden to ensure that the key exchange can perform buy outs.
+     */
+    function isApprovedForAll(address account, address operator) public view override returns (bool) {
+        return operator == keyExchange ? true : super.isApprovedForAll(account, operator);
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       INTERNAL LOGIC                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    function _isVault() internal view {
+        if (!isRegistered[msg.sender]) revert CallerNotVault();
+    }
+
+    /**
+     * Function used to handle token transfers from accounts that may have an active lend.
+     */
+    function _checkLends(address from, address to, uint256 id, uint256 amount) internal {
         /// Check the lending status of the key.
         LendingTerms memory lendingTerms = _activeLends[from][id];
 
@@ -245,14 +313,14 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         /// amount of keys should clear the lending terms.
         } else if (to == lendingTerms.lender) {
             /// Calculate the amount of lended keys being returned to the lender.
-            uint256 remainingKeys = lendingTerms.amount - value;
+            uint256 remainingKeys = lendingTerms.amount - amount;
             /// Lended keys have been returned in full.
             if (remainingKeys == 0) {
                 /// Clear lending terms.
-                _activeLends[from][value] = LendingTerms({ lender: address(0), amount: 0, expiryTime: 0 });    
+                _activeLends[from][id] = LendingTerms({ lender: address(0), amount: 0, expiryTime: 0 });
             } else {
                 /// Update lending terms to reflect the remaining amount of keys on lend.
-                _activeLends[from][value].amount = uint56(remainingKeys);
+                _activeLends[from][id].amount = uint56(remainingKeys);
             }
 
         /// If a transfer is being attempted with a lend active to a non-lender.
@@ -260,44 +328,11 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
             /// Get the total number of keys held by `from` and then calculate how many 'free' keys
             /// `from` has. Free keys in this context refers to how many keys `from` owns that are not
             /// on lend.
-            uint256 freeKeys = this.balanceOf({ account: from, id: id }) - lendingTerms.amount;
+            uint256 freeKeys = this.balanceOf(from, id) - lendingTerms.amount;
 
             /// If the number of keys being transferred exceeds the number of free keys owned by
             /// `from`, they shouldn't be able to move any keys.
-            if (value > freeKeys) revert OverFreeKeyBalance();
+            if (amount > freeKeys) revert OverFreeKeyBalance();
         }
-
-        _safeTransferFrom(from, to, id, value, data);
     }
-
-    // TODO: Override `safeBatchTransferFrom` logic.
-    function safeBatchTransferFrom(
-        address from,
-        address to,
-        uint256[] memory ids,
-        uint256[] memory amounts,
-        bytes memory data
-    ) public override {
-
-    }
-
-    /**
-     * @dev See {IERC1155-isApprovedForAll}.
-     * This function has been overridden to ensure that the key exchange can perform buy outs.
-     */
-    function isApprovedForAll(address account, address operator) public view override returns (bool) {
-        return operator == keyExchange ? true : super.isApprovedForAll(account, operator);
-    }
-
-    /**
-     * Function used to set a new URI associated with key metadata.
-     */
-    function setURI(string calldata newURI) external onlyRoles(ADMIN_ROLE) {
-        _setURI(newURI);
-    }
-
-    function _isVault() internal view {
-        if (!isRegistered[msg.sender]) revert CallerNotVault();
-    }
-
 }
