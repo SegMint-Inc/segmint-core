@@ -262,12 +262,12 @@ contract MAVaultTest is BaseTest {
         uint256 length = 5;
         uint256[] memory tokenIds = new uint256[](length);
         uint256[] memory amounts = new uint256[](length);
-        
+
         startHoax(users.alice.account);
         for (uint256 tokenId = 1; tokenId <= length; tokenId++) {
             mockERC1155.mint({ receiver: users.alice.account, id: tokenId, amount: 1 });
-            tokenIds[tokenId-1] = tokenId;
-            amounts[tokenId-1] = 1;
+            tokenIds[tokenId - 1] = tokenId;
+            amounts[tokenId - 1] = 1;
         }
 
         mockERC1155.safeBatchTransferFrom(users.alice.account, address(vault), tokenIds, amounts, "");
