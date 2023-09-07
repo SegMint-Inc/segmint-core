@@ -49,11 +49,6 @@ interface IKeys {
     error InvalidKeyAmount();
 
     /**
-     * Thrown when trying to transfer a key that has been provided on a lend.
-     */
-    error SoulboundKey();
-
-    /**
      * Thrown when trying to transfer keys that have been frozen.
      */
     error KeysFrozen();
