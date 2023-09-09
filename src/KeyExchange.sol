@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.20;
 
+import "forge-std/console2.sol";
 import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
 import { ECDSA } from "solady/src/utils/ECDSA.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
@@ -15,9 +16,6 @@ import { VaultType, KeyConfig } from "./types/DataTypes.sol";
 
 contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher {
     using ECDSA for bytes32;
-
-    /// @dev Amount of gas to be forwarded with native token transfers.
-    uint256 private constant _GAS_STIPEND = 2_300;
 
     /// @dev Total basis points used for fee calculation.
     uint256 private constant _BASIS_POINTS = 10_000;
@@ -105,14 +103,9 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
             /// Update the total amount of native token to pay the protocol.
             totalFees += calculatedFee;
 
-            /// Pay the maker earnings, forward a sufficient amount of gas. In the event the native token
-            /// transfer fails, wrap the native token and transfer.
-            (bool success,) = order.maker.call{ gas: _GAS_STIPEND, value: makerEarnings }("");
-            if (!success) {
-                WETH.deposit{ value: makerEarnings }();
-                bool sent = WETH.transfer(order.maker, makerEarnings);
-                if (!sent) revert NativeTransferFailed();  // TODO: Fix error as inaccurate.
-            }
+            /// Pay the maker earnings, forward a sufficient amount of gas.
+            (bool success,) = order.maker.call{ value: makerEarnings }("");
+            if (!success) revert NativeTransferFailed();
 
             /// Checks: Ensure a sufficient amount of native token has been provided.
             if (order.price > msgValue) revert InvalidNativeTokenAmount();
@@ -130,7 +123,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
 
         /// If some amount of native token remains, refund to the caller.
         if (msgValue > 0) {
-            (bool refunded,) = msg.sender.call{ gas: _GAS_STIPEND, value: msgValue }("");
+            (bool refunded,) = msg.sender.call{ value: msgValue }("");
             if (!refunded) revert NativeTransferFailed();
         }
     }
@@ -290,12 +283,8 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
             IERC1155(address(keys)).safeTransferFrom(holder, msg.sender, keyId, amount, "");
 
             /// Transfer the owed amount of funds to the holder.
-            (bool success,) = holder.call{ gas: _GAS_STIPEND, value: earnings }("");
-            if (!success) {
-                WETH.deposit{ value: earnings }();
-                success = WETH.transfer(holder, earnings);
-                if (!success) revert NativeTransferFailed();
-            }
+            (bool success,) = holder.call{ value: earnings }("");
+            if (!success) revert NativeTransferFailed();
         }
 
         /// Checks: Ensure the full amount of native token was provided.
@@ -340,12 +329,8 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
             IERC1155(address(keys)).safeTransferFrom(holder, msg.sender, keyId, amount, "");
 
             /// Transfer the owed amount of funds to the holder.
-            (bool success,) = holder.call{ gas: _GAS_STIPEND, value: owedAmount }("");
-            if (!success) {
-                WETH.deposit{ value: owedAmount }();
-                bool wethSuccess = WETH.transfer(holder, owedAmount);
-                if (!wethSuccess) revert NativeTransferFailed();
-            }
+            (bool success,) = holder.call{ value: owedAmount }("");
+            if (!success) revert NativeTransferFailed();
         }
 
         /// Checks: Ensure the full amount of native token was provided. Since the buyout amount cannot change
@@ -438,6 +423,10 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
      */
     function hashBid(Bid calldata bid) external view returns (bytes32) {
         return _hashBid(bid);
+    }
+
+    function nameAndVersion() external pure returns (string memory, string memory) {
+        return _domainNameAndVersion();
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
