@@ -52,44 +52,33 @@ contract SAVault is ISAVault, Initializable {
      * @inheritdoc ISAVault
      */
     function unlockAsset(address receiver) external {
-        /// Copy `KeyBinds` struct into memory.
-        KeyConfig memory keyConfig = keys.getKeyConfig(boundKeyId);
+        /// Get the current key supply.
+        uint256 keySupply = keys.getKeyConfig(boundKeyId).supply;
 
         /// Checks: Ensure the caller holds all the keys.
         uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, boundKeyId);
-        if (keysHeld != keyConfig.supply) revert InsufficientKeys();
+        if (keysHeld != keySupply) revert InsufficientKeys();
 
         /// Copy `Asset` struct into memory.
-        Asset memory _asset = _lockedAsset;
+        Asset memory asset = _lockedAsset;
 
         /// Checks: Ensure that the locked asset has not already been unlocked.
-        if (_asset.class == AssetClass.NONE) revert NoAssetLocked();
+        if (asset.class == AssetClass.NONE) revert NoAssetLocked();
 
         /// Clear the locked asset.
         _lockedAsset = Asset({ class: AssetClass.NONE, token: address(0), identifier: 0, amount: 0 });
 
         /// Burn the keys associated with the vault.
-        keys.burnKeys(msg.sender, boundKeyId, keyConfig.supply);
+        keys.burnKeys({ holder: msg.sender, keyId: boundKeyId, amount: keySupply });
 
         /// Clear the bound key ID.
         boundKeyId = 0;
 
         /// Transfer the locked asset to the receiver.
-        /// forgefmt: disable-next-item
-        if (_asset.class == AssetClass.ERC721) {
-            IERC721(_asset.token).safeTransferFrom({
-                from: address(this),
-                to: receiver,
-                tokenId: _asset.identifier
-            });
+        if (asset.class == AssetClass.ERC721) { 
+            IERC721(asset.token).safeTransferFrom(address(this), receiver, asset.identifier);
         } else {
-            IERC1155(_asset.token).safeTransferFrom({
-                from: address(this),
-                to: receiver,
-                id: _asset.identifier,
-                value: _asset.amount,
-                data: ""
-            });
+            IERC1155(asset.token).safeTransferFrom(address(this), receiver, asset.identifier, asset.amount, "");
         }
     }
 
