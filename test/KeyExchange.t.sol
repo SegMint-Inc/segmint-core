@@ -116,22 +116,6 @@ contract KeyExchangeTest is BaseTest {
         assertEq(keyExchange.feeReceiver().balance, initialFeeBalance + expectedFee);
     }
 
-    function test_ExecuteOrders_WrapsOnFailure() public setKeyTerms(IKeyExchange.MarketType.FREE) {
-        IKeyExchange.Order memory order = getGenericOrder(users.alice.account);
-        IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](1);
-        orders[0] = signOrder(order, users.alice.privateKey);
-
-        vm.mockCallRevert({ callee: order.maker, data: "", revertData: abi.encode(false) });
-
-        hoax(users.bob.account);
-        keyExchange.executeOrders{value: order.price}(orders);
-
-        uint256 expectedFee = order.price * keyExchange.protocolFee() / 10_000;
-        uint256 expectedEarnings = order.price - expectedFee;
-
-        assertEq(mockWETH.balanceOf(order.maker), expectedEarnings);
-    }
-
     function testCannot_ExecuteOrders_ZeroLengthArray() public {
         IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](0);
 
@@ -224,19 +208,26 @@ contract KeyExchangeTest is BaseTest {
         keyExchange.executeOrders{value: order.price}(orders);
     }
 
-    /// TODO: Fix this.
-    // function testCannot_ExecuteOrders_NativeTransferFailed_Wraps() public setKeyTerms(IKeyExchange.MarketType.FREE) {
-    //     IKeyExchange.Order memory order = getGenericOrder(users.alice.account);
-    //     IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](1);
-    //     orders[0] = signOrder(order, users.alice.privateKey);
+    function testCannot_ExecuteOrders_NativeTransferFailed_OnWethSend() public setKeyTerms(IKeyExchange.MarketType.FREE) {
+        IKeyExchange.Order memory order = getGenericOrder(users.alice.account);
+        IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](1);
+        orders[0] = signOrder(order, users.alice.privateKey);
 
-    //     vm.mockCallRevert({ callee: order.maker, data: "", revertData: abi.encode(false) });
-    //     vm.mockCallRevert({ callee: address(mockWETH), data: abi.encodePacked(mockWETH.transfer.selector), revertData: abi.encode(false) });
+        uint256 expectedFee = order.price * keyExchange.protocolFee() / 10_000;
+        uint256 expectedEarnings = order.price - expectedFee;
 
-    //     hoax(users.bob.account);
-    //     vm.expectRevert(IKeyExchange.NativeTransferFailed.selector);
-    //     keyExchange.executeOrders{value: order.price}(orders);
-    // }
+        bytes memory callData = abi.encodeWithSelector(mockWETH.transfer.selector, order.maker, expectedEarnings);
+
+        /// Revert on the native token transfer.
+        vm.mockCallRevert({ callee: order.maker, data: "", revertData: abi.encode(false) });
+
+        /// Return false on the wrapper native token transfer.
+        vm.mockCall({ callee: address(mockWETH), data: callData, returnData: abi.encode(false) });
+
+        hoax(users.bob.account);
+        vm.expectRevert(IKeyExchange.NativeTransferFailed.selector);
+        keyExchange.executeOrders{value: order.price}(orders);
+    }
 
     function testCannot_ExecuteOrders_InvalidNativeTokenAmount() public setKeyTerms(IKeyExchange.MarketType.FREE) {
         IKeyExchange.Order memory order = getGenericOrder(users.alice.account);
@@ -270,6 +261,24 @@ contract KeyExchangeTest is BaseTest {
         hoax(users.bob.account);
         vm.expectRevert(IKeyExchange.NativeTransferFailed.selector);
         keyExchange.executeOrders{value: order.price + 1 wei}(orders);
+    }
+
+    function testCannot_ExecuteOrders_NativeTransferFailed_OnMsgValueGtZero(uint256 excess)
+        public
+        setKeyTerms(IKeyExchange.MarketType.FREE)
+    {
+        excess = bound(excess, 1 wei, 10 ether);
+
+        IKeyExchange.Order memory order = getGenericOrder(users.alice.account);
+        IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](1);
+        orders[0] = signOrder(order, users.alice.privateKey);
+
+        /// Revert the refund call to the order taker.
+        vm.mockCallRevert({ callee: users.bob.account, msgValue: excess, data: "", revertData: abi.encode(false) });
+
+        hoax(users.bob.account);
+        vm.expectRevert(IKeyExchange.NativeTransferFailed.selector);
+        keyExchange.executeOrders{value: order.price + excess}(orders);
     }
 
     function test_ExecuteBids() public setKeyTerms(IKeyExchange.MarketType.FREE) {
@@ -402,18 +411,30 @@ contract KeyExchangeTest is BaseTest {
         keyExchange.executeBids(bids);
     }
 
-    /// TODO: Fix this.
-    // function testCannot_ExecuteBids_NativeTokenTransferFailed_Maker() public setKeyTerms(IKeyExchange.MarketType.FREE) {
-    //     IKeyExchange.Bid memory bid = getGenericBid(users.bob.account);
-    //     IKeyExchange.BidParams[] memory bids = new IKeyExchange.BidParams[](1);
-    //     bids[0] = signBid(bid, users.bob.privateKey);
+    function testCannot_ExecuteBids_NativeTokenTransferFailed_Taker() public setKeyTerms(IKeyExchange.MarketType.FREE) {
+        IKeyExchange.Bid memory bid = getGenericBid(users.bob.account);
+        IKeyExchange.BidParams[] memory bids = new IKeyExchange.BidParams[](1);
+        bids[0] = signBid(bid, users.bob.privateKey);
 
-    //     vm.mockCall({ callee: bid.maker, data: "", returnData: abi.encode(false) });
+        /// Give Bob the appropriate amount of WETH.
+        deal({ token: address(mockWETH), to: users.bob.account, give: bid.price });
 
-    //     hoax(users.alice.account);
-    //     vm.expectRevert(IKeyExchange.NativeTransferFailed.selector);
-    //     keyExchange.executeBids(bids);
-    // }
+        /// Approve Key Exchange to move WETH on Bobs behalf.
+        hoax(users.bob.account);
+        mockWETH.approve(address(keyExchange), type(uint256).max);
+
+        uint256 calculatedFee = bid.price * keyExchange.protocolFee() / 10_000;
+        uint256 takerEarnings = bid.price - calculatedFee;
+
+        /// Ensure the WETH transfer of earnings to Alice fails and returns false.
+        bytes4 selector = mockWETH.transferFrom.selector;
+        bytes memory data = abi.encodeWithSelector(selector, bid.maker, users.alice.account, takerEarnings);
+        vm.mockCall({ callee: address(mockWETH), data: data, returnData: abi.encode(false) });
+
+        hoax(users.alice.account);
+        vm.expectRevert(IKeyExchange.NativeTransferFailed.selector);
+        keyExchange.executeBids(bids);
+    }
 
     function test_CancelOrders() public setKeyTerms(IKeyExchange.MarketType.FREE) {
         IKeyExchange.Order[] memory orders = new IKeyExchange.Order[](1);
@@ -625,6 +646,34 @@ contract KeyExchangeTest is BaseTest {
         keyExchange.executeBuyBack{value: totalCost + 1 wei}(keyId, holders, amounts);
     }
 
+
+    function testCannot_ExecuteBuyBack_NativeTransferFailed() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
+        address[] memory holders = getHolders(keySupply);
+        uint256[] memory amounts = getAmounts(keySupply);
+
+        /// Transfer 1 key to each of the holders.
+        for (uint256 i = 0; i < holders.length; i++) {
+            address holder = holders[i];
+
+            hoax(users.admin);
+            kycRegistry.modifyAccessType(holder, IKYCRegistry.AccessType.UNRESTRICTED);
+
+            hoax(users.alice.account);
+            keys.safeTransferFrom(users.alice.account, holder, keyId, 1, "");
+            assertEq(keys.balanceOf(holder, keyId), 1);
+        }
+
+        uint256 buyBackCost = keyExchange.keyTerms(keyId).buyBack;
+        uint256 totalCost = keySupply * buyBackCost;
+
+        /// Revert the call made to the first holder.
+        vm.mockCallRevert({ callee: holders[0], msgValue: buyBackCost, data: "", revertData: "" });
+
+        hoax(users.alice.account);
+        vm.expectRevert(IKeyExchange.NativeTransferFailed.selector);
+        keyExchange.executeBuyBack{value: totalCost}(keyId, holders, amounts);
+    }
+
     function testCannot_ExecuteBuyBack_BuyBackFailed() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
         address[] memory holders = getHolders(keySupply);
         uint256[] memory amounts = getAmounts(keySupply);
@@ -716,6 +765,36 @@ contract KeyExchangeTest is BaseTest {
         hoax(users.bob.account);
         vm.expectRevert(IKeyExchange.KeyNotBuyOutMarket.selector);
         keyExchange.buyAtReserve(keyId, holders, amounts);
+    }
+
+    function testCannot_BuyAtReserve_NativeTransferFailed() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
+        address[] memory holders = getHolders(keySupply);
+        uint256[] memory amounts = getAmounts(keySupply);
+
+        /// KYC holders and transfer a single key to each of them.
+        for (uint256 i = 0; i < holders.length; i++) {
+            address holder = holders[i];
+
+            hoax(users.admin);
+            kycRegistry.modifyAccessType(holder, IKYCRegistry.AccessType.UNRESTRICTED);
+
+            hoax(users.alice.account);
+            keys.safeTransferFrom(users.alice.account, holder, keyId, 1, "");
+            assertEq(keys.balanceOf(holder, keyId), 1);
+            assertEq(holder.balance, 0 ether);
+        }
+
+        /// Calculate the expected cost of the action in native token and the protocol fee.
+        uint256 reservePrice = keyExchange.keyTerms(keyId).reserve;
+        uint256 expectedTotal = reservePrice * keySupply;
+
+        /// Revert the call made to the first holder.
+        vm.mockCallRevert({ callee: holders[0], msgValue: reservePrice, data: "", revertData: "" });
+
+        /// Buy a key from each of the holders at the reserve price as Bob.
+        hoax(users.bob.account, expectedTotal);
+        vm.expectRevert(IKeyExchange.NativeTransferFailed.selector);
+        keyExchange.buyAtReserve{ value: expectedTotal }(keyId, holders, amounts);
     }
 
     function testCannot_BuyAtReserve_InvalidNativeTokenAmount() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
@@ -866,8 +945,6 @@ contract KeyExchangeTest is BaseTest {
         keyExchange.setFeeReceiver(users.eve.account);
     }
 
-    // /* NonceManager Tests */
-
     function test_IncrementNonce_Fuzzed(address account) public {
         uint256 initialNonce = keyExchange.getNonce(account);
         assertEq(initialNonce, 0);
@@ -880,6 +957,12 @@ contract KeyExchangeTest is BaseTest {
 
         uint256 predictedNonce = initialNonce + 1;
         assertTrue(updatedNonce != predictedNonce);
+    }
+
+    function test_NameAndVersion() public {
+        (string memory name, string memory version) = keyExchange.nameAndVersion();
+        assertEq(name, "Key Exchange");
+        assertEq(version, "1.0");
     }
 
     /// Helper Functions
