@@ -25,9 +25,6 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
     using LibClone for address;
     using ECDSA for bytes32;
 
-    uint256 private constant _BITMASK_NONCE = (1 << 128) - 1;
-    uint256 private constant _BITPOS_SINGLE = 128;
-
     /// `keccak256("ADMIN_ROLE");`
     uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
 

@@ -278,7 +278,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
             /// Handles token transfers for addresses that may have a lend active.
             _checkLends(from, to, id, amount);
         }
-        
+
         _safeBatchTransferFrom(from, to, ids, amounts, data);
     }
 
@@ -299,18 +299,21 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     }
 
     /**
-     * Function used to handle token transfers from accounts that may have an active lend.
+     * Function used to handle token transfers from accounts that *may* have an active lend.
      */
     function _checkLends(address from, address to, uint256 id, uint256 amount) internal {
         /// Check the lending status of the key.
         LendingTerms memory lendingTerms = _activeLends[from][id];
 
-        /// If `from` has no active lends associated with `id`, conduct no checks and continue.
+        /// There are 3 cases to be wary of.
+        /// 1. The `from` address has no active lends for key `id`.
+        /// 2. The `from` address has an active lend, but is sending keys to the lender.
+        /// 3. The `from` address has an active lend, but is not sending keys to lender.
+
+        /// Case #1
         if (lendingTerms.lender == address(0)) {
 
-        /// If some amount of keys are being transferred to the lender. We don't need to check
-        /// the value here as we can guarantee that it is non-zero and a transfer of any non-zero
-        /// amount of keys should clear the lending terms.
+        /// Case #2
         } else if (to == lendingTerms.lender) {
             /// Calculate the amount of lended keys being returned to the lender.
             uint256 remainingKeys = lendingTerms.amount - amount;
@@ -323,7 +326,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
                 _activeLends[from][id].amount = uint56(remainingKeys);
             }
 
-        /// If a transfer is being attempted with a lend active to a non-lender.
+        /// Case #3
         } else {
             /// Get the total number of keys held by `from` and then calculate how many 'free' keys
             /// `from` has. Free keys in this context refers to how many keys `from` owns that are not

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.20;
 
-import "forge-std/console2.sol";
 import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
 import { ECDSA } from "solady/src/utils/ECDSA.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
@@ -117,7 +116,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
 
         /// Pay the total fee amount to the fee receiver.
         if (totalFees > 0) {
-            (bool success,) = feeReceiver.call{value: totalFees}("");
+            (bool success,) = feeReceiver.call{ value: totalFees }("");
             if (!success) revert NativeTransferFailed();
         }
 

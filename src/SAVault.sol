@@ -75,7 +75,7 @@ contract SAVault is ISAVault, Initializable {
         boundKeyId = 0;
 
         /// Transfer the locked asset to the receiver.
-        if (asset.class == AssetClass.ERC721) { 
+        if (asset.class == AssetClass.ERC721) {
             IERC721(asset.token).safeTransferFrom(address(this), receiver, asset.identifier);
         } else {
             IERC1155(asset.token).safeTransferFrom(address(this), receiver, asset.identifier, asset.amount, "");
