@@ -28,6 +28,13 @@ contract DeployScript is Base {
 
     function run() public {
         vm.startBroadcast(deployer);
+        coreSetup({
+            admin: admin,
+            signer: signer,
+            feeReceiver: address(0xFEE5),
+            weth: address(0),
+            factoryRole: uint256(0xee961466e472802bc53e28ea01e7875c1285a5d1f1992f7b1aafc450304db8bc)
+        });
         vm.stopBroadcast();
     }
 }
