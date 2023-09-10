@@ -80,7 +80,7 @@ contract KeysTest is BaseTest {
 
             uint256 id = keys.createKeys({ amount: keyAmount, receiver: users.alice.account, vaultType: vaultType });
             keys.burnKeys({ holder: users.alice.account, keyId: id, amount: keyAmount });
-            
+
             KeyConfig memory config = keys.getKeyConfig(id);
             assertTrue(config.isBurned);
         }
@@ -146,7 +146,7 @@ contract KeysTest is BaseTest {
 
         startHoax(users.alice.account);
         uint256 id = keys.createKeys({ amount: keyAmount, receiver: users.alice.account, vaultType: VaultType.SINGLE });
-        
+
         vm.expectRevert(IKYCRegistry.InvalidAccessType.selector);
         keys.lendKeys({ lendee: users.eve.account, keyId: id, lendAmount: keyAmount, lendDuration: lendDuration });
     }
@@ -157,7 +157,7 @@ contract KeysTest is BaseTest {
 
         startHoax(users.alice.account);
         uint256 id = keys.createKeys({ amount: keyAmount, receiver: users.alice.account, vaultType: VaultType.SINGLE });
-        
+
         vm.expectRevert(IKeys.CannotLendToSelf.selector);
         keys.lendKeys({ lendee: users.alice.account, keyId: id, lendAmount: keyAmount, lendDuration: lendDuration });
     }
@@ -169,7 +169,7 @@ contract KeysTest is BaseTest {
         startHoax(users.alice.account);
         uint256 id = keys.createKeys({ amount: keyAmount, receiver: users.alice.account, vaultType: VaultType.SINGLE });
         keys.lendKeys({ lendee: users.bob.account, keyId: id, lendAmount: keyAmount, lendDuration: lendDuration });
-        
+
         vm.expectRevert(IKeys.HasActiveLend.selector);
         keys.lendKeys({ lendee: users.bob.account, keyId: id, lendAmount: keyAmount, lendDuration: lendDuration });
     }
@@ -333,7 +333,7 @@ contract KeysTest is BaseTest {
     }
 
     function test_SetKeyExchange_Fuzzed(address newKeyExchange) public {
-        keys.setKeyExchange(newKeyExchange);        
+        keys.setKeyExchange(newKeyExchange);
         assertEq(keys.keyExchange(), newKeyExchange);
     }
 
@@ -422,7 +422,8 @@ contract KeysTest is BaseTest {
     }
 
     function testCannot_SafeTransferFrom_OverFreeKeyBalance_Fuzzed(uint256 lendAmount) public {
-        hoax(users.admin); /// For this test, grant Eve KYC access.
+        hoax(users.admin);
+        /// For this test, grant Eve KYC access.
         kycRegistry.modifyAccessType(users.eve.account, IKYCRegistry.AccessType.UNRESTRICTED);
 
         uint256 keyAmount = keys.MAX_KEYS();
@@ -450,7 +451,7 @@ contract KeysTest is BaseTest {
         /// Give Bob 1 key via transfer.
         hoax(users.alice.account);
         keys.safeTransferFrom(users.alice.account, users.bob.account, id, 1, "");
-        
+
         assertEq(keys.balanceOf(users.alice.account, id), keyAmount - lendAmount - 1);
         assertEq(keys.balanceOf(users.bob.account, id), lendAmount + 1);
         assertEq(keys.balanceOf(users.eve.account, id), 0);
@@ -483,10 +484,11 @@ contract KeysTest is BaseTest {
 
         startHoax(users.alice.account);
         for (uint256 i = 0; i < numKeys; i++) {
-            uint256 id = keys.createKeys({ amount: maxKeys, receiver: users.alice.account, vaultType: VaultType.SINGLE });
-            
+            uint256 id =
+                keys.createKeys({ amount: maxKeys, receiver: users.alice.account, vaultType: VaultType.SINGLE });
+
             ids[i] = id;
-            amounts[i] = i + 1;  // Assign a varying amount of keys to be transferred.
+            amounts[i] = i + 1; // Assign a varying amount of keys to be transferred.
 
             assertEq(keys.balanceOf(users.alice.account, id), maxKeys);
             assertEq(keys.balanceOf(users.bob.account, id), 0);
@@ -512,10 +514,11 @@ contract KeysTest is BaseTest {
 
         startHoax(users.alice.account);
         for (uint256 i = 0; i < numKeys; i++) {
-            uint256 id = keys.createKeys({ amount: maxKeys, receiver: users.alice.account, vaultType: VaultType.SINGLE });
-            
+            uint256 id =
+                keys.createKeys({ amount: maxKeys, receiver: users.alice.account, vaultType: VaultType.SINGLE });
+
             ids[i] = id;
-            amounts[i] = i + 1;  // Assign a varying amount of keys to be transferred.
+            amounts[i] = i + 1; // Assign a varying amount of keys to be transferred.
 
             assertEq(keys.balanceOf(users.alice.account, id), maxKeys);
             assertEq(keys.balanceOf(users.bob.account, id), 0);
@@ -536,10 +539,11 @@ contract KeysTest is BaseTest {
 
         startHoax(users.alice.account);
         for (uint256 i = 0; i < numKeys; i++) {
-            uint256 id = keys.createKeys({ amount: maxKeys, receiver: users.alice.account, vaultType: VaultType.SINGLE });
-            
+            uint256 id =
+                keys.createKeys({ amount: maxKeys, receiver: users.alice.account, vaultType: VaultType.SINGLE });
+
             ids[i] = id;
-            amounts[i] = i + 1;  // Assign a varying amount of keys to be transferred.
+            amounts[i] = i + 1; // Assign a varying amount of keys to be transferred.
 
             assertEq(keys.balanceOf(users.alice.account, id), maxKeys);
             assertEq(keys.balanceOf(users.bob.account, id), 0);
@@ -558,10 +562,11 @@ contract KeysTest is BaseTest {
 
         startHoax(users.alice.account);
         for (uint256 i = 0; i < numKeys; i++) {
-            uint256 id = keys.createKeys({ amount: maxKeys, receiver: users.alice.account, vaultType: VaultType.SINGLE });
-            
+            uint256 id =
+                keys.createKeys({ amount: maxKeys, receiver: users.alice.account, vaultType: VaultType.SINGLE });
+
             ids[i] = id;
-            amounts[i] = i + 1;  // Assign a varying amount of keys to be transferred.
+            amounts[i] = i + 1; // Assign a varying amount of keys to be transferred.
 
             assertEq(keys.balanceOf(users.alice.account, id), maxKeys);
             assertEq(keys.balanceOf(users.bob.account, id), 0);
@@ -586,10 +591,11 @@ contract KeysTest is BaseTest {
 
         startHoax(users.alice.account);
         for (uint256 i = 0; i < numKeys; i++) {
-            uint256 id = keys.createKeys({ amount: maxKeys, receiver: users.alice.account, vaultType: VaultType.SINGLE });
-            
+            uint256 id =
+                keys.createKeys({ amount: maxKeys, receiver: users.alice.account, vaultType: VaultType.SINGLE });
+
             ids[i] = id;
-            amounts[i] = i + 1;  // Assign a varying amount of keys to be transferred.
+            amounts[i] = i + 1; // Assign a varying amount of keys to be transferred.
 
             assertEq(keys.balanceOf(users.alice.account, id), maxKeys);
             assertEq(keys.balanceOf(users.bob.account, id), 0);
@@ -626,7 +632,7 @@ contract KeysTest is BaseTest {
         assertEq(keys.balanceOf(users.alice.account, id), keyAmount);
         assertEq(keys.balanceOf(users.bob.account, id), 0);
 
-        keys.lendKeys({ lendee: users.bob.account, keyId: id, lendAmount: lendAmount, lendDuration: lendDuration });        
+        keys.lendKeys({ lendee: users.bob.account, keyId: id, lendAmount: lendAmount, lendDuration: lendDuration });
         assertEq(keys.balanceOf(users.alice.account, id), keyAmount - lendAmount);
         assertEq(keys.balanceOf(users.bob.account, id), lendAmount);
         vm.stopPrank();
@@ -649,7 +655,7 @@ contract KeysTest is BaseTest {
 
         /// Return the final key and ensure the lending terms are fully cleared.
         keys.safeTransferFrom(users.bob.account, users.alice.account, id, 1, "");
-        
+
         lendingTerms = keys.activeLends({ lendee: users.bob.account, keyId: id });
         assertEq(lendingTerms.lender, address(0));
         assertEq(lendingTerms.amount, 0);
@@ -666,10 +672,11 @@ contract KeysTest is BaseTest {
 
         startHoax(users.alice.account);
         for (uint256 i = 0; i < numKeys; i++) {
-            uint256 id = keys.createKeys({ amount: maxKeys, receiver: users.alice.account, vaultType: VaultType.SINGLE });
-            
+            uint256 id =
+                keys.createKeys({ amount: maxKeys, receiver: users.alice.account, vaultType: VaultType.SINGLE });
+
             ids[i] = id;
-            amounts[i] = i + 1;  // Assign a varying amount of keys to be transferred.
+            amounts[i] = i + 1; // Assign a varying amount of keys to be transferred.
 
             assertEq(keys.balanceOf(users.alice.account, id), maxKeys);
             assertEq(keys.balanceOf(users.bob.account, id), 0);
@@ -702,5 +709,4 @@ contract KeysTest is BaseTest {
             assertEq(lendingTerms.expiryTime, 0);
         }
     }
-
 }
