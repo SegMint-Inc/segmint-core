@@ -1,6 +1,6 @@
 # SegMint Vault & Key Specification
 
-Vaults are integral to SegMint's Lock & Key Model, where users secure their assets within a SegMint Vault and create SegMint Keys. These keys take the form of ERC-1155 tokens and represent a semi-fungible counterpart to the locked asset(s). Vaults come in two main types:
+The SegMint Vault & Key ecosystem represents a fractionalized NFT protcol. Vaults are integral to SegMint's Lock & Key Model, where users secure their assets within a SegMint Vault and create SegMint Keys, a representation of the underlying asset in the form of fractionalization. These keys take the form of ERC-1155 tokens and represent a semi-fungible counterpart to the locked asset(s). Vaults come in two main types:
 
 - **Single-Asset Vaults**: These are designed for safeguarding a single, locked asset. If the locked asset resembles an NFT (Non-Fungible Token), the SegMint Keys generated may bear a visual representation that matches the underlying asset.
 - **Multi-Asset Vaults**: These versatile vaults enable the creation of a basket of assets, which may consist of various token types, including fungible and non-fungible assets. The visual representation of the assets within these vaults may be customized to suit the user's preferences.
@@ -116,5 +116,7 @@ If a user has chosen the buy out market, they will be required to define a buy b
 Non-creators are provided with similar functionality related to reserve pricing, however they do not need to conduct an entire supply purchase when acquiring keys through the reserve pricing method.
 
 **Considerations**:
+
 - Since the entire supply of keys must be purchased in a single transaction, it is acknowledged that this may be heavily gas intensive. For this reason, we have decided to cap the maximum number of keys that can be created by a vault to 100, this value is defined within the `Keys.sol` contract.
-- In addition to the point above, we have also concluded that DoS attacks *should* not be feasible, as keys can only be transferred to KYC'd addresses whereby the appropriate measures will be taken off-chain to ensure that the account registering with the KYC Registry is not a smart contract.
+- In addition to the point above, we have also concluded that DoS attacks *should not* be feasible, as keys can only be transferred to KYC'd addresses whereby the appropriate measures will be taken off-chain to ensure that the account registering with the KYC Registry is not a smart contract.
+  
