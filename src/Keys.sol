@@ -19,7 +19,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
 
     /// `keccak256("FACTORY_ROLE");`
     uint256 public constant FACTORY_ROLE = 0xdfbefbf47cfe66b701d8cfdbce1de81c821590819cb07e71cb01b6602fb0ee27;
-    
+
     /// Minimum duration of a lend.
     uint256 public constant MIN_LEND_DURATION = 1 days;
 
@@ -335,8 +335,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
 
         /// Case #1
         if (lendingTerms.lender == address(0)) {
-
-        /// Case #2
+            /// Case #2
         } else if (to == lendingTerms.lender) {
             /// Calculate the amount of lended keys being returned to the lender.
             uint256 remainingKeys = lendingTerms.amount - amount;
@@ -349,7 +348,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
                 _activeLends[from][id].amount = uint56(remainingKeys);
             }
 
-        /// Case #3
+            /// Case #3
         } else {
             /// Get the total number of keys held by `from` and then calculate how many 'free' keys
             /// `from` has. Free keys in this context refers to how many keys `from` owns that are not

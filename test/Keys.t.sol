@@ -663,7 +663,7 @@ contract KeysTest is BaseTest {
         vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: false });
         emit OperatorStatusUpdated({ operator: operator, status: status });
         keys.updateOperatorStatus(operator, status);
-        
+
         assertEq(keys.isOperatorBlocked(operator), status);
     }
 

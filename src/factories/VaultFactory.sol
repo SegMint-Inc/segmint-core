@@ -35,7 +35,7 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
     address public maVault;
     address public saVault;
 
-    /// TODO: Optimise this by using 1 mapping.
+    /// TODO: Optimise this by using 1 mapping, allocate 32 bits for each nonce type.
     mapping(address account => uint256 nonce) private _maVaultNonce;
     mapping(address account => uint256 nonce) private _saVaultNonce;
 
@@ -124,22 +124,11 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
         /// Initialize the newly created clone.
         ISAVault(newVault).initialize({ _asset: asset, _keys: keys, _keyAmount: keyAmount, _receiver: msg.sender });
 
-        /// forgefmt: disable-next-item
         /// Transfer asset to the newly created clone after initialization.
         if (asset.class == AssetClass.ERC721) {
-            IERC721(asset.token).safeTransferFrom({
-                from: msg.sender,
-                to: newVault,
-                tokenId: asset.identifier
-            });
+            IERC721(asset.token).safeTransferFrom(msg.sender, newVault, asset.identifier);
         } else {
-            IERC1155(asset.token).safeTransferFrom({
-                from: msg.sender,
-                to: newVault,
-                id: asset.identifier,
-                value: asset.amount,
-                data: ""
-            });
+            IERC1155(asset.token).safeTransferFrom(msg.sender, newVault, asset.identifier, asset.amount, "");
         }
 
         /// Emit vault creation event.
