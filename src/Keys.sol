@@ -5,6 +5,7 @@ import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
 import { ERC1155 } from "@openzeppelin/token/ERC1155/ERC1155.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
 import { IKYCRegistry } from "./interfaces/IKYCRegistry.sol";
+import { OperatorFilter } from "./handlers/OperatorFilter.sol";
 import { VaultType, KeyConfig } from "./types/DataTypes.sol";
 
 /**
@@ -12,13 +13,13 @@ import { VaultType, KeyConfig } from "./types/DataTypes.sol";
  * @notice See documentation for {IKeys}.
  */
 
-contract Keys is IKeys, OwnableRoles, ERC1155 {
+contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
     /// `keccak256("ADMIN_ROLE");`
     uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
 
     /// `keccak256("FACTORY_ROLE");`
     uint256 public constant FACTORY_ROLE = 0xdfbefbf47cfe66b701d8cfdbce1de81c821590819cb07e71cb01b6602fb0ee27;
-
+    
     /// Minimum duration of a lend.
     uint256 public constant MIN_LEND_DURATION = 1 days;
 
@@ -221,9 +222,24 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
     }
 
     /**
+     * Function used to update an operators status.
+     */
+    function updateOperatorStatus(address operator, bool status) external onlyRoles(ADMIN_ROLE) {
+        _updateOperatorStatus(operator, status);
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     ERC1155 OVERRIDES                      */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
      * Overriden to provide additional checks prior to transfer.
      */
-    function safeTransferFrom(address from, address to, uint256 id, uint256 value, bytes memory data) public override {
+    function safeTransferFrom(address from, address to, uint256 id, uint256 value, bytes memory data)
+        public
+        override
+        filterOperator(from)
+    {
         /// Checks: Ensure the caller is either the owner of the token or is an approved operator.
         address sender = _msgSender();
         if (from != sender && !isApprovedForAll(from, sender)) revert ERC1155MissingApprovalForAll(sender, from);
@@ -254,7 +270,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
         uint256[] memory ids,
         uint256[] memory amounts,
         bytes memory data
-    ) public override {
+    ) public override filterOperator(from) {
         /// Checks: Ensure the caller is either the owner of the token or is an approved operator.
         address sender = _msgSender();
         if (from != sender && !isApprovedForAll(from, sender)) revert ERC1155MissingApprovalForAll(sender, from);
@@ -288,6 +304,13 @@ contract Keys is IKeys, OwnableRoles, ERC1155 {
      */
     function isApprovedForAll(address account, address operator) public view override returns (bool) {
         return operator == keyExchange ? true : super.isApprovedForAll(account, operator);
+    }
+
+    /**
+     * @dev See {IERC1155-setApprovalForAll}.
+     */
+    function setApprovalForAll(address operator, bool approved) public override filterOperator(operator) {
+        super.setApprovalForAll(operator, approved);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
