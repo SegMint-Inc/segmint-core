@@ -376,6 +376,21 @@ contract KeysTest is BaseTest {
         assertEq(keys.balanceOf(users.bob.account, id), amount);
     }
 
+    function testCannot_SafeTransferFrom_OperatorBlocked_Fuzzed() public {
+        uint256 keySupply = 1;
+        address badOperator = address(0xCAFE);
+
+        hoax(users.admin);
+        keys.updateOperatorStatus({ operator: badOperator, status: true });
+
+        hoax(users.alice.account);
+        uint256 id = keys.createKeys({ amount: keySupply, receiver: users.alice.account, vaultType: VaultType.SINGLE });
+
+        hoax(badOperator);
+        vm.expectRevert(IOperatorFilter.OperatorBlocked.selector);
+        keys.safeTransferFrom(users.alice.account, users.bob.account, id, keySupply, "");
+    }
+
     function testCannot_SafeTransferFrom_MissingApproval_Fuzzed(address badActor) public {
         vm.assume(badActor != users.alice.account);
         uint256 keyAmount = keys.MAX_KEYS();
@@ -503,6 +518,27 @@ contract KeysTest is BaseTest {
             assertEq(keys.balanceOf(users.alice.account, id), maxKeys - amount);
             assertEq(keys.balanceOf(users.bob.account, id), amount);
         }
+    }
+
+    function testCannot_SafeBatchTransferFrom_OperatorBlocked() public {
+        uint256 keySupply = 1;
+        address badOperator = address(0xCAFE);
+
+        uint256[] memory ids = new uint256[](keySupply);
+        uint256[] memory amounts = new uint256[](keySupply);
+
+        hoax(users.admin);
+        keys.updateOperatorStatus({ operator: badOperator, status: true });
+
+        hoax(users.alice.account);
+        uint256 id = keys.createKeys({ amount: keySupply, receiver: users.alice.account, vaultType: VaultType.SINGLE });
+
+        ids[0] = id;
+        amounts[0] = keySupply;
+
+        hoax(badOperator);
+        vm.expectRevert(IOperatorFilter.OperatorBlocked.selector);
+        keys.safeBatchTransferFrom(users.alice.account, users.bob.account, ids, amounts, "");
     }
 
     function testCannot_SafeBatchTransferFrom_MissingApproval() public {
