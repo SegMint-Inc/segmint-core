@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+pragma solidity 0.8.20;
 
 import { ISignerRegistry } from "../../src/interfaces/ISignerRegistry.sol";
 import { IKYCRegistry } from "../../src/interfaces/IKYCRegistry.sol";

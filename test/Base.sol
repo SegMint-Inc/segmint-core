@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+pragma solidity 0.8.20;
 
 import "forge-std/Script.sol";
 import "forge-std/Test.sol";
@@ -13,7 +13,6 @@ import { VaultFactory } from "../src/factories/VaultFactory.sol";
 import { Keys } from "../src/Keys.sol";
 import { MAVault } from "../src/MAVault.sol";
 import { SAVault } from "../src/SAVault.sol";
-import { Safe } from "../src/Safe.sol";
 
 import { ISignerRegistry } from "../src/interfaces/ISignerRegistry.sol";
 import { IKYCRegistry } from "../src/interfaces/IKYCRegistry.sol";
@@ -22,7 +21,6 @@ import { IVaultFactory } from "../src/interfaces/IVaultFactory.sol";
 import { IKeys } from "../src/interfaces/IKeys.sol";
 import { IMAVault } from "../src/interfaces/IMAVault.sol";
 import { ISAVault } from "../src/interfaces/ISAVault.sol";
-import { ISafe } from "../src/interfaces/ISafe.sol";
 import { IUpgradeHandler } from "../src/interfaces/IUpgradeHandler.sol";
 import { IWETH } from "../src/interfaces/IWETH.sol";
 
@@ -46,7 +44,6 @@ abstract contract Base is Script, Test {
     Keys public keys;
     MAVault public maVault;
     SAVault public saVault;
-    Safe public safe;
 
     function coreSetup(address admin, address signer, address feeReceiver, address weth, uint256 factoryRole) public {
         /// Deploy registry contracts.
@@ -63,7 +60,6 @@ abstract contract Base is Script, Test {
         /// Deploy implementation contracts for each service.
         maVault = new MAVault();
         saVault = new SAVault();
-        safe = new Safe();
 
         /// Deploy service factory implementation and proxy.
         vaultFactory = new VaultFactory();
