@@ -620,6 +620,34 @@ contract KeysTest is BaseTest {
         assertFalse(approved);
     }
 
+    /* Operator Filterer Tests */
+
+    function test_UpdateOperatorStatus_Fuzzed(address operator, bool status) public {
+        hoax(users.admin);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: false });
+        emit OperatorStatusUpdated({ operator: operator, status: status });
+        keys.updateOperatorStatus(operator, status);
+        
+        assertEq(keys.isOperatorBlocked(operator), status);
+    }
+
+    function testCannot_UpdateOperatorStatus_Unauthorized(address nonAdmin) public {
+        vm.assume(nonAdmin != users.admin);
+
+        hoax(nonAdmin);
+        vm.expectRevert(UNAUTHORIZED_SELECTOR);
+        keys.updateOperatorStatus({ operator: nonAdmin, status: false });
+    }
+
+    function testCannot_SetApprovalForAll_OperatorBlocked_Fuzzed(address blockedOperator) public {
+        hoax(users.admin);
+        keys.updateOperatorStatus({ operator: blockedOperator, status: true });
+
+        hoax(users.alice.account);
+        vm.expectRevert(IOperatorFilter.OperatorBlocked.selector);
+        keys.setApprovalForAll(blockedOperator, true);
+    }
+
     /* Edge Cases */
 
     function test_SafeTransferFrom_UpdatesLendingTerms() public {

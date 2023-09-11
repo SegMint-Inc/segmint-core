@@ -6,6 +6,7 @@ import { IKYCRegistry } from "../../src/interfaces/IKYCRegistry.sol";
 import { IKeyExchange } from "../../src/interfaces/IKeyExchange.sol";
 import { IVaultFactory } from "../../src/interfaces/IVaultFactory.sol";
 import { IKeys } from "../../src/interfaces/IKeys.sol";
+import { OperatorFilter } from "../../src/handlers/OperatorFilter.sol";
 import { VaultType } from "../../src/types/DataTypes.sol";
 
 abstract contract Events {
@@ -38,4 +39,7 @@ abstract contract Events {
     /// {IUpgradeHandler} Events.
     event UpgradeProposed(address indexed admin, address implementation, uint40 deadline);
     event UpgradeCancelled(address indexed admin, address implementation);
+
+    /// {OperatorFilter} Events.
+    event OperatorStatusUpdated(address operator, bool status);
 }

@@ -22,6 +22,7 @@ import { IKeys } from "../src/interfaces/IKeys.sol";
 import { IMAVault } from "../src/interfaces/IMAVault.sol";
 import { ISAVault } from "../src/interfaces/ISAVault.sol";
 import { IUpgradeHandler } from "../src/interfaces/IUpgradeHandler.sol";
+import { IOperatorFilter } from "../src/interfaces/IOperatorFilter.sol";
 import { IWETH } from "../src/interfaces/IWETH.sol";
 
 import { AssetClass, Asset, VaultType, KeyConfig } from "../src/types/DataTypes.sol";
