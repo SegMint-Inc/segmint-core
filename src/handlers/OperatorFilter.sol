@@ -10,25 +10,33 @@ import { IOperatorFilter } from "../interfaces/IOperatorFilter.sol";
  */
 
 abstract contract OperatorFilter is IOperatorFilter {
-    /// Maps an operator address to a flag determining if the operator is blocked.
     mapping(address operator => bool blocked) public isOperatorBlocked;
 
-    /**
-     * Modifier used to check if the operator is blocked.
-     */
+    modifier filterOperatorApproval(address operator) {
+        _checkOperatorStatus(operator);
+        _;
+    }
+
     modifier filterOperator(address operator) {
-        /// Checks: Ensure the operator address is not blocked.
-        if (isOperatorBlocked[operator]) revert OperatorBlocked();
+        if (msg.sender != operator) _checkOperatorStatus(msg.sender);
         _;
     }
 
     /**
      * Function used to block an operator.
      * @param operator Address of the operator.
-     * @param status Flag indicating whether the operator is blocked or not.
+     * @param isBlocked Flag indicating if the operator is blocked or not.
      */
-    function _updateOperatorStatus(address operator, bool status) internal {
-        isOperatorBlocked[operator] = status;
-        emit OperatorStatusUpdated({ operator: operator, status: status });
+    function _updateOperatorStatus(address operator, bool isBlocked) internal {
+        isOperatorBlocked[operator] = isBlocked;
+        emit OperatorStatusUpdated({ operator: operator, status: isBlocked });
+    }
+
+    /**
+     * Function used to check if an operator is blocked.
+     */
+    function _checkOperatorStatus(address operator) internal view {
+        /// Checks: Ensure the operator address is not blocked.
+        if (isOperatorBlocked[operator]) revert OperatorBlocked();
     }
 }

@@ -258,7 +258,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         _checkLends(from, to, id, value);
 
         /// Transfer tokens.
-        _safeTransferFrom(from, to, id, value, data);
+        super.safeTransferFrom(from, to, id, value, data);
     }
 
     /**
@@ -295,7 +295,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
             _checkLends(from, to, id, amount);
         }
 
-        _safeBatchTransferFrom(from, to, ids, amounts, data);
+        super.safeBatchTransferFrom(from, to, ids, amounts, data);
     }
 
     /**
@@ -309,7 +309,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
     /**
      * @dev See {IERC1155-setApprovalForAll}.
      */
-    function setApprovalForAll(address operator, bool approved) public override filterOperator(operator) {
+    function setApprovalForAll(address operator, bool approved) public override filterOperatorApproval(operator) {
         super.setApprovalForAll(operator, approved);
     }
 
