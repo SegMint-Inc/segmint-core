@@ -8,10 +8,15 @@ The SegMint Vault & Key ecosystem represents a fractionalized NFT protcol. Vault
 ## Definitions
 
 *Keys* - An ERC1155 token used to unlock assets contained within vaults. It is worth mentioning that this representation of access control can be circumstantial and will be explained at a later point in this document.
+
 *Single-Asset Vault* - A smart contract that holds a single underlying asset.
+
 *Multi-Asset Vault* - A smart contract that holds multiple underlying assets.
+
 *Key Exchange* - A smart contract used to facilitate atomic trades of Keys utilising the native token and the wrapped native token equivalent. In the context of Ethereum, this would represent **ETH** and the canonical **WETH** implementation in respective order.
+
 *Wallet* - An EOA account owned by a user of the SegMint platform.
+
 *Order* - Represents a sell intent on the SegMint Key Exchange.
 
 ## Protocol Upgradability
