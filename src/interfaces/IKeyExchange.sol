@@ -116,6 +116,11 @@ interface IKeyExchange {
      */
     error BuyBackFailed();
 
+    /**
+     * Thrown when a restricted user attempts to use the Key Exchange whilst restricted users are block.
+     */
+    error RestrictedUsersBlocked();
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           EVENTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
