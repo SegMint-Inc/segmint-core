@@ -74,7 +74,7 @@ contract MAVault is IMAVault, Ownable, Initializable {
                     from: address(this),
                     to: receiver,
                     id: asset.identifier,
-                    value: asset.amount,
+                    amount: asset.amount,
                     data: ""
                 });
             } else {

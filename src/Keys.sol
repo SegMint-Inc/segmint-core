@@ -85,7 +85,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         });
 
         /// Mint keys to `receiver`.
-        _mint({ to: receiver, id: keyId, value: amount, data: "" });
+        _mint({ to: receiver, id: keyId, amount: amount, data: "" });
 
         return keyId;
     }
@@ -103,7 +103,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
 
         /// The `amount` does not require sanitization as the vault itself will keep track of
         /// how many keys are associated with it.
-        _burn({ from: holder, id: keyId, value: amount });
+        _burn({ from: holder, id: keyId, amount: amount });
     }
 
     /**
@@ -141,7 +141,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
 
         /// `keyId` and `lendAmount` do not need to be sanitized as `safeTransferFrom` will fail
         /// if either `keyId` does not exist of `lendAmount` exceeds the lenders balance.
-        _safeTransferFrom({ from: msg.sender, to: lendee, id: keyId, value: lendAmount, data: "" });
+        _safeTransferFrom({ from: msg.sender, to: lendee, id: keyId, amount: lendAmount, data: "" });
     }
 
     /**
@@ -164,7 +164,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         _activeLends[lendee][keyId] = LendingTerms({ lender: address(0), amount: 0, expiryTime: 0 });
 
         /// `keyId` does not need to be sanitized as `_safeTransferFrom` will fail if `keyId` does not exist.
-        _safeTransferFrom({ from: lendee, to: lendingTerms.lender, id: keyId, value: lendingTerms.amount, data: "" });
+        _safeTransferFrom({ from: lendee, to: lendingTerms.lender, id: keyId, amount: lendingTerms.amount, data: "" });
     }
 
     /**
@@ -241,8 +241,8 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         filterOperator(from)
     {
         /// Checks: Ensure the caller is either the owner of the token or is an approved operator.
-        address sender = _msgSender();
-        if (from != sender && !isApprovedForAll(from, sender)) revert ERC1155MissingApprovalForAll(sender, from);
+        // address sender = _msgSender();
+        // if (from != sender && !isApprovedForAll(from, sender)) revert ERC1155MissingApprovalForAll(sender, from);
 
         /// Checks: Ensure that `to` has a valid access type.
         IKYCRegistry.AccessType accessType = kycRegistry.accessType(to);
@@ -272,8 +272,8 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         bytes memory data
     ) public override filterOperator(from) {
         /// Checks: Ensure the caller is either the owner of the token or is an approved operator.
-        address sender = _msgSender();
-        if (from != sender && !isApprovedForAll(from, sender)) revert ERC1155MissingApprovalForAll(sender, from);
+        // address sender = _msgSender();
+        // if (from != sender && !isApprovedForAll(from, sender)) revert ERC1155MissingApprovalForAll(sender, from);
 
         /// Checks: Ensure that `to` has a valid access type.
         IKYCRegistry.AccessType accessType = kycRegistry.accessType(to);

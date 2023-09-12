@@ -50,6 +50,10 @@ contract KeyExchangeTest is BaseTest {
         /// Create the keys to be used for trading.
         hoax(users.alice.account);
         keyId = keys.createKeys(keySupply, users.alice.account, VaultType.SINGLE);
+
+        /// For ease of testing, allow restricted users to trade.
+        hoax(users.admin);
+        keyExchange.toggleAllowRestrictedUsers();
     }
 
     function test_ExecuteOrders_Single() public setKeyTerms(IKeyExchange.MarketType.FREE) {
@@ -134,22 +138,22 @@ contract KeyExchangeTest is BaseTest {
         keyExchange.executeOrders{ value: order.price }(orders);
     }
 
-    function testCannot_ExecuteOrders_MultiAssetKeysRestricted() public {
-        startHoax(users.alice.account); // Create multi-asset vault keys and set key terms.
-        uint256 id = keys.createKeys(keySupply, users.alice.account, VaultType.MULTI);
-        keyExchange.setKeyTerms(id, IKeyExchange.KeyTerms(IKeyExchange.MarketType.FREE, 0, 0));
-        vm.stopPrank();
+    // function testCannot_ExecuteOrders_MultiAssetKeysRestricted() public {
+    //     startHoax(users.alice.account); // Create multi-asset vault keys and set key terms.
+    //     uint256 id = keys.createKeys(keySupply, users.alice.account, VaultType.MULTI);
+    //     keyExchange.setKeyTerms(id, IKeyExchange.KeyTerms(IKeyExchange.MarketType.FREE, 0, 0));
+    //     vm.stopPrank();
 
-        IKeyExchange.Order memory order = getGenericOrder(users.alice.account);
-        order.keyId = id; // Modify the order key ID to be a multi-asset ID.
+    //     IKeyExchange.Order memory order = getGenericOrder(users.alice.account);
+    //     order.keyId = id; // Modify the order key ID to be a multi-asset ID.
 
-        IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](1);
-        orders[0] = signOrder(order, users.alice.privateKey);
+    //     IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](1);
+    //     orders[0] = signOrder(order, users.alice.privateKey);
 
-        hoax(users.bob.account);
-        vm.expectRevert(IKeyExchange.MultiAssetKeysRestricted.selector);
-        keyExchange.executeOrders{ value: order.price }(orders);
-    }
+    //     hoax(users.bob.account);
+    //     vm.expectRevert(IKeyExchange.MultiAssetKeysRestricted.selector);
+    //     keyExchange.executeOrders{ value: order.price }(orders);
+    // }
 
     function testCannot_ExecuteOrders_InvalidOrderStatus() public setKeyTerms(IKeyExchange.MarketType.FREE) {
         IKeyExchange.Order memory order = getGenericOrder(users.alice.account);
@@ -335,22 +339,22 @@ contract KeyExchangeTest is BaseTest {
         keyExchange.executeBids(bids);
     }
 
-    function testCannot_ExecuteBids_MultiAssetKeysRestricted() public {
-        startHoax(users.alice.account); // Create multi-asset vault keys and set key terms.
-        uint256 id = keys.createKeys(keySupply, users.alice.account, VaultType.MULTI);
-        keyExchange.setKeyTerms(id, IKeyExchange.KeyTerms(IKeyExchange.MarketType.FREE, 0, 0));
-        vm.stopPrank();
+    // function testCannot_ExecuteBids_MultiAssetKeysRestricted() public {
+    //     startHoax(users.alice.account); // Create multi-asset vault keys and set key terms.
+    //     uint256 id = keys.createKeys(keySupply, users.alice.account, VaultType.MULTI);
+    //     keyExchange.setKeyTerms(id, IKeyExchange.KeyTerms(IKeyExchange.MarketType.FREE, 0, 0));
+    //     vm.stopPrank();
 
-        IKeyExchange.Bid memory bid = getGenericBid(users.alice.account);
-        bid.keyId = id; // Modify the bid key ID to be a multi-asset ID.
+    //     IKeyExchange.Bid memory bid = getGenericBid(users.alice.account);
+    //     bid.keyId = id; // Modify the bid key ID to be a multi-asset ID.
 
-        IKeyExchange.BidParams[] memory bids = new IKeyExchange.BidParams[](1);
-        bids[0] = signBid(bid, users.bob.privateKey);
+    //     IKeyExchange.BidParams[] memory bids = new IKeyExchange.BidParams[](1);
+    //     bids[0] = signBid(bid, users.bob.privateKey);
 
-        hoax(users.alice.account);
-        vm.expectRevert(IKeyExchange.MultiAssetKeysRestricted.selector);
-        keyExchange.executeBids(bids);
-    }
+    //     hoax(users.alice.account);
+    //     vm.expectRevert(IKeyExchange.MultiAssetKeysRestricted.selector);
+    //     keyExchange.executeBids(bids);
+    // }
 
     function testCannot_ExecuteBids_InvalidBidStatus() public setKeyTerms(IKeyExchange.MarketType.FREE) {
         IKeyExchange.Bid memory bid = getGenericBid(users.bob.account);

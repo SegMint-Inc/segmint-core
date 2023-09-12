@@ -70,7 +70,7 @@ abstract contract UpgradeHandler is IUpgradeHandler, UUPSUpgradeable {
         upgradeProposal = IUpgradeHandler.UpgradeProposal({ newImplementation: address(0), deadline: 0 });
 
         /// Upgrade to the proposed implementation address.
-        upgradeToAndCall({ newImplementation: proposedImplementation, data: payload });
+        _upgradeToAndCallUUPS({ newImplementation: proposedImplementation, data: payload, forceCall: false });
     }
 
     /**

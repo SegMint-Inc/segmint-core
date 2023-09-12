@@ -53,7 +53,13 @@ abstract contract Base is Script, Test {
 
         /// Deploy ERC-1155 keys and exchange contract.
         keys = new Keys({ admin_: admin, uri_: "", kycRegistry_: IKYCRegistry(kycRegistry) });
-        keyExchange = new KeyExchange({ admin_: admin, keys_: IKeys(keys), feeReceiver_: feeReceiver, weth_: weth });
+        keyExchange = new KeyExchange({
+            admin_: admin,
+            feeReceiver_: feeReceiver,
+            weth_: weth,
+            keys_: IKeys(keys),
+            kycRegistry_: IKYCRegistry(kycRegistry)
+        });
 
         /// Call `setKeyExchange` on keys contract due to circular dependency.
         keys.setKeyExchange({ newKeyExchange: address(keyExchange) });
@@ -65,7 +71,7 @@ abstract contract Base is Script, Test {
         /// Deploy service factory implementation and proxy.
         vaultFactory = new VaultFactory();
         vaultFactoryProxy = new ERC1967Proxy({
-            implementation: address(vaultFactory),
+            _logic: address(vaultFactory),
             _data: abi.encodeWithSelector(
                 VaultFactory.initialize.selector,
                 admin,

@@ -45,10 +45,8 @@ contract VaultFactoryTest is BaseTest {
     }
 
     function testCannot_Initialize_Twice() public {
-        bytes memory errData = abi.encodeWithSignature("AlreadyInitialized()");
-
         hoax(users.eve.account);
-        vm.expectRevert(errData);
+        vm.expectRevert("Initializable: contract is already initialized");
         vaultFactory.initialize({
             admin_: users.eve.account,
             maVault_: address(0),
