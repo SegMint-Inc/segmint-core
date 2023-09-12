@@ -30,7 +30,7 @@ The owner of these contracts should never/rarely interact with the chain post-de
 
 **Anyone**: Can view the signer address.
 
-### KYC Registry
+### Access Registry
 
 **Administrator**: Can update the signer registry address and modify a user's access type.
 
