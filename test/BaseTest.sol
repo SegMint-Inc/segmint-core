@@ -99,8 +99,8 @@ abstract contract BaseTest is Base, Assertions, Events {
     /// KYC'd the respective users, in this case Alice and Bob.
     function kycUsers() internal {
         startHoax(users.admin);
-        kycRegistry.modifyAccessType({ account: users.alice.account, newAccessType: IKYCRegistry.AccessType.RESTRICTED });
-        kycRegistry.modifyAccessType({ account: users.bob.account, newAccessType: IKYCRegistry.AccessType.RESTRICTED });
+        accessRegistry.modifyAccessType({ account: users.alice.account, newAccessType: IAccessRegistry.AccessType.RESTRICTED });
+        accessRegistry.modifyAccessType({ account: users.bob.account, newAccessType: IAccessRegistry.AccessType.RESTRICTED });
         vm.stopPrank();
     }
 
@@ -146,7 +146,7 @@ abstract contract BaseTest is Base, Assertions, Events {
     }
 
     /// Used for {KYCRegistry.initAccessType}.
-    function getAccessSignature(address account, uint256 deadline, IKYCRegistry.AccessType accessType)
+    function getAccessSignature(address account, uint256 deadline, IAccessRegistry.AccessType accessType)
         internal
         view
         returns (bytes memory)

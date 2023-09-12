@@ -11,7 +11,7 @@ import { UpgradeHandler } from "../handlers/UpgradeHandler.sol";
 import { IVaultFactory } from "../interfaces/IVaultFactory.sol";
 import { IMAVault } from "../interfaces/IMAVault.sol";
 import { ISAVault } from "../interfaces/ISAVault.sol";
-import { IKYCRegistry } from "../interfaces/IKYCRegistry.sol";
+import { IAccessRegistry } from "../interfaces/IAccessRegistry.sol";
 import { ISignerRegistry } from "../interfaces/ISignerRegistry.sol";
 import { IKeys } from "../interfaces/IKeys.sol";
 import { Asset, AssetClass, VaultType } from "../types/DataTypes.sol";
@@ -29,7 +29,7 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
     uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
 
     ISignerRegistry public signerRegistry;
-    IKYCRegistry public kycRegistry;
+    IAccessRegistry public accessRegistry;
     IKeys public keys;
 
     address public maVault;
@@ -47,7 +47,7 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
         address maVault_,
         address saVault_,
         ISignerRegistry signerRegistry_,
-        IKYCRegistry kycRegistry_,
+        IAccessRegistry accessRegistry_,
         IKeys keys_
     ) external initializer {
         _initializeOwner(msg.sender);
@@ -57,7 +57,7 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
         saVault = saVault_;
 
         signerRegistry = signerRegistry_;
-        kycRegistry = kycRegistry_;
+        accessRegistry = accessRegistry_;
         keys = keys_;
     }
 
@@ -66,8 +66,8 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
      */
     function createMultiAssetVault(bytes calldata signature) external {
         /// Checks: Ensure the caller has valid access.
-        IKYCRegistry.AccessType _accessType = kycRegistry.accessType(msg.sender);
-        if (_accessType == IKYCRegistry.AccessType.BLOCKED) revert IKYCRegistry.InvalidAccessType();
+        IAccessRegistry.AccessType _accessType = accessRegistry.accessType(msg.sender);
+        if (_accessType == IAccessRegistry.AccessType.BLOCKED) revert IAccessRegistry.InvalidAccessType();
 
         /// Cache current nonce and post-increment.
         uint256 maNonce = _maVaultNonce[msg.sender]++;
@@ -99,8 +99,8 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
      */
     function createSingleAssetVault(Asset calldata asset, uint256 keyAmount, bytes calldata signature) external {
         /// Checks: Ensure the caller has valid access.
-        IKYCRegistry.AccessType _accessType = kycRegistry.accessType(msg.sender);
-        if (_accessType == IKYCRegistry.AccessType.BLOCKED) revert IKYCRegistry.InvalidAccessType();
+        IAccessRegistry.AccessType _accessType = accessRegistry.accessType(msg.sender);
+        if (_accessType == IAccessRegistry.AccessType.BLOCKED) revert IAccessRegistry.InvalidAccessType();
 
         /// Cache the current nonce value for the caller and post-increment.
         uint256 saNonce = _saVaultNonce[msg.sender]++;

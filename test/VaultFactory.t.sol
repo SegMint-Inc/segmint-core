@@ -17,7 +17,7 @@ contract VaultFactoryTest is BaseTest {
         assertEq(vaultFactory.maVault(), address(maVault));
         assertEq(vaultFactory.saVault(), address(saVault));
         assertEq(vaultFactory.signerRegistry(), signerRegistry);
-        assertEq(vaultFactory.kycRegistry(), kycRegistry);
+        assertEq(vaultFactory.accessRegistry(), accessRegistry);
         assertEq(vaultFactory.keys(), keys);
 
         (string memory name, string memory version) = vaultFactory.nameAndVersion();
@@ -32,7 +32,7 @@ contract VaultFactoryTest is BaseTest {
             maVault_: address(maVault),
             saVault_: address(saVault),
             signerRegistry_: signerRegistry,
-            kycRegistry_: kycRegistry,
+            accessRegistry_: accessRegistry,
             keys_: keys
         });
 
@@ -40,7 +40,7 @@ contract VaultFactoryTest is BaseTest {
         assertEq(testVaultFactory.maVault(), address(maVault));
         assertEq(testVaultFactory.saVault(), address(saVault));
         assertEq(testVaultFactory.signerRegistry(), signerRegistry);
-        assertEq(testVaultFactory.kycRegistry(), kycRegistry);
+        assertEq(testVaultFactory.accessRegistry(), accessRegistry);
         assertEq(testVaultFactory.keys(), keys);
     }
 
@@ -52,7 +52,7 @@ contract VaultFactoryTest is BaseTest {
             maVault_: address(0),
             saVault_: address(0),
             signerRegistry_: ISignerRegistry(address(0)),
-            kycRegistry_: IKYCRegistry(address(0)),
+            accessRegistry_: IAccessRegistry(address(0)),
             keys_: IKeys(address(0))
         });
     }
@@ -132,7 +132,7 @@ contract VaultFactoryTest is BaseTest {
             getVaultCreationSignature({ account: users.eve.account, nonce: maNonce, vaultType: VaultType.MULTI });
 
         hoax(users.eve.account);
-        vm.expectRevert(IKYCRegistry.InvalidAccessType.selector);
+        vm.expectRevert(IAccessRegistry.InvalidAccessType.selector);
         vaultFactory.createMultiAssetVault({ signature: signature });
     }
 
@@ -378,7 +378,7 @@ contract VaultFactoryTest is BaseTest {
             getVaultCreationSignature({ account: users.eve.account, nonce: saNonce, vaultType: VaultType.SINGLE });
 
         hoax(users.eve.account);
-        vm.expectRevert(IKYCRegistry.InvalidAccessType.selector);
+        vm.expectRevert(IAccessRegistry.InvalidAccessType.selector);
         vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: 1, signature: signature });
     }
 
@@ -542,7 +542,7 @@ contract VaultFactoryTest is BaseTest {
         assertEq(vaultFactory.maVault(), address(maVault));
         assertEq(vaultFactory.saVault(), address(saVault));
         assertEq(vaultFactory.signerRegistry(), signerRegistry);
-        assertEq(vaultFactory.kycRegistry(), kycRegistry);
+        assertEq(vaultFactory.accessRegistry(), accessRegistry);
         assertEq(vaultFactory.keys(), keys);
     }
 

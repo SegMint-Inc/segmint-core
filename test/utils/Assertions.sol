@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import "forge-std/Test.sol";
 
 import { ISignerRegistry } from "../../src/interfaces/ISignerRegistry.sol";
-import { IKYCRegistry } from "../../src/interfaces/IKYCRegistry.sol";
+import { IAccessRegistry } from "../../src/interfaces/IAccessRegistry.sol";
 import { IKeyExchange } from "../../src/interfaces/IKeyExchange.sol";
 import { IKeys } from "../../src/interfaces/IKeys.sol";
 import { IMAVault } from "../../src/interfaces/IMAVault.sol";
@@ -19,13 +19,13 @@ abstract contract Assertions is Test {
         assertEq(address(a), address(b));
     }
 
-    /// Asserts two {IKYCRegistry} interface values match.
-    function assertEq(IKYCRegistry a, IKYCRegistry b) internal {
+    /// Asserts two {IAccessRegistry} interface values match.
+    function assertEq(IAccessRegistry a, IAccessRegistry b) internal {
         assertEq(address(a), address(b));
     }
 
-    /// Asserts two {IKYCRegistry.AccessType} enum values match.
-    function assertEq(IKYCRegistry.AccessType a, IKYCRegistry.AccessType b) internal {
+    /// Asserts two {IAccessRegistry.AccessType} enum values match.
+    function assertEq(IAccessRegistry.AccessType a, IAccessRegistry.AccessType b) internal {
         assertEq(uint256(a), uint256(b));
     }
 

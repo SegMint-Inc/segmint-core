@@ -3,17 +3,15 @@ pragma solidity 0.8.19;
 
 import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
 import { ECDSA } from "solady/src/utils/ECDSA.sol";
-import { IKYCRegistry } from "../interfaces/IKYCRegistry.sol";
+import { IAccessRegistry } from "../interfaces/IAccessRegistry.sol";
 import { ISignerRegistry } from "../interfaces/ISignerRegistry.sol";
 
 /**
- * @title KYCRegistry
- * @notice See documentation for {IKYCRegistry}.
+ * @title AccessRegistry
+ * @notice See documentation for {IAccessRegistry}.
  */
 
-/// TODO: Rename KYCRegistry to AccessRegistry. Wait for confirmation before doing this.
-
-contract KYCRegistry is IKYCRegistry, OwnableRoles {
+contract AccessRegistry is IAccessRegistry, OwnableRoles {
     using ECDSA for bytes32;
 
     /// `keccak256("ADMIN_ROLE");`
@@ -32,7 +30,7 @@ contract KYCRegistry is IKYCRegistry, OwnableRoles {
     }
 
     /**
-     * @inheritdoc IKYCRegistry
+     * @inheritdoc IAccessRegistry
      */
     function initAccessType(bytes calldata signature, uint256 deadline, AccessType newAccessType) external {
         /// Checks: Ensure the deadline to use the signature hasn't passed.
@@ -56,7 +54,7 @@ contract KYCRegistry is IKYCRegistry, OwnableRoles {
     }
 
     /**
-     * @inheritdoc IKYCRegistry
+     * @inheritdoc IAccessRegistry
      */
     function modifyAccessType(address account, AccessType newAccessType) external onlyRoles(ADMIN_ROLE) {
         AccessType oldAccessType = accessType[account];
@@ -71,7 +69,7 @@ contract KYCRegistry is IKYCRegistry, OwnableRoles {
     }
 
     /**
-     * @inheritdoc IKYCRegistry
+     * @inheritdoc IAccessRegistry
      */
     function setSignerRegistry(ISignerRegistry newSignerRegistry) external onlyRoles(ADMIN_ROLE) {
         signerRegistry = newSignerRegistry;

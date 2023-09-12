@@ -147,7 +147,7 @@ contract KeysTest is BaseTest {
         startHoax(users.alice.account);
         uint256 id = keys.createKeys({ amount: keyAmount, receiver: users.alice.account, vaultType: VaultType.SINGLE });
 
-        vm.expectRevert(IKYCRegistry.InvalidAccessType.selector);
+        vm.expectRevert(IAccessRegistry.InvalidAccessType.selector);
         keys.lendKeys({ lendee: users.eve.account, keyId: id, lendAmount: keyAmount, lendDuration: lendDuration });
     }
 
@@ -408,7 +408,7 @@ contract KeysTest is BaseTest {
 
         startHoax(users.alice.account);
         uint256 id = keys.createKeys({ amount: keyAmount, receiver: users.alice.account, vaultType: VaultType.SINGLE });
-        vm.expectRevert(IKYCRegistry.InvalidAccessType.selector);
+        vm.expectRevert(IAccessRegistry.InvalidAccessType.selector);
         keys.safeTransferFrom(users.alice.account, users.eve.account, id, keyAmount, "");
     }
 
@@ -439,7 +439,7 @@ contract KeysTest is BaseTest {
     function testCannot_SafeTransferFrom_OverFreeKeyBalance_Fuzzed(uint256 lendAmount) public {
         hoax(users.admin);
         /// For this test, grant Eve KYC access.
-        kycRegistry.modifyAccessType(users.eve.account, IKYCRegistry.AccessType.UNRESTRICTED);
+        accessRegistry.modifyAccessType(users.eve.account, IAccessRegistry.AccessType.UNRESTRICTED);
 
         uint256 keyAmount = keys.MAX_KEYS();
         uint256 lendDuration = keys.MIN_LEND_DURATION();
@@ -585,7 +585,7 @@ contract KeysTest is BaseTest {
             assertEq(keys.balanceOf(users.bob.account, id), 0);
         }
 
-        vm.expectRevert(IKYCRegistry.InvalidAccessType.selector);
+        vm.expectRevert(IAccessRegistry.InvalidAccessType.selector);
         keys.safeBatchTransferFrom(users.alice.account, users.eve.account, ids, amounts, "");
     }
 

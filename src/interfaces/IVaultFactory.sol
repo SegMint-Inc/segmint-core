@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import { ISignerRegistry } from "./ISignerRegistry.sol";
-import { IKYCRegistry } from "./IKYCRegistry.sol";
+import { IAccessRegistry } from "./IAccessRegistry.sol";
 import { ISAVault } from "./ISAVault.sol";
 import { IKeys } from "./IKeys.sol";
 import { Asset, VaultType } from "../types/DataTypes.sol";
@@ -44,7 +44,7 @@ interface IVaultFactory {
      * @param maVault_ Multi asset vault implementation.
      * @param saVault_ Single asset vault implementation.
      * @param signerRegistry_ Address of signer registry.
-     * @param kycRegistry_ Address of KYC registry.
+     * @param accessRegistry_ Address of KYC registry.
      * @param keys_ Address of keys.
      */
     function initialize(
@@ -52,7 +52,7 @@ interface IVaultFactory {
         address maVault_,
         address saVault_,
         ISignerRegistry signerRegistry_,
-        IKYCRegistry kycRegistry_,
+        IAccessRegistry accessRegistry_,
         IKeys keys_
     ) external;
 

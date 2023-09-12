@@ -7,7 +7,7 @@ import "forge-std/Test.sol";
 import { ERC1967Proxy } from "@openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
 
 import { SignerRegistry } from "../src/registries/SignerRegistry.sol";
-import { KYCRegistry } from "../src/registries/KYCRegistry.sol";
+import { AccessRegistry } from "../src/registries/AccessRegistry.sol";
 import { KeyExchange } from "../src/KeyExchange.sol";
 import { VaultFactory } from "../src/factories/VaultFactory.sol";
 import { Keys } from "../src/Keys.sol";
@@ -15,7 +15,7 @@ import { MAVault } from "../src/MAVault.sol";
 import { SAVault } from "../src/SAVault.sol";
 
 import { ISignerRegistry } from "../src/interfaces/ISignerRegistry.sol";
-import { IKYCRegistry } from "../src/interfaces/IKYCRegistry.sol";
+import { IAccessRegistry } from "../src/interfaces/IAccessRegistry.sol";
 import { IKeyExchange } from "../src/interfaces/IKeyExchange.sol";
 import { IVaultFactory } from "../src/interfaces/IVaultFactory.sol";
 import { IKeys } from "../src/interfaces/IKeys.sol";
@@ -38,7 +38,7 @@ abstract contract Base is Script, Test {
 
     /// Core contracts.
     SignerRegistry public signerRegistry;
-    KYCRegistry public kycRegistry;
+    AccessRegistry public accessRegistry;
     KeyExchange public keyExchange;
     VaultFactory public vaultFactory;
     ERC1967Proxy public vaultFactoryProxy;
@@ -49,16 +49,16 @@ abstract contract Base is Script, Test {
     function coreSetup(address admin, address signer, address feeReceiver, address weth, uint256 factoryRole) public {
         /// Deploy registry contracts.
         signerRegistry = new SignerRegistry({ admin_: admin, signer_: signer });
-        kycRegistry = new KYCRegistry({ admin_: admin, signerRegistry_: ISignerRegistry(signerRegistry) });
+        accessRegistry = new AccessRegistry({ admin_: admin, signerRegistry_: ISignerRegistry(signerRegistry) });
 
         /// Deploy ERC-1155 keys and exchange contract.
-        keys = new Keys({ admin_: admin, uri_: "", kycRegistry_: IKYCRegistry(kycRegistry) });
+        keys = new Keys({ admin_: admin, uri_: "", accessRegistry_: IAccessRegistry(accessRegistry) });
         keyExchange = new KeyExchange({
             admin_: admin,
             feeReceiver_: feeReceiver,
             weth_: weth,
             keys_: IKeys(keys),
-            kycRegistry_: IKYCRegistry(kycRegistry)
+            accessRegistry_: IAccessRegistry(accessRegistry)
         });
 
         /// Call `setKeyExchange` on keys contract due to circular dependency.
@@ -78,7 +78,7 @@ abstract contract Base is Script, Test {
                 address(maVault),
                 address(saVault),
                 ISignerRegistry(signerRegistry),
-                IKYCRegistry(kycRegistry),
+                IAccessRegistry(accessRegistry),
                 IKeys(keys)
             )
         });

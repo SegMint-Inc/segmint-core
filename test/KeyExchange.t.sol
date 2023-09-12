@@ -542,7 +542,7 @@ contract KeyExchangeTest is BaseTest {
             address holder = holders[i];
 
             hoax(users.admin);
-            kycRegistry.modifyAccessType(holder, IKYCRegistry.AccessType.UNRESTRICTED);
+            accessRegistry.modifyAccessType(holder, IAccessRegistry.AccessType.UNRESTRICTED);
 
             hoax(users.alice.account);
             keys.safeTransferFrom(users.alice.account, holder, keyId, 1, "");
@@ -617,7 +617,7 @@ contract KeyExchangeTest is BaseTest {
             address holder = holders[i];
 
             hoax(users.admin);
-            kycRegistry.modifyAccessType(holder, IKYCRegistry.AccessType.UNRESTRICTED);
+            accessRegistry.modifyAccessType(holder, IAccessRegistry.AccessType.UNRESTRICTED);
 
             hoax(users.alice.account);
             keys.safeTransferFrom(users.alice.account, holder, keyId, 1, "");
@@ -644,7 +644,7 @@ contract KeyExchangeTest is BaseTest {
             address holder = holders[i];
 
             hoax(users.admin);
-            kycRegistry.modifyAccessType(holder, IKYCRegistry.AccessType.UNRESTRICTED);
+            accessRegistry.modifyAccessType(holder, IAccessRegistry.AccessType.UNRESTRICTED);
 
             hoax(users.alice.account);
             keys.safeTransferFrom(users.alice.account, holder, keyId, 1, "");
@@ -668,7 +668,7 @@ contract KeyExchangeTest is BaseTest {
             address holder = holders[i];
 
             hoax(users.admin);
-            kycRegistry.modifyAccessType(holder, IKYCRegistry.AccessType.UNRESTRICTED);
+            accessRegistry.modifyAccessType(holder, IAccessRegistry.AccessType.UNRESTRICTED);
 
             hoax(users.alice.account);
             keys.safeTransferFrom(users.alice.account, holder, keyId, 1, "");
@@ -695,7 +695,7 @@ contract KeyExchangeTest is BaseTest {
             address holder = holders[i];
 
             hoax(users.admin);
-            kycRegistry.modifyAccessType(holder, IKYCRegistry.AccessType.UNRESTRICTED);
+            accessRegistry.modifyAccessType(holder, IAccessRegistry.AccessType.UNRESTRICTED);
 
             hoax(users.alice.account);
             keys.safeTransferFrom(users.alice.account, holder, keyId, 1, "");
@@ -724,7 +724,7 @@ contract KeyExchangeTest is BaseTest {
             address holder = holders[i];
 
             hoax(users.admin);
-            kycRegistry.modifyAccessType(holder, IKYCRegistry.AccessType.UNRESTRICTED);
+            accessRegistry.modifyAccessType(holder, IAccessRegistry.AccessType.UNRESTRICTED);
 
             hoax(users.alice.account);
             keys.safeTransferFrom(users.alice.account, holder, keyId, 1, "");
@@ -788,7 +788,7 @@ contract KeyExchangeTest is BaseTest {
             address holder = holders[i];
 
             hoax(users.admin);
-            kycRegistry.modifyAccessType(holder, IKYCRegistry.AccessType.UNRESTRICTED);
+            accessRegistry.modifyAccessType(holder, IAccessRegistry.AccessType.UNRESTRICTED);
 
             hoax(users.alice.account);
             keys.safeTransferFrom(users.alice.account, holder, keyId, 1, "");
@@ -818,7 +818,7 @@ contract KeyExchangeTest is BaseTest {
             address holder = holders[i];
 
             hoax(users.admin);
-            kycRegistry.modifyAccessType(holder, IKYCRegistry.AccessType.UNRESTRICTED);
+            accessRegistry.modifyAccessType(holder, IAccessRegistry.AccessType.UNRESTRICTED);
 
             hoax(users.alice.account);
             keys.safeTransferFrom(users.alice.account, holder, keyId, 1, "");

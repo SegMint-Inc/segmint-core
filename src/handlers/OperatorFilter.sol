@@ -12,11 +12,18 @@ import { IOperatorFilter } from "../interfaces/IOperatorFilter.sol";
 abstract contract OperatorFilter is IOperatorFilter {
     mapping(address operator => bool blocked) public isOperatorBlocked;
 
+    /**
+     * Modifier used to validate an operator address when {IERC1155.setApprovalForAll} is called.
+     */
     modifier filterOperatorApproval(address operator) {
         _checkOperatorStatus(operator);
         _;
     }
 
+    /**
+     * Modifier used to validate an operator address when either {IERC1155.safeTransferFrom}
+     * or {IERC1155.safeBatchTransferFrom} is called.
+     */
     modifier filterOperator(address operator) {
         if (msg.sender != operator) _checkOperatorStatus(msg.sender);
         _;

@@ -4,12 +4,12 @@ pragma solidity 0.8.19;
 import { ISignerRegistry } from "../interfaces/ISignerRegistry.sol";
 
 /**
- * @title IKYCRegistry
+ * @title IAccessRegistry
  * @notice This contract returns the access type associated with a given address on-chain. Users
  * will be able to initialize their access type once they have KYC'd on the SegMint platform.
  */
 
-interface IKYCRegistry {
+interface IAccessRegistry {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ERRORS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/

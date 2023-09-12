@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
 import { ERC1155 } from "@openzeppelin/token/ERC1155/ERC1155.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
-import { IKYCRegistry } from "./interfaces/IKYCRegistry.sol";
+import { IAccessRegistry } from "./interfaces/IAccessRegistry.sol";
 import { OperatorFilter } from "./handlers/OperatorFilter.sol";
 import { VaultType, KeyConfig } from "./types/DataTypes.sol";
 
@@ -36,7 +36,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
     mapping(address lendee => mapping(uint256 keyId => LendingTerms lendingTerm)) private _activeLends;
 
     /// Interface for KYC registry.
-    IKYCRegistry public kycRegistry;
+    IAccessRegistry public accessRegistry;
 
     /// Address of the key exchange.
     address public keyExchange;
@@ -55,11 +55,11 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         _;
     }
 
-    constructor(address admin_, string memory uri_, IKYCRegistry kycRegistry_) ERC1155(uri_) {
+    constructor(address admin_, string memory uri_, IAccessRegistry accessRegistry_) ERC1155(uri_) {
         _initializeOwner(msg.sender);
         _grantRoles(admin_, ADMIN_ROLE);
 
-        kycRegistry = kycRegistry_;
+        accessRegistry = accessRegistry_;
     }
 
     /**
@@ -114,8 +114,8 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         if (_keyConfig[keyId].isFrozen) revert KeysFrozen();
 
         /// Checks: Ensure the lendee has valid access.
-        IKYCRegistry.AccessType accessType = kycRegistry.accessType(lendee);
-        if (accessType == IKYCRegistry.AccessType.BLOCKED) revert IKYCRegistry.InvalidAccessType();
+        IAccessRegistry.AccessType accessType = accessRegistry.accessType(lendee);
+        if (accessType == IAccessRegistry.AccessType.BLOCKED) revert IAccessRegistry.InvalidAccessType();
 
         /// Checks: Ensure keys aren't being lended to self.
         if (msg.sender == lendee) revert CannotLendToSelf();
@@ -245,8 +245,8 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         // if (from != sender && !isApprovedForAll(from, sender)) revert ERC1155MissingApprovalForAll(sender, from);
 
         /// Checks: Ensure that `to` has a valid access type.
-        IKYCRegistry.AccessType accessType = kycRegistry.accessType(to);
-        if (accessType == IKYCRegistry.AccessType.BLOCKED) revert IKYCRegistry.InvalidAccessType();
+        IAccessRegistry.AccessType accessType = accessRegistry.accessType(to);
+        if (accessType == IAccessRegistry.AccessType.BLOCKED) revert IAccessRegistry.InvalidAccessType();
 
         /// Checks: Ensure the key idenitifier is not frozen.
         if (_keyConfig[id].isFrozen) revert KeysFrozen();
@@ -276,8 +276,8 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         // if (from != sender && !isApprovedForAll(from, sender)) revert ERC1155MissingApprovalForAll(sender, from);
 
         /// Checks: Ensure that `to` has a valid access type.
-        IKYCRegistry.AccessType accessType = kycRegistry.accessType(to);
-        if (accessType == IKYCRegistry.AccessType.BLOCKED) revert IKYCRegistry.InvalidAccessType();
+        IAccessRegistry.AccessType accessType = accessRegistry.accessType(to);
+        if (accessType == IAccessRegistry.AccessType.BLOCKED) revert IAccessRegistry.InvalidAccessType();
 
         /// Checks: Ensure that each `id` of `ids` can be transferred.
         for (uint256 i = 0; i < ids.length; i++) {

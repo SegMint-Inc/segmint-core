@@ -7,7 +7,7 @@ import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
 import { ExchangeHasher } from "./handlers/ExchangeHasher.sol";
 import { NonceManager } from "./managers/NonceManager.sol";
 import { IKeyExchange } from "./interfaces/IKeyExchange.sol";
-import { IKYCRegistry } from "./interfaces/IKYCRegistry.sol";
+import { IAccessRegistry } from "./interfaces/IAccessRegistry.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
 import { IWETH } from "./interfaces/IWETH.sol";
 import { VaultType, KeyConfig } from "./types/DataTypes.sol";
@@ -25,7 +25,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
     IWETH public immutable WETH;
 
     IKeys public keys;
-    IKYCRegistry public kycRegistry;
+    IAccessRegistry public accessRegistry;
 
     /// Default protocol fee to 05.00%
     uint256 public protocolFee = 500;
@@ -41,7 +41,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
     mapping(bytes32 bidHash => Status status) public bidStatus;
     mapping(uint256 keyId => KeyTerms keyTerms) private _keyTerms;
 
-    constructor(address admin_, address feeReceiver_, address weth_, IKeys keys_, IKYCRegistry kycRegistry_) {
+    constructor(address admin_, address feeReceiver_, address weth_, IKeys keys_, IAccessRegistry accessRegistry_) {
         _initializeOwner(msg.sender);
         _grantRoles(admin_, ADMIN_ROLE);
 
@@ -49,7 +49,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
         feeReceiver = feeReceiver_;
         
         keys = keys_;
-        kycRegistry = kycRegistry_;
+        accessRegistry = accessRegistry_;
     }
 
     /**
@@ -142,8 +142,8 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
             bytes calldata signature = bidParams[i].signature;
 
             /// Checks: Ensure restricted users can use the Key Exchange.
-            IKYCRegistry.AccessType accessType = kycRegistry.accessType(bid.maker);
-            if (accessType == IKYCRegistry.AccessType.RESTRICTED && !allowRestrictedUsers) revert RestrictedUsersBlocked();
+            IAccessRegistry.AccessType accessType = accessRegistry.accessType(bid.maker);
+            if (accessType == IAccessRegistry.AccessType.RESTRICTED && !allowRestrictedUsers) revert RestrictedUsersBlocked();
 
             /// Checks: Ensure that key terms have been defined for the key identifier.
             if (_keyTerms[bid.keyId].market == MarketType.UNDEFINED) revert KeyTermsUndefined();
@@ -353,8 +353,8 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
         if (msg.sender != keys.getKeyConfig(keyId).creator) revert CallerNotKeyCreator();
 
         /// Checks: Ensure restricted users can use the Key Exchange.
-        IKYCRegistry.AccessType accessType = kycRegistry.accessType(msg.sender);
-        if (accessType == IKYCRegistry.AccessType.RESTRICTED && !allowRestrictedUsers) revert RestrictedUsersBlocked();
+        IAccessRegistry.AccessType accessType = accessRegistry.accessType(msg.sender);
+        if (accessType == IAccessRegistry.AccessType.RESTRICTED && !allowRestrictedUsers) revert RestrictedUsersBlocked();
 
         /// Checks: Ensure that a valid market type has been provided.
         if (finalTerms.market == MarketType.UNDEFINED) revert InvalidMarketType();

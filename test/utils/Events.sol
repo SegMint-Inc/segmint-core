@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import { ISignerRegistry } from "../../src/interfaces/ISignerRegistry.sol";
-import { IKYCRegistry } from "../../src/interfaces/IKYCRegistry.sol";
+import { IAccessRegistry } from "../../src/interfaces/IAccessRegistry.sol";
 import { IKeyExchange } from "../../src/interfaces/IKeyExchange.sol";
 import { IVaultFactory } from "../../src/interfaces/IVaultFactory.sol";
 import { IKeys } from "../../src/interfaces/IKeys.sol";
@@ -13,13 +13,13 @@ abstract contract Events {
     /// {ISignerRegistry} Events.
     event SignerUpdated(address indexed admin, address oldSigner, address newSigner);
 
-    /// {IKYCRegistry} Events.
-    event AccessTypeSet(address indexed account, IKYCRegistry.AccessType accessType, bytes signature);
+    /// {IAccessRegistry} Events.
+    event AccessTypeSet(address indexed account, IAccessRegistry.AccessType accessType, bytes signature);
     event AccessTypeModified(
         address indexed admin,
         address indexed account,
-        IKYCRegistry.AccessType oldAccessType,
-        IKYCRegistry.AccessType newAccessType
+        IAccessRegistry.AccessType oldAccessType,
+        IAccessRegistry.AccessType newAccessType
     );
 
     /// {IKeyExchange} Events.
