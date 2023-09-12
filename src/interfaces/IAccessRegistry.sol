@@ -53,7 +53,7 @@ interface IAccessRegistry {
      * Emitted when the access type of an address has been set for the first time.
      * @param account The address whose access type has been set.
      * @param accessType Associated `{AccessType}` Enum.
-     * @param signature Signature used for KYC registration.
+     * @param signature Signature used for access registration.
      */
     event AccessTypeSet(address indexed account, AccessType accessType, bytes signature);
 

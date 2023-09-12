@@ -27,6 +27,9 @@ contract MAVault is IMAVault, Ownable, Initializable {
      */
     uint256 public boundKeyId;
 
+    /// Block that the last asset withdraw has occured.
+    uint256 public lastWithdrawBlock;
+
     /**
      * Modifier used to ensure the caller is either the owner of the vault if no keys
      * are currently binded, or the holder of all keys. This logic has been moved
@@ -52,10 +55,16 @@ contract MAVault is IMAVault, Ownable, Initializable {
      */
     function unlockAssets(Asset[] calldata assets, address receiver) external ownerOrKeyHolder {
         /// Checks: Ensure a non-zero amount of assets has been specified.
-        if (assets.length == 0) revert IMAVault.ZeroAssetAmount();
+        if (assets.length == 0) revert ZeroAssetAmount();
+
+        /// Update the last asset withdraw block.
+        lastWithdrawBlock = block.number;
 
         for (uint256 i = 0; i < assets.length; i++) {
             Asset calldata asset = assets[i];
+
+            /// Checks: Ensure a valid asset type has been provided.
+            if (asset.class == AssetClass.NONE) revert NoneAssetType();
 
             /// forgefmt: disable-next-item
             if (asset.class == AssetClass.ERC20) {
@@ -69,7 +78,7 @@ contract MAVault is IMAVault, Ownable, Initializable {
                     to: receiver,
                     tokenId: asset.identifier
                 });
-            } else if (asset.class == AssetClass.ERC1155) {
+            } else {
                 IERC1155(asset.token).safeTransferFrom({
                     from: address(this),
                     to: receiver,
@@ -77,9 +86,6 @@ contract MAVault is IMAVault, Ownable, Initializable {
                     amount: asset.amount,
                     data: ""
                 });
-            } else {
-                /// Checks: Ensure the asset being unlocked has a valid asset class.
-                revert IMAVault.NoneAssetType();
             }
         }
     }
@@ -88,6 +94,9 @@ contract MAVault is IMAVault, Ownable, Initializable {
      * @inheritdoc IMAVault
      */
     function unlockNativeToken(uint256 amount, address receiver) external ownerOrKeyHolder {
+        /// Update the last asset withdraw block.
+        lastWithdrawBlock = block.number;
+
         (bool success,) = receiver.call{ value: amount }("");
         if (!success) revert NativeTokenUnlockFailed();
     }

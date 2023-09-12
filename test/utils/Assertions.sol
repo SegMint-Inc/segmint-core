@@ -9,8 +9,6 @@ import { IKeyExchange } from "../../src/interfaces/IKeyExchange.sol";
 import { IKeys } from "../../src/interfaces/IKeys.sol";
 import { IMAVault } from "../../src/interfaces/IMAVault.sol";
 import { ISAVault } from "../../src/interfaces/ISAVault.sol";
-// import { IWETH } from "../src/interfaces/IWETH.sol";
-
 import { AssetClass, VaultType } from "../../src/types/DataTypes.sol";
 
 abstract contract Assertions is Test {

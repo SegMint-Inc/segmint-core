@@ -35,7 +35,6 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
     address public maVault;
     address public saVault;
 
-    /// TODO: Optimise this by using 1 mapping, allocate 32 bits for each nonce type.
     mapping(address account => uint256 nonce) private _maVaultNonce;
     mapping(address account => uint256 nonce) private _saVaultNonce;
 

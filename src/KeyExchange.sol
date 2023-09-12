@@ -8,6 +8,7 @@ import { ExchangeHasher } from "./handlers/ExchangeHasher.sol";
 import { NonceManager } from "./managers/NonceManager.sol";
 import { IKeyExchange } from "./interfaces/IKeyExchange.sol";
 import { IAccessRegistry } from "./interfaces/IAccessRegistry.sol";
+import { IMAVault } from "./interfaces/IMAVault.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
 import { IWETH } from "./interfaces/IWETH.sol";
 import { VaultType, KeyConfig } from "./types/DataTypes.sol";
@@ -72,6 +73,13 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
 
             /// Checks: Ensure that the key terms have been defined for the associated key ID.
             if (_keyTerms[order.keyId].market == MarketType.UNDEFINED) revert KeyTermsUndefined();
+
+            /// Checks: Ensure that if the key is associated with a multi-asset vault, the last asset withdraw hasn't
+            /// occured within the same block to prevent front-running.
+            KeyConfig memory keyConfig = keys.getKeyConfig(order.keyId);
+            if (keyConfig.vaultType == VaultType.MULTI) {
+                if (IMAVault(keyConfig.vault).lastWithdrawBlock() == block.number) revert AssetMovementInSaleBlock();
+            }
 
             /// Get the EIP712 digest of the provided order.
             bytes32 orderHash = _hashOrder(order);
@@ -141,9 +149,17 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
             Bid calldata bid = bidParams[i].bid;
             bytes calldata signature = bidParams[i].signature;
 
-            /// Checks: Ensure restricted users can use the Key Exchange.
+            /// Checks: Ensure restricted users can't use the Key Exchange.
             IAccessRegistry.AccessType accessType = accessRegistry.accessType(bid.maker);
             if (accessType == IAccessRegistry.AccessType.RESTRICTED && !allowRestrictedUsers) revert RestrictedUsersBlocked();
+
+            /// Checks: Ensure that if the key is associated with a multi-asset vault, the last asset withdraw hasn't
+            /// occured within the same block to prevent front-running.
+            KeyConfig memory keyConfig = keys.getKeyConfig(bid.keyId);
+            if (keyConfig.vaultType == VaultType.MULTI) {
+                IMAVault vault = IMAVault(keyConfig.vault);
+                if (vault.lastWithdrawBlock() == block.number) revert AssetMovementInSaleBlock();
+            }
 
             /// Checks: Ensure that key terms have been defined for the key identifier.
             if (_keyTerms[bid.keyId].market == MarketType.UNDEFINED) revert KeyTermsUndefined();
@@ -345,16 +361,16 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
      * can be facilitated with the associated key ID.
      */
     function setKeyTerms(uint256 keyId, KeyTerms calldata finalTerms) external {
-        /// Checks: Ensure that multi-asset vault keys can be traded.
-        VaultType vaultType = keys.getKeyConfig(keyId).vaultType;
-        if (!multiKeysTradable && vaultType == VaultType.MULTI) revert MultiAssetKeysRestricted();
-
-        /// Checks: Ensure the caller is the original creator of the keys.
-        if (msg.sender != keys.getKeyConfig(keyId).creator) revert CallerNotKeyCreator();
-
         /// Checks: Ensure restricted users can use the Key Exchange.
         IAccessRegistry.AccessType accessType = accessRegistry.accessType(msg.sender);
         if (accessType == IAccessRegistry.AccessType.RESTRICTED && !allowRestrictedUsers) revert RestrictedUsersBlocked();
+
+        /// Checks: Ensure that multi-asset vault keys can be traded.
+        KeyConfig memory keyConfig = keys.getKeyConfig(keyId);
+        if (!multiKeysTradable && keyConfig.vaultType == VaultType.MULTI) revert MultiAssetKeysRestricted();
+
+        /// Checks: Ensure the caller is the original creator of the keys.
+        if (msg.sender != keyConfig.creator) revert CallerNotKeyCreator();
 
         /// Checks: Ensure that a valid market type has been provided.
         if (finalTerms.market == MarketType.UNDEFINED) revert InvalidMarketType();

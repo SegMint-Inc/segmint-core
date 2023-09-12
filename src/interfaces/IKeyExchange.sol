@@ -121,6 +121,11 @@ interface IKeyExchange {
      */
     error RestrictedUsersBlocked();
 
+    /**
+     * Thrown when an asset withdraw occurs in the same block as a sale for a multi-asset vault.
+     */
+    error AssetMovementInSaleBlock();
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           EVENTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/

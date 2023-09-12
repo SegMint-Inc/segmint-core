@@ -89,4 +89,9 @@ interface IMAVault {
      * Function used to return the key ID associated with a vault.
      */
     function boundKeyId() external view returns (uint256);
+
+    /**
+     * Function used to view the last block an asset with withdrawn.
+     */
+    function lastWithdrawBlock() external view returns (uint256);
 }

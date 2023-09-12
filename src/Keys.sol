@@ -35,7 +35,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
     /// Mapping of active lends.
     mapping(address lendee => mapping(uint256 keyId => LendingTerms lendingTerm)) private _activeLends;
 
-    /// Interface for KYC registry.
+    /// Interface for access registry.
     IAccessRegistry public accessRegistry;
 
     /// Address of the key exchange.
@@ -79,6 +79,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         _keyConfig[keyId] = KeyConfig({
             creator: receiver,
             vaultType: vaultType,
+            vault: msg.sender,
             isFrozen: false,
             isBurned: false,
             supply: uint8(amount)
@@ -240,10 +241,6 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         override
         filterOperator(from)
     {
-        /// Checks: Ensure the caller is either the owner of the token or is an approved operator.
-        // address sender = _msgSender();
-        // if (from != sender && !isApprovedForAll(from, sender)) revert ERC1155MissingApprovalForAll(sender, from);
-
         /// Checks: Ensure that `to` has a valid access type.
         IAccessRegistry.AccessType accessType = accessRegistry.accessType(to);
         if (accessType == IAccessRegistry.AccessType.BLOCKED) revert IAccessRegistry.InvalidAccessType();
@@ -271,10 +268,6 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         uint256[] memory amounts,
         bytes memory data
     ) public override filterOperator(from) {
-        /// Checks: Ensure the caller is either the owner of the token or is an approved operator.
-        // address sender = _msgSender();
-        // if (from != sender && !isApprovedForAll(from, sender)) revert ERC1155MissingApprovalForAll(sender, from);
-
         /// Checks: Ensure that `to` has a valid access type.
         IAccessRegistry.AccessType accessType = accessRegistry.accessType(to);
         if (accessType == IAccessRegistry.AccessType.BLOCKED) revert IAccessRegistry.InvalidAccessType();
@@ -333,7 +326,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         /// 2. The `from` address has an active lend, but is sending keys to the lender.
         /// 3. The `from` address has an active lend, but is not sending keys to lender.
 
-        /// Case #1
+        /// Case #1 - No further action required.
         if (lendingTerms.lender == address(0)) {
             /// Case #2
         } else if (to == lendingTerms.lender) {

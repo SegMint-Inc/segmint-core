@@ -44,7 +44,7 @@ interface IVaultFactory {
      * @param maVault_ Multi asset vault implementation.
      * @param saVault_ Single asset vault implementation.
      * @param signerRegistry_ Address of signer registry.
-     * @param accessRegistry_ Address of KYC registry.
+     * @param accessRegistry_ Address of access registry.
      * @param keys_ Address of keys.
      */
     function initialize(

@@ -3,8 +3,6 @@ pragma solidity 0.8.19;
 
 import "./BaseTest.sol";
 
-/// TODO: Native transfer failure tests.
-
 contract KeyExchangeTest is BaseTest {
     using stdStorage for StdStorage;
 
@@ -138,22 +136,128 @@ contract KeyExchangeTest is BaseTest {
         keyExchange.executeOrders{ value: order.price }(orders);
     }
 
-    // function testCannot_ExecuteOrders_MultiAssetKeysRestricted() public {
-    //     startHoax(users.alice.account); // Create multi-asset vault keys and set key terms.
-    //     uint256 id = keys.createKeys(keySupply, users.alice.account, VaultType.MULTI);
-    //     keyExchange.setKeyTerms(id, IKeyExchange.KeyTerms(IKeyExchange.MarketType.FREE, 0, 0));
-    //     vm.stopPrank();
+    function testCannot_ExecuteOrders_AssetWithdrawInSameBlock_Assets() public {
+        /// Allow multi-asset key trading.
+        hoax(users.admin);
+        keyExchange.toggleMultiKeyTrading();
 
-    //     IKeyExchange.Order memory order = getGenericOrder(users.alice.account);
-    //     order.keyId = id; // Modify the order key ID to be a multi-asset ID.
+        startHoax(users.alice.account);
 
-    //     IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](1);
-    //     orders[0] = signOrder(order, users.alice.privateKey);
+        /// Create a multi-asset vault.
+        (uint256 maNonce,) = vaultFactory.getNonces(users.alice.account);
+        bytes memory signature = getVaultCreationSignature(users.alice.account, maNonce, VaultType.MULTI);
+        vaultFactory.createMultiAssetVault(signature);
+        address maVault = vaultFactory.getMultiAssetVaults(users.alice.account)[0];
 
-    //     hoax(users.bob.account);
-    //     vm.expectRevert(IKeyExchange.MultiAssetKeysRestricted.selector);
-    //     keyExchange.executeOrders{ value: order.price }(orders);
-    // }
+        /// Deposit ERC721 asset.
+        mockERC721.safeTransferFrom(users.alice.account, maVault, 0);
+        assertEq(mockERC721.ownerOf(0), maVault);
+
+        /// Bind keys to the vault, key ID #2 cause #1 gets created in `setUp`.
+        IMAVault vault = IMAVault(maVault);
+        vault.bindKeys(10);
+
+        uint256 vaultKeyId = vault.boundKeyId();
+        assertEq(vault.lastWithdrawBlock(), 0);
+        assertEq(vaultKeyId, 2);
+
+        /// Set the key terms.
+        IKeyExchange.KeyTerms memory keyTerms = IKeyExchange.KeyTerms({
+            market: IKeyExchange.MarketType.FREE,
+            buyBack: 0,
+            reserve: 0
+        });
+        keyExchange.setKeyTerms(vaultKeyId, keyTerms);
+
+        /// Create an order, sign it and prepare it.
+        IKeyExchange.Order memory order = IKeyExchange.Order({
+            price: 0.1 ether,
+            maker: users.alice.account,
+            taker: address(0),
+            keyId: vaultKeyId,
+            amount: 1,
+            nonce: 0,
+            startTime: block.timestamp,
+            endTime: block.timestamp + 7 days
+        });
+
+        IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](1);
+        orders[0] = signOrder(order, users.alice.privateKey);
+
+        /// Withdraw the assets, assume Bob's pending buy txn is in the mempool.
+        Asset[] memory assets = new Asset[](1);
+        assets[0] = getERC721Asset();
+        vault.unlockAssets(assets, users.alice.account);
+        assertEq(vault.lastWithdrawBlock(), block.number);
+        
+        vm.stopPrank();
+
+        /// Execute the order as Bob.
+        hoax(users.bob.account);
+        vm.expectRevert(IKeyExchange.AssetMovementInSaleBlock.selector);
+        keyExchange.executeOrders{ value: order.price }(orders);
+    }
+
+    function testCannot_ExecuteOrders_AssetWithdrawInSameBlock_NativeToken() public {
+        /// Allow multi-asset key trading.
+        hoax(users.admin);
+        keyExchange.toggleMultiKeyTrading();
+
+        startHoax(users.alice.account);
+
+        /// Create a multi-asset vault.
+        (uint256 maNonce,) = vaultFactory.getNonces(users.alice.account);
+        bytes memory signature = getVaultCreationSignature(users.alice.account, maNonce, VaultType.MULTI);
+        vaultFactory.createMultiAssetVault(signature);
+        address maVault = vaultFactory.getMultiAssetVaults(users.alice.account)[0];
+
+        /// Deposit native token.
+        (bool success,) = maVault.call{ value: 1 ether }("");
+        assertTrue(success);
+        assertEq(maVault.balance, 1 ether);
+
+        /// Bind keys to the vault, key ID #2 cause #1 gets created in `setUp`.
+        IMAVault vault = IMAVault(maVault);
+        vault.bindKeys(10);
+
+        uint256 vaultKeyId = vault.boundKeyId();
+        assertEq(vault.lastWithdrawBlock(), 0);
+        assertEq(vaultKeyId, 2);
+
+        /// Set the key terms.
+        IKeyExchange.KeyTerms memory keyTerms = IKeyExchange.KeyTerms({
+            market: IKeyExchange.MarketType.FREE,
+            buyBack: 0,
+            reserve: 0
+        });
+        keyExchange.setKeyTerms(vaultKeyId, keyTerms);
+
+        /// Create an order, sign it and prepare it.
+        IKeyExchange.Order memory order = IKeyExchange.Order({
+            price: 0.1 ether,
+            maker: users.alice.account,
+            taker: address(0),
+            keyId: vaultKeyId,
+            amount: 1,
+            nonce: 0,
+            startTime: block.timestamp,
+            endTime: block.timestamp + 7 days
+        });
+
+        IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](1);
+        orders[0] = signOrder(order, users.alice.privateKey);
+
+        /// Withdraw the native token, assume Bob's pending buy txn is in the mempool.
+        vault.unlockNativeToken(1 ether, users.alice.account);
+        assertEq(vault.lastWithdrawBlock(), block.number);
+        
+        vm.stopPrank();
+
+        /// Execute the order as Bob.
+        hoax(users.bob.account);
+        vm.expectRevert(IKeyExchange.AssetMovementInSaleBlock.selector);
+        keyExchange.executeOrders{ value: order.price }(orders);
+    }
 
     function testCannot_ExecuteOrders_InvalidOrderStatus() public setKeyTerms(IKeyExchange.MarketType.FREE) {
         IKeyExchange.Order memory order = getGenericOrder(users.alice.account);
@@ -338,23 +442,6 @@ contract KeyExchangeTest is BaseTest {
         vm.expectRevert(IKeyExchange.KeyTermsUndefined.selector);
         keyExchange.executeBids(bids);
     }
-
-    // function testCannot_ExecuteBids_MultiAssetKeysRestricted() public {
-    //     startHoax(users.alice.account); // Create multi-asset vault keys and set key terms.
-    //     uint256 id = keys.createKeys(keySupply, users.alice.account, VaultType.MULTI);
-    //     keyExchange.setKeyTerms(id, IKeyExchange.KeyTerms(IKeyExchange.MarketType.FREE, 0, 0));
-    //     vm.stopPrank();
-
-    //     IKeyExchange.Bid memory bid = getGenericBid(users.alice.account);
-    //     bid.keyId = id; // Modify the bid key ID to be a multi-asset ID.
-
-    //     IKeyExchange.BidParams[] memory bids = new IKeyExchange.BidParams[](1);
-    //     bids[0] = signBid(bid, users.bob.privateKey);
-
-    //     hoax(users.alice.account);
-    //     vm.expectRevert(IKeyExchange.MultiAssetKeysRestricted.selector);
-    //     keyExchange.executeBids(bids);
-    // }
 
     function testCannot_ExecuteBids_InvalidBidStatus() public setKeyTerms(IKeyExchange.MarketType.FREE) {
         IKeyExchange.Bid memory bid = getGenericBid(users.bob.account);
