@@ -2,9 +2,9 @@
 
 The SegMint Vault & Key ecosystem represents a fractionalized NFT protocol where users secure their assets within a SegMint Vault and create SegMint Keys. These keys take the form of ERC-1155 tokens and represent a semi-fungible counterpart to the locked asset(s). Vaults come in two main types:
 
-- **Single-Asset Vaults**: These are designed for fractionalizing a single, locked asset. If the locked asset resembles an NFT (Non-Fungible Token), the SegMint Keys generated may bear a visual representation that matches the underlying asset.
+- **Single-Asset Vaults**: These are designed for fractionalizing a single locked asset.
 
-- **Multi-Asset Vaults**: These versatile vaults enable the creation of a basket of assets, which may consist of various token types, including fungible and non-fungible assets. The visual representation of the assets within these vaults may be customized to suit the user's preferences.
+- **Multi-Asset Vaults**: These versatile vaults enable the creation of a basket of assets, which may consist of various token types, including fungible and non-fungible assets as well as native token.
 
 ## Definitions
 
@@ -29,7 +29,6 @@ The majority of the smart contracts within the Vault & Key ecosystem are immutab
 ### Signer Registry
 
 The `SignerRegistry.sol` contract is used as a single source of truth for the current signer address. Since ECDSA signatures which are created through a back-end API are required for some components of the ecosystem, I have opted to create a signer registry for this purpose so that in the event the signer needs to be updated, this can be done with a single transaction rather than multiple. It contains one state-changing function which can only be called by the administrator of the contract that updates the current signer address.
-
 
 ### Access Registry
 
@@ -71,15 +70,13 @@ When the underlying asset is unlocked, all keys of the ID associated with the va
 
 The `MAVault.sol` contract contains the implementation logic for multi-asset vaults.
 
-When a multi-asset vault is created, the user can then choose to transfer any number of assets (all token standards eligable as well as native token) non-atomically to the vault and then create keys at a later point in time once the basket of assets has been finalised. Due to this design, multi-asset vaults have a concept of contextual ownership.
+When a multi-asset vault is created, the user will specify the number of keys to associate with the vault and will subsequently receive the  minted keys after their transaction has been included into a block.
 
-When no keys are binded, the creator of the vault is free to withdraw assets and native token from the vault until they decide to bind keys. Once keys are binded, only the vaults associated key ID supply holder can withdraw assets from the vault.
+After vault creation, users will be prompted to transfer the desired basket of assets into the vault. Our back-end infrastructure will acknowledge these transfers and update the platform website accordingly to reflect the underlying assets associated with the keys.
 
-Since a large number of underlying assets can be contained within a multi-asset vault, the unlocking assets process is non-atomic and allows for the key's supply holder to burn the keys at a later point in time once they are finished.
+It is worth mentioning that once assets have been deposited into the vault, the creator should not be able to withdraw these assets without burning the entire supply of keys associated with it.
 
-One quirk about multi-asset vaults is that once the key's associated with the vault are burnt, the vault reverts back to its "original" state where the owner can reuse it if they wish to do so.
-
-*Discussion*: It is currently acknowledged that there exists a potential high-level front-running bug, this should be discussed with auditors to determine if the current approach is the most adequate technique of mitigating this issue.
+The nature in which assets can be unlocked relates strictly to the `claimOwnership` function. Calling this function whilst holding the entire supply of keys will subsequently burn the keys and transfer ownership of the vault to the caller. Since assets can only be withdrawn when no keys are associated with the vault (`boundKeyId` is zero), this will enable the new owner to withdraw the assets within the vault on their own terms.
 
 ## Key Services
 
