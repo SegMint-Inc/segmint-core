@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
 import { ECDSA } from "solady/src/utils/ECDSA.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
-import { ExchangeHasher } from "./handlers/ExchangeHasher.sol";
+import { TypeHasher } from "./handlers/TypeHasher.sol";
 import { NonceManager } from "./managers/NonceManager.sol";
 import { IKeyExchange } from "./interfaces/IKeyExchange.sol";
 import { IAccessRegistry } from "./interfaces/IAccessRegistry.sol";
@@ -13,7 +13,7 @@ import { IKeys } from "./interfaces/IKeys.sol";
 import { IWETH } from "./interfaces/IWETH.sol";
 import { VaultType, KeyConfig } from "./types/DataTypes.sol";
 
-contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher {
+contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
     using ECDSA for bytes32;
 
     /// @dev Total basis points used for fee calculation.
@@ -53,10 +53,16 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
         accessRegistry = accessRegistry_;
     }
 
+    modifier checkCaller() {
+        _checkAccess(msg.sender);
+        _;
+    }
+
     /**
      * @inheritdoc IKeyExchange
+     * @dev `msg.sender` in this context is a user wishing to fill an order, a buyer.
      */
-    function executeOrders(OrderParams[] calldata orders) external payable {
+    function executeOrders(OrderParams[] calldata orders) external payable checkCaller {
         /// Checks: Ensure a non-zero amount of orders have been specified.
         if (orders.length == 0) revert ZeroLengthArray();
 
@@ -71,15 +77,11 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
             Order calldata order = orders[i].order;
             bytes calldata signature = orders[i].signature;
 
+            /// Checks: Ensure the order maker has valid access to the Key Exchange.
+            _checkAccess(order.maker);
+
             /// Checks: Ensure that the key terms have been defined for the associated key ID.
             if (_keyTerms[order.keyId].market == MarketType.UNDEFINED) revert KeyTermsUndefined();
-
-            /// Checks: Ensure that if the key is associated with a multi-asset vault, the last asset withdraw hasn't
-            /// occured within the same block to prevent front-running.
-            KeyConfig memory keyConfig = keys.getKeyConfig(order.keyId);
-            if (keyConfig.vaultType == VaultType.MULTI) {
-                if (IMAVault(keyConfig.vault).lastWithdrawBlock() == block.number) revert AssetMovementInSaleBlock();
-            }
 
             /// Get the EIP712 digest of the provided order.
             bytes32 orderHash = _hashOrder(order);
@@ -139,8 +141,9 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
 
     /**
      * @inheritdoc IKeyExchange
+     * @dev `msg.sender` in this context is a user wishing to accept a bid, a seller.
      */
-    function executeBids(BidParams[] calldata bidParams) external {
+    function executeBids(BidParams[] calldata bidParams) external checkCaller {
         /// Checks: Ensure a non zero amount of bids have been provided.
         if (bidParams.length == 0) revert ZeroLengthArray();
 
@@ -149,17 +152,8 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
             Bid calldata bid = bidParams[i].bid;
             bytes calldata signature = bidParams[i].signature;
 
-            /// Checks: Ensure restricted users can't use the Key Exchange.
-            IAccessRegistry.AccessType accessType = accessRegistry.accessType(bid.maker);
-            if (accessType == IAccessRegistry.AccessType.RESTRICTED && !allowRestrictedUsers) revert RestrictedUsersBlocked();
-
-            /// Checks: Ensure that if the key is associated with a multi-asset vault, the last asset withdraw hasn't
-            /// occured within the same block to prevent front-running.
-            KeyConfig memory keyConfig = keys.getKeyConfig(bid.keyId);
-            if (keyConfig.vaultType == VaultType.MULTI) {
-                IMAVault vault = IMAVault(keyConfig.vault);
-                if (vault.lastWithdrawBlock() == block.number) revert AssetMovementInSaleBlock();
-            }
+            /// Checks: Ensure the bid maker has valid access to the Key Exchange.
+            _checkAccess(bid.maker);
 
             /// Checks: Ensure that key terms have been defined for the key identifier.
             if (_keyTerms[bid.keyId].market == MarketType.UNDEFINED) revert KeyTermsUndefined();
@@ -358,13 +352,9 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
     /**
      * @inheritdoc IKeyExchange
      * @dev This function MUST be called by the original key creator before any trading
-     * can be facilitated with the associated key ID.
+     * can be facilitated with the associated key ID. 
      */
-    function setKeyTerms(uint256 keyId, KeyTerms calldata finalTerms) external {
-        /// Checks: Ensure restricted users can use the Key Exchange.
-        IAccessRegistry.AccessType accessType = accessRegistry.accessType(msg.sender);
-        if (accessType == IAccessRegistry.AccessType.RESTRICTED && !allowRestrictedUsers) revert RestrictedUsersBlocked();
-
+    function setKeyTerms(uint256 keyId, KeyTerms calldata finalTerms) external checkCaller {
         /// Checks: Ensure that multi-asset vault keys can be traded.
         KeyConfig memory keyConfig = keys.getKeyConfig(keyId);
         if (!multiKeysTradable && keyConfig.vaultType == VaultType.MULTI) revert MultiAssetKeysRestricted();
@@ -472,5 +462,18 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, ExchangeHasher
     function _domainNameAndVersion() internal pure override returns (string memory name, string memory version) {
         name = "Key Exchange";
         version = "1.0";
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       INTERNAL LOGIC                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * Function used to determine if the caller has valid access to use the Key Exchange. It shouldn't matter if the
+     * caller has the `BLOCKED` access type as all key transfers will revert if so.
+     */
+    function _checkAccess(address account) internal view {
+        IAccessRegistry.AccessType accessType = accessRegistry.accessType(account);
+        if (accessType == IAccessRegistry.AccessType.RESTRICTED && !allowRestrictedUsers) revert Restricted();
     }
 }

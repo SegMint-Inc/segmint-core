@@ -119,7 +119,7 @@ interface IKeyExchange {
     /**
      * Thrown when a restricted user attempts to use the Key Exchange whilst restricted users are block.
      */
-    error RestrictedUsersBlocked();
+    error Restricted();
 
     /**
      * Thrown when an asset withdraw occurs in the same block as a sale for a multi-asset vault.
