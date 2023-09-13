@@ -95,7 +95,7 @@ contract VaultFactoryTest is BaseTest {
 
             vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: true, checkData: true });
             emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.MULTI });
-            vaultFactory.createMultiAssetVault(i+1, signature);
+            vaultFactory.createMultiAssetVault(i + 1, signature);
         }
         vm.stopPrank();
 
@@ -108,7 +108,7 @@ contract VaultFactoryTest is BaseTest {
         for (uint256 i = 0; i < maVaults.length; i++) {
             address payable maVault = payable(maVaults[i]);
             assertTrue(keys.isRegistered(maVault));
-            
+
             MAVault vault = MAVault(maVault);
             assertEq(vault.owner(), users.alice.account);
             assertEq(vault.keys(), keys);

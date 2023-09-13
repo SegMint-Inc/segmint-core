@@ -886,6 +886,29 @@ contract KeyExchangeTest is BaseTest {
         keyExchange.toggleMultiKeyTrading();
     }
 
+    function test_ToggleAllowRestrictedUsers() public {
+        /// Reset state.
+        hoax(users.admin);
+        keyExchange.toggleAllowRestrictedUsers();
+
+        bool initialState = keyExchange.allowRestrictedUsers();
+        assertFalse(initialState);
+
+        hoax(users.admin);
+        keyExchange.toggleAllowRestrictedUsers();
+
+        bool updatedState = keyExchange.allowRestrictedUsers();
+        assertTrue(updatedState);
+    }
+
+    function testCannot_ToggleAllowRestrictedUsers_Unauthorized(address nonAdmin) public {
+        vm.assume(nonAdmin != users.admin);
+
+        hoax(nonAdmin);
+        vm.expectRevert(UNAUTHORIZED_SELECTOR);
+        keyExchange.toggleAllowRestrictedUsers();
+    }
+
     function test_SetProtocolFee_Fuzzed(uint256 newFee) public {
         newFee = bound(newFee, 1, 10_000);
 

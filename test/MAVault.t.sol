@@ -37,7 +37,7 @@ contract MAVaultTest is BaseTest {
     function test_MAVault_Deployment() public {
         assertEq(vault.owner(), users.alice.account);
         assertEq(vault.keys(), keys);
-        assertEq(vault.boundKeyId(), 1);  // First key ID.
+        assertEq(vault.boundKeyId(), 1); // First key ID.
 
         KeyConfig memory keyConfig = vault.getKeyConfig();
         assertEq(keyConfig.creator, users.alice.account);
@@ -104,15 +104,8 @@ contract MAVaultTest is BaseTest {
         startHoax(users.alice.account);
 
         /// Transfer assets in.
-        mockERC20.transfer({
-            to: address(vault),
-            amount: assets[0].amount
-        });
-        mockERC721.safeTransferFrom({
-            from: users.alice.account,
-            to: address(vault),
-            tokenId: assets[1].identifier
-        });
+        mockERC20.transfer({ to: address(vault), amount: assets[0].amount });
+        mockERC721.safeTransferFrom({ from: users.alice.account, to: address(vault), tokenId: assets[1].identifier });
         mockERC1155.safeTransferFrom({
             from: users.alice.account,
             to: address(vault),
@@ -174,7 +167,7 @@ contract MAVaultTest is BaseTest {
         startHoax(users.alice.account, 0 ether);
         vault.claimOwnership();
         vault.unlockNativeToken(users.alice.account);
-        
+
         assertEq(users.alice.account.balance, amount);
         assertEq(address(vault).balance, 0 ether);
     }

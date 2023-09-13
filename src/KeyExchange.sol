@@ -53,7 +53,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
 
         WETH = IWETH(weth_);
         feeReceiver = feeReceiver_;
-        
+
         keys = keys_;
         accessRegistry = accessRegistry_;
     }
@@ -313,7 +313,11 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
     /**
      * @inheritdoc IKeyExchange
      */
-    function buyAtReserve(uint256 keyId, address[] calldata holders, uint256[] calldata amounts) external payable {
+    function buyAtReserve(uint256 keyId, address[] calldata holders, uint256[] calldata amounts)
+        external
+        payable
+        checkCaller
+    {
         /// Checks: Ensure a valid number of holders have been provided.
         if (holders.length == 0) revert ZeroLengthArray();
 
@@ -357,7 +361,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
     /**
      * @inheritdoc IKeyExchange
      * @dev This function MUST be called by the original key creator before any trading
-     * can be facilitated with the associated key ID. 
+     * can be facilitated with the associated key ID.
      */
     function setKeyTerms(uint256 keyId, KeyTerms calldata finalTerms) external checkCaller {
         /// Checks: Ensure that multi-asset vault keys can be traded.
