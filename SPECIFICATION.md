@@ -72,11 +72,11 @@ The `MAVault.sol` contract contains the implementation logic for multi-asset vau
 
 When a multi-asset vault is created, the user will specify the number of keys to associate with the vault and will subsequently receive the  minted keys after their transaction has been included into a block.
 
-After vault creation, users will be prompted to transfer the desired basket of assets into the vault. Our back-end infrastructure will acknowledge these transfers and update the platform website accordingly to reflect the underlying assets associated with the keys.
+After vault creation, users will be prompted via the platform to transfer the desired basket of assets into the vault. Our back-end infrastructure will acknowledge these transfers and update the platform website accordingly to reflect the underlying assets associated with the keys.
 
 It is worth mentioning that once assets have been deposited into the vault, the creator should not be able to withdraw these assets without burning the entire supply of keys associated with it.
 
-The nature in which assets can be unlocked relates strictly to the `claimOwnership` function. Calling this function whilst holding the entire supply of keys will subsequently burn the keys and transfer ownership of the vault to the caller. Since assets can only be withdrawn when no keys are associated with the vault (`boundKeyId` is zero), this will enable the new owner to withdraw the assets within the vault on their own terms.
+The nature in which assets can be unlocked relates strictly to the `claimOwnership` function. Calling this function whilst holding the entire supply of keys will subsequently burn the keys and transfer ownership of the vault to the caller. Since assets can only be withdrawn when no key ID is associated with the vault (`boundKeyId` is zero), this will enable the new owner to withdraw the assets within the vault on their own terms.
 
 ## Key Services
 
