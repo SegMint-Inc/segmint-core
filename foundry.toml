@@ -3,6 +3,11 @@ src = "src"
 out = "out"
 evm_version = "paris"
 libs = ["lib"]
+fs_permissions = [{ access = "read", path = "./"}]
+
+[rpc_endpoints]
+goerli = "${GOERLI_RPC_URL}"
+mainnet = "${MAINNET_RPC_URL}"
 
 [fmt]
 bracket_spacing = true
