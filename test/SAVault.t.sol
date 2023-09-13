@@ -98,7 +98,7 @@ contract SAVaultTest is BaseTest {
         newVault.unlockAsset({ receiver: users.alice.account });
     }
 
-    function testCannot_UnlockAsset_InsufficientKeys_Fuzzed(uint256 keyAmount, bool isERC721) public {
+    function testCannot_UnlockAsset_ExceedsBalance_Fuzzed(uint256 keyAmount, bool isERC721) public {
         keyAmount = bound(keyAmount, 1, keys.MAX_KEYS());
         Asset memory asset = isERC721 ? getERC721Asset() : getERC1155Asset();
 
@@ -111,7 +111,7 @@ contract SAVaultTest is BaseTest {
         ISAVault newVault = ISAVault(vaultFactory.getSingleAssetVaults({ account: users.alice.account })[0]);
 
         hoax(users.eve.account);
-        vm.expectRevert(ISAVault.InsufficientKeys.selector);
+        vm.expectRevert("ERC1155: burn amount exceeds balance");
         newVault.unlockAsset({ receiver: users.eve.account });
     }
 }

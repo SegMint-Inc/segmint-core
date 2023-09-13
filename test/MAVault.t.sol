@@ -242,9 +242,9 @@ contract MAVaultTest is BaseTest {
         vault.claimOwnership();
     }
 
-    function testCannot_ClaimOwnership_InsufficientKeys() public {
+    function testCannot_ClaimOwnership_BurnExceedsBalance() public {
         hoax(users.bob.account);
-        vm.expectRevert(IMAVault.InsufficientKeys.selector);
+        vm.expectRevert("ERC1155: burn amount exceeds balance");
         vault.claimOwnership();
     }
 

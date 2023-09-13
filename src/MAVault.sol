@@ -13,7 +13,8 @@ import { AssetClass, Asset, VaultType, KeyConfig } from "./types/DataTypes.sol";
 
 /**
  * @title MAVault - Multi Asset Vault
- * @notice See documentation for {IMAVault}.
+ * @notice Used to lock and fractionalize a basket of assets inclusive of ERC20/ERC721/ERC1155 tokens
+ * as well as native token.
  */
 
 contract MAVault is IMAVault, Ownable, Initializable {
@@ -96,14 +97,9 @@ contract MAVault is IMAVault, Ownable, Initializable {
         /// Checks: Ensure a valid key ID is binded to the vault.
         if (boundKeyId == 0) revert NoKeysBinded();
 
-        /// Ensure the caller holds the entire supply of the bounded key ID.
+        /// Burn the keys associated with the vault, this will revert if the caller
+        /// doesn't hold the full supply of keys.
         uint256 keySupply = keys.getKeyConfig(boundKeyId).supply;
-        uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, boundKeyId);
-
-        /// Checks: Ensure the caller holds the correct amount of keys.
-        if (keysHeld != keySupply) revert InsufficientKeys();
-
-        /// Burn the keys associated with the vault.
         keys.burnKeys({ holder: msg.sender, keyId: boundKeyId, amount: keySupply });
 
         /// Reset the bounded key ID.

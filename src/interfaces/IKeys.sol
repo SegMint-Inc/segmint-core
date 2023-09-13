@@ -5,9 +5,7 @@ import { VaultType, KeyConfig } from "../types/DataTypes.sol";
 
 /**
  * @title IKeys
- * @notice This contract implements the ERC-1155 keys contract.
  */
-
 interface IKeys {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ERRORS                           */

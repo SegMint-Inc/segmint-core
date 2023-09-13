@@ -18,9 +18,8 @@ import { Asset, AssetClass, VaultType } from "../types/DataTypes.sol";
 
 /**
  * @title VaultFactory
- * @notice See documentation for {IVaultFactory}.
+ * @notice Factory contract that creates multi-asset and single-asset vaults.
  */
-
 contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHandler {
     using LibClone for address;
     using ECDSA for bytes32;

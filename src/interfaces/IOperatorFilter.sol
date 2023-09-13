@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 /**
- * @notice IOperatorFilter
+ * @title IOperatorFilter
  */
 interface IOperatorFilter {
     /**

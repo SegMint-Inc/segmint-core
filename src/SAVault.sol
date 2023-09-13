@@ -10,12 +10,10 @@ import { AssetClass, Asset, VaultType, KeyConfig } from "./types/DataTypes.sol";
 
 /**
  * @title SAVault - Single Asset Vault
- * @notice Locks a single asset upon creation and mints the desired number of keys to the creator. From this
- * point onwards, a future caller must hold all keys to unlock the underlying asset.
+ * @notice Used to lock and fractionalize a single asset, limited to ERC721 and ERC1155 tokens.
  */
 
 contract SAVault is ISAVault, Initializable {
-    /// Encapsulates the underlying locked asset.
     Asset private _lockedAsset;
 
     IKeys public keys;
@@ -52,13 +50,6 @@ contract SAVault is ISAVault, Initializable {
      * @inheritdoc ISAVault
      */
     function unlockAsset(address receiver) external {
-        /// Get the current key supply.
-        uint256 keySupply = keys.getKeyConfig(boundKeyId).supply;
-
-        /// Checks: Ensure the caller holds all the keys.
-        uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, boundKeyId);
-        if (keysHeld != keySupply) revert InsufficientKeys();
-
         /// Copy `Asset` struct into memory.
         Asset memory asset = _lockedAsset;
 
@@ -68,7 +59,9 @@ contract SAVault is ISAVault, Initializable {
         /// Clear the locked asset.
         _lockedAsset = Asset({ class: AssetClass.NONE, token: address(0), identifier: 0, amount: 0 });
 
-        /// Burn the keys associated with the vault.
+        /// Burn the keys associated with the vault, this will revert if the caller
+        /// doesn't hold the full supply of keys.
+        uint256 keySupply = keys.getKeyConfig(boundKeyId).supply;
         keys.burnKeys({ holder: msg.sender, keyId: boundKeyId, amount: keySupply });
 
         /// Clear the bound key ID.

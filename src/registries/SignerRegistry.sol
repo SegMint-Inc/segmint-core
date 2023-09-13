@@ -6,7 +6,7 @@ import { ISignerRegistry } from "../interfaces/ISignerRegistry.sol";
 
 /**
  * @title SignerRegistry
- * @notice See documentation for {ISignerRegistry}.
+ * @notice Allows the ecosystem signer address to be queried from a single contract.
  */
 
 contract SignerRegistry is ISignerRegistry, OwnableRoles {

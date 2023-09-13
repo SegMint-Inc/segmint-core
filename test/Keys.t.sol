@@ -72,20 +72,6 @@ contract KeysTest is BaseTest {
         keys.createKeys({ amount: keyAmount, receiver: users.alice.account, vaultType: VaultType.SINGLE });
     }
 
-    function test_BurnKeys_Invariant() public {
-        startHoax(users.alice.account);
-        for (uint256 i = 1; i <= type(uint8).max; i++) {
-            VaultType vaultType = i % 2 == 0 ? VaultType.SINGLE : VaultType.MULTI;
-            uint256 keyAmount = (i % keys.MAX_KEYS()) + 1;
-
-            uint256 id = keys.createKeys({ amount: keyAmount, receiver: users.alice.account, vaultType: vaultType });
-            keys.burnKeys({ holder: users.alice.account, keyId: id, amount: keyAmount });
-
-            KeyConfig memory config = keys.getKeyConfig(id);
-            assertTrue(config.isBurned);
-        }
-    }
-
     function testCannot_BurnKeys_CallerNotVault_Fuzzed(address nonVault) public {
         vm.assume(nonVault != users.alice.account);
 

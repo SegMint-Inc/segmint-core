@@ -9,9 +9,7 @@ import { Asset, VaultType } from "../types/DataTypes.sol";
 
 /**
  * @title IVaultFactory
- * @notice N/A
  */
-
 interface IVaultFactory {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ERRORS                           */

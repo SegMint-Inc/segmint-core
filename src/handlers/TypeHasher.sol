@@ -8,7 +8,6 @@ import { IKeyExchange } from "../interfaces/IKeyExchange.sol";
  * @title TypeHasher
  * @notice Used to derive the EIP712 hash associated with Order/Bid types for {KeyExchange}.
  */
-
 abstract contract TypeHasher is EIP712 {
     /// Order(uint256 price,address maker,address taker,uint256 keyId,uint256 amount,uint256 nonce,uint256 startTime,uint256 endTime)
     bytes32 private constant _ORDER_TYPEHASH = 0x9a3b6761b926f38baa0938ef9c869311aed6761ec5857a410ad87bd983171278;

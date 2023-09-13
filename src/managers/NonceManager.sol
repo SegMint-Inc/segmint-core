@@ -7,7 +7,6 @@ pragma solidity 0.8.19;
  * all orders and bids associated with the account. Inspired from SeaPorts `ReferenceCounterManager`.
  * ref: https://github.com/ProjectOpenSea/seaport/blob/main/reference/lib/ReferenceCounterManager.sol#L25
  */
-
 abstract contract NonceManager {
     /**
      * Event for nonce increments.

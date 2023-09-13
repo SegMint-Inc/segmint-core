@@ -4,6 +4,9 @@ pragma solidity 0.8.19;
 import { IKeys } from "./IKeys.sol";
 import { Asset, KeyConfig } from "../types/DataTypes.sol";
 
+/**
+ * @title ISAVault
+ */
 interface ISAVault {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ERRORS                           */
@@ -13,11 +16,6 @@ interface ISAVault {
      * Thrown when trying to unlock an asset from a SAV when no asset exists.
      */
     error NoAssetLocked();
-
-    /**
-     * Thrown when trying to unlock an asset from a SAV without holding all keys.
-     */
-    error InsufficientKeys();
 
     /**
      * Thrown when trying to unlock an asset of class `NONE` OR `ERC20`.

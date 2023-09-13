@@ -10,7 +10,7 @@ import { VaultType, KeyConfig } from "./types/DataTypes.sol";
 
 /**
  * @title Keys
- * @notice See documentation for {IKeys}.
+ * @notice Protocol ERC1155 token that provides functionality for key lending.
  */
 
 contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
@@ -100,6 +100,9 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
 
         /// Acknowledge that the keys have been burned.
         _keyConfig[keyId].isBurned = true;
+
+        /// Unregister vault.
+        isRegistered[msg.sender] = false;
 
         /// The `amount` does not require sanitization as the vault itself will keep track of
         /// how many keys are associated with it.

@@ -3,11 +3,7 @@ pragma solidity 0.8.19;
 
 /**
  * @title ISignerRegistry
- * @notice This contract is responsible for returning the current signer address. Since this
- * address is used across a variety of different contracts within the ecosystem, I have opted
- * to use a registry as a single source of information.
  */
-
 interface ISignerRegistry {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ERRORS                           */

@@ -13,6 +13,11 @@ import { IKeys } from "./interfaces/IKeys.sol";
 import { IWETH } from "./interfaces/IWETH.sol";
 import { VaultType, KeyConfig } from "./types/DataTypes.sol";
 
+/**
+ * @title KeyExchange
+ * @notice Facilitates trading of Keys.
+ */
+
 contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
     using ECDSA for bytes32;
 

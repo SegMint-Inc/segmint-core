@@ -9,7 +9,6 @@ import { IUpgradeHandler } from "../interfaces/IUpgradeHandler.sol";
  * @notice This contract is responsible for handling any upgrades that are proposed to the inheriting
  * contract, it does so with a timelock whereby the duration is defined by `UPGRADE_TIMELOCK`.
  */
-
 abstract contract UpgradeHandler is IUpgradeHandler, UUPSUpgradeable {
     /// Implementation upgrade proposals cannot be executed for 5 days.
     uint256 public constant UPGRADE_TIMELOCK = 5 days;

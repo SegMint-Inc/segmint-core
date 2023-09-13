@@ -8,7 +8,7 @@ import { ISignerRegistry } from "../interfaces/ISignerRegistry.sol";
 
 /**
  * @title AccessRegistry
- * @notice See documentation for {IAccessRegistry}.
+ * @notice Manages the access types associated with an EOA.
  */
 
 contract AccessRegistry is IAccessRegistry, OwnableRoles {

@@ -6,9 +6,7 @@ import { Asset, KeyConfig } from "../types/DataTypes.sol";
 
 /**
  * @title IMAVault
- * @notice N/A
  */
-
 interface IMAVault {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ERRORS                           */
@@ -18,11 +16,6 @@ interface IMAVault {
      * Thrown when trying to unlock a zero amount of assets.
      */
     error ZeroAssetAmount();
-
-    /**
-     * Thrown when trying to unlock an asset from a MAV without holding all keys.
-     */
-    error InsufficientKeys();
 
     /**
      * Thrown when a native token unlock transfer fails.
@@ -47,6 +40,11 @@ interface IMAVault {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                         FUNCTIONS                          */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * Function used to return the key ID associated with a vault.
+     */
+    function boundKeyId() external view returns (uint256);
 
     /**
      * Function used to initialize the vault.
@@ -78,9 +76,4 @@ interface IMAVault {
      * Function used to view the key config associated the vaults key ID.
      */
     function getKeyConfig() external view returns (KeyConfig memory);
-
-    /**
-     * Function used to return the key ID associated with a vault.
-     */
-    function boundKeyId() external view returns (uint256);
 }

@@ -5,10 +5,8 @@ import { IOperatorFilter } from "../interfaces/IOperatorFilter.sol";
 
 /**
  * @title OperatorFilter
- * @notice This contract manages the filtering of operators on the ERC1155 keys contract. If an operator has been
- * blocked, it should not be able to move keys on behalf of a user.
+ * @notice This contract manages the filtering of operators on the ERC1155 keys contract.
  */
-
 abstract contract OperatorFilter is IOperatorFilter {
     mapping(address operator => bool blocked) public isOperatorBlocked;
 
