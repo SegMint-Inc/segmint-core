@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+pragma solidity 0.8.19;
 
 import { IKeys } from "./IKeys.sol";
-import { Asset } from "../types/DataTypes.sol";
+import { Asset, KeyConfig } from "../types/DataTypes.sol";
 
 /**
  * @title ISAVault
- * @notice N/A
  */
-
 interface ISAVault {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ERRORS                           */
@@ -18,16 +16,6 @@ interface ISAVault {
      * Thrown when trying to unlock an asset from a SAV when no asset exists.
      */
     error NoAssetLocked();
-
-    /**
-     * Thrown when trying to unlock an asset from a SAV without holding all keys.
-     */
-    error InsufficientKeys();
-
-    /**
-     * Thrown when the asset being locked belongs to the Keys contract.
-     */
-    error CannotLockKeys();
 
     /**
      * Thrown when trying to unlock an asset of class `NONE` OR `ERC20`.
@@ -42,24 +30,39 @@ interface ISAVault {
     /**
      * Thrown when trying to lock an asset with a zero amount.
      */
-    error ZeroAmountValue();
+    error ZeroAssetAmount();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                         FUNCTIONS                          */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * Function used to initialize vault storage.
-     * @param asset_ The asset being locked.
-     * @param keys_ Keys contract address.
-     * @param keyAmount_ Number of keys being binded.
-     * @param receiver_ Receiving address of the newly created keys.
+     * Function used to view the key ID associated with the vault.
      */
-    function initialize(Asset calldata asset_, IKeys keys_, uint256 keyAmount_, address receiver_) external;
+    function boundKeyId() external view returns (uint256);
+
+    /**
+     * Function used to initialize vault storage.
+     * @param _asset Defines the asset being locked.
+     * @param _keys Keys contract address.
+     * @param _keyAmount Number of keys being binded.
+     * @param _receiver Receiving address of the newly created keys.
+     */
+    function initialize(Asset calldata _asset, IKeys _keys, uint256 _keyAmount, address _receiver) external;
 
     /**
      * Function used to unlock the underlying asset within a vault.
-     * @param receiver Address of the account receiving the unlocked asset.
+     * @param receiver Account that will receive the unlocked asset.
      */
     function unlockAsset(address receiver) external;
+
+    /**
+     * Function used to view the key config associated the vaults key ID.
+     */
+    function getKeyConfig() external view returns (KeyConfig memory);
+
+    /**
+     * Function used to view the specified locked asset associated with the vault.
+     */
+    function lockedAsset() external view returns (Asset memory);
 }

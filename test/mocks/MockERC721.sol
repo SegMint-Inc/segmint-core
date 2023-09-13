@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.20;
+pragma solidity 0.8.19;
 
 import { ERC721A } from "erc721a/contracts/ERC721A.sol";
 
-contract DemoERC721 is ERC721A {
-    constructor() ERC721A("Demo ERC721A", "DEMO") { }
+contract MockERC721 is ERC721A {
+    constructor() ERC721A("Mock ERC721A", "MOCK") { }
 
     function mint(address receiver, uint256 amount) external {
         _mint(receiver, amount);

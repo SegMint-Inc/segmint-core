@@ -1,102 +1,92 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+pragma solidity 0.8.19;
 
 import { Initializable } from "@openzeppelin/proxy/utils/Initializable.sol";
 import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
 import { ISAVault } from "./interfaces/ISAVault.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
-import { AssetClass, Asset, VaultType, KeyBinds } from "./types/DataTypes.sol";
+import { AssetClass, Asset, VaultType, KeyConfig } from "./types/DataTypes.sol";
 
 /**
  * @title SAVault - Single Asset Vault
- * @notice See documentation for {ISAVault}.
+ * @notice Used to lock and fractionalize a single asset, limited to ERC721 and ERC1155 tokens.
  */
 
 contract SAVault is ISAVault, Initializable {
-    /// Interface of Keys contract.
+    Asset private _lockedAsset;
+
     IKeys public keys;
-
-    /// Encapsulates the singular locked asset.
-    Asset public lockedAsset;
-
-    /// Associated key bindings.
-    KeyBinds public keyBinds;
 
     /**
      * @inheritdoc ISAVault
      */
-    function initialize(Asset calldata asset_, IKeys keys_, uint256 keyAmount_, address receiver_)
+    uint256 public boundKeyId;
+
+    /**
+     * @inheritdoc ISAVault
+     */
+    function initialize(Asset calldata _asset, IKeys _keys, uint256 _keyAmount, address _receiver)
         external
         initializer
     {
-        /// Checks: Ensure the asset being locked is not a key.
-        if (asset_.token == address(keys)) revert CannotLockKeys();
-
-        /// Checks: Ensure the asset being locked has a valid type.
-        /// @dev Single asset vaults may only contain ERC721 or ERC1155 tokens.
-        if (asset_.class == AssetClass.NONE || asset_.class == AssetClass.ERC20) revert InvalidAssetType();
-
         /// Checks: Ensure the asset has a non-zero amount value.
-        if (asset_.amount == 0) revert ZeroAmountValue();
+        if (_asset.amount == 0) revert ZeroAssetAmount();
+
+        /// Checks: Ensure the asset being locked is a valid type.
+        if (_asset.class == AssetClass.NONE || _asset.class == AssetClass.ERC20) revert InvalidAssetType();
 
         /// Checks: Ensure that if the asset is an ERC721 token, the amount is 1.
-        if (asset_.class == AssetClass.ERC721 && asset_.amount != 1) revert Invalid721Amount();
+        if (_asset.class == AssetClass.ERC721 && _asset.amount != 1) revert Invalid721Amount();
 
-        lockedAsset = asset_;
-        keys = keys_;
+        _lockedAsset = _asset;
+        keys = _keys;
 
-        uint256 keyId = keys.createKeys({ amount: keyAmount_, receiver: receiver_ });
-        keyBinds = KeyBinds({
-            keyId: keyId,
-            amount: keyAmount_
-        });
+        /// Create the keys and mint them to the receiver.
+        boundKeyId = keys.createKeys({ amount: _keyAmount, receiver: _receiver, vaultType: VaultType.SINGLE });
     }
 
     /**
-     * Function used to unlock an lockedAsset from a vault using keys.
-     * @param receiver Receiver of the unlocked lockedAsset.
+     * @inheritdoc ISAVault
      */
     function unlockAsset(address receiver) external {
         /// Copy `Asset` struct into memory.
-        Asset memory _lockedAsset = lockedAsset;
+        Asset memory asset = _lockedAsset;
 
         /// Checks: Ensure that the locked asset has not already been unlocked.
-        if (_lockedAsset.class == AssetClass.NONE) revert NoAssetLocked();
-
-        /// Copy `KeyBinds` struct into memory.
-        KeyBinds memory _keyBinds = keyBinds;
-
-        /// Checks: Ensure the caller holds all the keys.
-        uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, _keyBinds.keyId);
-        if (keysHeld != _keyBinds.amount) revert InsufficientKeys();
+        if (asset.class == AssetClass.NONE) revert NoAssetLocked();
 
         /// Clear the locked asset.
-        lockedAsset = Asset({ class: AssetClass.NONE, token: address(0), identifier: 0, amount: 0 });
+        _lockedAsset = Asset({ class: AssetClass.NONE, token: address(0), identifier: 0, amount: 0 });
 
-        /// Clear the associated key bindings.
-        keyBinds = KeyBinds({ keyId: 0, amount: 0 });
+        /// Burn the keys associated with the vault, this will revert if the caller
+        /// doesn't hold the full supply of keys.
+        uint256 keySupply = keys.getKeyConfig(boundKeyId).supply;
+        keys.burnKeys({ holder: msg.sender, keyId: boundKeyId, amount: keySupply });
 
-        /// Burn the keys associated with the vault.
-        keys.burnKeys(msg.sender, _keyBinds.keyId, _keyBinds.amount);
+        /// Clear the bound key ID.
+        boundKeyId = 0;
 
         /// Transfer the locked asset to the receiver.
-        /// forgefmt: disable-next-item
-        if (_lockedAsset.class == AssetClass.ERC721) {
-            IERC721(_lockedAsset.token).safeTransferFrom({
-                from: address(this),
-                to: receiver,
-                tokenId: _lockedAsset.identifier
-            });
+        if (asset.class == AssetClass.ERC721) {
+            IERC721(asset.token).safeTransferFrom(address(this), receiver, asset.identifier);
         } else {
-            IERC1155(_lockedAsset.token).safeTransferFrom({
-                from: address(this),
-                to: receiver,
-                id: _lockedAsset.identifier,
-                value: _lockedAsset.amount,
-                data: ""
-            });
+            IERC1155(asset.token).safeTransferFrom(address(this), receiver, asset.identifier, asset.amount, "");
         }
+    }
+
+    /**
+     * @inheritdoc ISAVault
+     */
+    function getKeyConfig() external view returns (KeyConfig memory) {
+        return keys.getKeyConfig(boundKeyId);
+    }
+
+    /**
+     * @inheritdoc ISAVault
+     */
+    function lockedAsset() external view returns (Asset memory) {
+        return _lockedAsset;
     }
 
     /**

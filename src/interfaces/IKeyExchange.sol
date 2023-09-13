@@ -1,40 +1,43 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.20;
+pragma solidity 0.8.19;
 
+/**
+ * @title IKeyExchange
+ */
 interface IKeyExchange {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ERRORS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * Thrown when attempting to set buy out terms for a key the caller did not create.
+     * Thrown when attempting to set the terms for a key that the caller did not create.
      */
-    error NotKeyCreator();
+    error CallerNotKeyCreator();
 
     /**
-     * Thrown when the buy out terms for a key have already been set.
+     * Thrown when attempting to set terms for a key that already has terms defined.
      */
-    error TermsSet();
+    error KeyTermsDefined();
 
     /**
-     * Thrown when the buy out terms for a key have not been set.
+     * Thrown when attempting to trade a key that has no terms defined.
      */
-    error TermsNotSet();
+    error KeyTermsUndefined();
 
     /**
-     * Thrown when a zero value of buy terms has been provided.
-     */
-    error ZeroTermValues();
-
-    /**
-     * Thrown when the buy back price is greater than the reserve price.
+     * Thrown when trying to set the terms for a buyout market key with a zero buyback or reserve price.
      */
     error InvalidBuyOutTerms();
 
     /**
-     * Thrown when no holders are provided for a buy back.
+     * Thrown when trying to set the terms for a free market key with a non zero buyback and reserve price.
      */
-    error NoHoldersProvided();
+    error InvalidFreeMarketTerms();
+
+    /**
+     * Thrown when the buy back price exceeds the reserve price.
+     */
+    error BuyBackExceedsReserve();
 
     /**
      * Thrown when an invalid amount of native token has been provided.
@@ -52,24 +55,19 @@ interface IKeyExchange {
     error InvalidMarketType();
 
     /**
-     * Thrown when trying to execute an order where terms have not been defined.
+     * Thrown when the recovered signer does not match the maker.
      */
-    error BuyOutTermsNotDefined();
+    error SignerNotMaker();
 
     /**
-     * Thrown when a buy out transfer fails.
+     * Thrown when an order or bid is attempting to be filled after the end time has passed.
      */
-    error BuyOutTransferFailed();
+    error ExpiredOrderOrBid();
 
     /**
-     * Thrown when the signature provided does not match the order type hash.
+     * Thrown when an order or bid is attempting to be filled prior to the start time.
      */
-    error SignerMismatch();
-
-    /**
-     * Thrown when an order is attempted to be filled after the end time.
-     */
-    error EndTimePassed();
+    error InactiveOrderOrBid();
 
     /**
      * Thrown when an order taker has been specified, but the caller is not the taker.
@@ -81,17 +79,35 @@ interface IKeyExchange {
      */
     error CallerNotMaker();
 
-    error ZeroOrderAmount();
+    /**
+     * Thrown when trying to cancel an order that is not in the open status.
+     */
+    error InvalidOrderStatus();
 
-    error OrderFilled();
+    /**
+     * Thrown when trying to cancel a bid that is not in the open status.
+     */
+    error InvalidBidStatus();
 
-    error CannotFillOrder();
+    /**
+     * Thrown when trying to execute a buy back with a free market type key.
+     */
+    error KeyNotBuyOutMarket();
 
-    error CannotCancelOrder();
-
+    /**
+     * Thrown when a transfer of native token amount fails.
+     */
     error NativeTransferFailed();
 
-    error FeeExceedsMaximum();
+    /**
+     * Thrown when the new protocol fee exceeds the maximum number of basis points.
+     */
+    error FeeExceedsBps();
+
+    /**
+     * Thrown when attempting to transact multi-asset vault keys while they are restricted.
+     */
+    error MultiAssetKeysRestricted();
 
     /**
      * Thrown when a parameter array has a zero length.
@@ -99,18 +115,46 @@ interface IKeyExchange {
     error ZeroLengthArray();
 
     /**
-     * Thrown when a non-open bid is trying to be cancelled.
+     * Thrown when a buy back doesn't result in the caller owning the total supply of keys.
      */
-    error CannotCancelBid();
+    error BuyBackFailed();
+
+    /**
+     * Thrown when a restricted user attempts to use the Key Exchange whilst restricted users are block.
+     */
+    error Restricted();
+
+    /**
+     * Thrown when an asset withdraw occurs in the same block as a sale for a multi-asset vault.
+     */
+    error AssetMovementInSaleBlock();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           EVENTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    event OrderIsFilled();
+    /**
+     * Emitted when an order is filled.
+     * @param orderHash EIP712 hash of the order.
+     */
+    event OrderFilled(bytes32 orderHash);
 
+    /**
+     * Emitted when a bid is filled.
+     * @param bidHash EIP712 hash of the bid.
+     */
+    event BidFilled(bytes32 bidHash);
+
+    /**
+     * Emitted when an order is cancelled.
+     * @param orderHash EIP712 hash of the order.
+     */
     event OrderCancelled(bytes32 orderHash);
 
+    /**
+     * Emitted when a bid is cancelled.
+     * @param bidHash EIP712 hash of the bid.
+     */
     event BidCancelled(bytes32 bidHash);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -120,15 +164,21 @@ interface IKeyExchange {
     /**
      * Enum encapsulating the market type associated with a listing.
      * @custom:param FREE: The lister cannot perform a buy out at a later point in time.
-     * @custom:param BUY_OUT: The lister has the ability to buy the key back at some point in the future.
+     * @custom:param BUYOUT: The lister has the ability to buy the key back at some point in the future.
      */
     enum MarketType {
         UNDEFINED,
         FREE,
-        BUY_OUT
+        BUYOUT
     }
 
-    enum OrderStatus {
+    /**
+     * Enum encapsulating the possible statuses that can be associated with an order or bid.
+     * @custom:param OPEN: The order or bid can be filled.
+     * @custom:param FILLED: The order or bid has been filled.
+     * @custom:param CANCELLED: The order or bid has been cancelled.
+     */
+    enum Status {
         OPEN,
         FILLED,
         CANCELLED
@@ -149,18 +199,16 @@ interface IKeyExchange {
     }
 
     /**
-     * Struct encapsulating all information related to an order.
-     * @param price Price of the order.
-     * @param maker Address of the user that created the ask order.
-     * @param taker Used for private sales, taker is the address of the buyer this order was intended for.
-     * @param keyId Unique key idenitifer.
-     * @param amount Number of keys to list for sale.
-     * @param nonce Used for invalidating previous versions of this order incase listing prices are updated.
-     * @param startTime Timestamp this order was created.
-     * @param endTime Timestamp this order will expire.
+     * Struct encapsulating all data related to an order.
+     * @param price Total price of the order.
+     * @param maker Address of the account that created the order.
+     * @param taker Address of the account that the order is destined for, `address(0)` means an open order.
+     * @param keyId Key identifier associated with this order.
+     * @param amount Number of keys available to purchase.
+     * @param nonce Nonce of the maker at the time this order was created.
+     * @param startTime Timestamp that this order was created.
+     * @param endTime Timestamp that this order will become invalid.
      */
-
-    // Order(uint256 price,address maker,address taker,uint256 keyId,uint256 amount,uint256 nonce,uint256 startTime,uint256 endTime)
     struct Order {
         uint256 price;
         address maker;
@@ -172,23 +220,140 @@ interface IKeyExchange {
         uint256 endTime;
     }
 
-    /// Bid(address maker,uint256 price,uint256 keyId,uint256 amount,uint256 startTime,uint256 endTime)
+    /**
+     * Struct encapsulating all data related to a bid.
+     * @param maker Address of the account that created the bid.
+     * @param price Total bid amount.
+     * @param keyId Key identifier associated with this bid.
+     * @param amount Number of keys the bidder wishes to purchase.
+     * @param nonce Nonce of the bidder at the time this order was created.
+     * @param startTime Timestamp that this bid was created.
+     * @param endTime Timestamp that this bid will become invalid.
+     */
     struct Bid {
         address maker;
         uint256 price;
         uint256 keyId;
         uint256 amount;
+        uint256 nonce;
         uint256 startTime;
         uint256 endTime;
     }
 
+    /**
+     * Struct encapsulating the order and the signature associated with it.
+     * @param order Complete `Order` struct.
+     * @param signature Signed EIP712 order digest.
+     */
     struct OrderParams {
         Order order;
         bytes signature;
     }
 
+    /**
+     * Struct encapsulating the bid and the signature associated with it.
+     * @param bid Complete `bid` struct.
+     * @param signature Signed EIP712 bid digest.
+     */
     struct BidParams {
         Bid bid;
         bytes signature;
     }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                         FUNCTIONS                          */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * Function used to execute an array of orders.
+     * @param orders Array of orders to execute.
+     */
+    function executeOrders(OrderParams[] calldata orders) external payable;
+
+    /**
+     * Function used to execute an array of bids.
+     * @param bids Array of bids to execute.
+     */
+    function executeBids(BidParams[] calldata bids) external;
+
+    /**
+     * Function used to cancel an array of orders.
+     * @param orders Array of orders to cancel.
+     */
+    function cancelOrders(Order[] calldata orders) external;
+
+    /**
+     * Function used to cancel an array of bids.
+     * @param bids Array of bids to cancel.
+     */
+    function cancelBids(Bid[] calldata bids) external;
+
+    /**
+     * Function used to execute a buy back of all keys from existing holders.
+     * @param keyId Unique key idenitifier.
+     * @param holders Array of holders to purchase the keys from.
+     * @param amounts Array of amounts to purchase from each holder.
+     */
+    function executeBuyBack(uint256 keyId, address[] calldata holders, uint256[] calldata amounts) external payable;
+
+    /**
+     * Function used to purchase keys at the reserve price from existing holders.
+     * @param keyId Unique key idenitifier.
+     * @param holders Array of holders to purchase the keys from.
+     * @param amounts Array of amounts to purchase from each holder.
+     */
+    function buyAtReserve(uint256 keyId, address[] calldata holders, uint256[] calldata amounts) external payable;
+
+    /**
+     * Function used to set the key terms associated with a key idenitifier.
+     * @param finalTerms The terms associated with the key ID.
+     * @param keyId Unique key idenitifier.
+     */
+    function setKeyTerms(uint256 keyId, KeyTerms calldata finalTerms) external;
+
+    /**
+     * Function used to toggle trading of multi-asset vault keys.
+     */
+    function toggleMultiKeyTrading() external;
+
+    /**
+     * Function used to adjust the currently defined protocol fee percentage.
+     * @param newProtocolFee New protocol fee value.
+     */
+    function setProtocolFee(uint256 newProtocolFee) external;
+
+    /**
+     * Function used to set a new fee receiver address.
+     * @param newFeeReceiver New protocol fee receiver.
+     */
+    function setFeeReceiver(address newFeeReceiver) external;
+
+    /**
+     * Function used to view the terms associated with a given key identifier.
+     * @param keyId Unique key idenitifier.
+     */
+    function keyTerms(uint256 keyId) external view returns (KeyTerms memory);
+
+    /**
+     * Function used to increment the nonce associated with the caller.
+     */
+    function incrementNonce() external;
+
+    /**
+     * Function used to view the nonce associated with a given account.
+     * @param account The account to view the current nonce value for.
+     */
+    function getNonce(address account) external view returns (uint256);
+
+    /**
+     * Function used to view the EIP712 hash of an Order struct.
+     * @param order Order struct to hash.
+     */
+    function hashOrder(Order calldata order) external view returns (bytes32);
+
+    /**
+     * Function used to view the EIP712 hash of a Bid struct.
+     * @param bid Bid struct to hash.
+     */
+    function hashBid(Bid calldata bid) external view returns (bytes32);
 }

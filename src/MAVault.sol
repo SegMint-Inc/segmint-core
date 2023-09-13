@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+pragma solidity 0.8.19;
 
 import { Ownable } from "solady/src/auth/Ownable.sol";
 import { Initializable } from "@openzeppelin/proxy/utils/Initializable.sol";
@@ -9,29 +9,32 @@ import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
 import { IMAVault } from "./interfaces/IMAVault.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
-import { Multicall } from "./handlers/Multicall.sol";
-import { AssetClass, Asset, VaultType, KeyBinds } from "./types/DataTypes.sol";
+import { AssetClass, Asset, VaultType, KeyConfig } from "./types/DataTypes.sol";
 
 /**
  * @title MAVault - Multi Asset Vault
- * @notice See documentation for {IMAVault}.
+ * @notice Used to lock and fractionalize a basket of assets inclusive of ERC20/ERC721/ERC1155 tokens
+ * as well as native token.
  */
 
-contract MAVault is IMAVault, Ownable, Multicall, Initializable {
+contract MAVault is IMAVault, Ownable, Initializable {
     using SafeERC20 for IERC20;
 
-    /// Interface of Keys contract.
     IKeys public keys;
-
-    /// Associated key bindings.
-    KeyBinds public keyBinds;
 
     /**
      * @inheritdoc IMAVault
      */
-    function initialize(address owner_, IKeys keys_) external initializer {
+    uint256 public boundKeyId;
+
+    /**
+     * @inheritdoc IMAVault
+     */
+    function initialize(address owner_, IKeys keys_, uint256 keyAmount_) external initializer {
         _initializeOwner(owner_);
+
         keys = keys_;
+        boundKeyId = keys.createKeys({ amount: keyAmount_, receiver: owner_, vaultType: VaultType.MULTI });
     }
 
     /**
@@ -39,25 +42,18 @@ contract MAVault is IMAVault, Ownable, Multicall, Initializable {
      * @dev Off-chain indexer will keep track of assets being locked and unlocked from a
      * vault using the transfer events emitted from each assets token standard.
      */
-    function unlockAssets(Asset[] calldata assets, address receiver) external {
+    function unlockAssets(Asset[] calldata assets, address receiver) external onlyOwner {
         /// Checks: Ensure a non-zero amount of assets has been specified.
         if (assets.length == 0) revert ZeroAssetAmount();
 
-        /// Copy key binds into memory.
-        KeyBinds memory _keyBinds = keyBinds;
-
-        /// If a vault is key binded, only the holder of all keys can unlock assets.
-        if (_keyBinds.keyId != 0) {
-            /// Checks: Ensure the caller holds the correct amount of keys.
-            uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, _keyBinds.keyId);
-            if (keysHeld != _keyBinds.amount) revert InsufficientKeys();
-        } else {
-            /// Reverts with `Unauthorized()` if caller is not the owner.
-            _checkOwner();
-        }
+        /// Checks: Ensure the associated keys have been burnt.
+        if (boundKeyId != 0) revert KeysBinded();
 
         for (uint256 i = 0; i < assets.length; i++) {
             Asset calldata asset = assets[i];
+
+            /// Checks: Ensure a valid asset type has been provided.
+            if (asset.class == AssetClass.NONE) revert NoneAssetType();
 
             /// forgefmt: disable-next-item
             if (asset.class == AssetClass.ERC20) {
@@ -71,17 +67,14 @@ contract MAVault is IMAVault, Ownable, Multicall, Initializable {
                     to: receiver,
                     tokenId: asset.identifier
                 });
-            } else if (asset.class == AssetClass.ERC1155) {
+            } else {
                 IERC1155(asset.token).safeTransferFrom({
                     from: address(this),
                     to: receiver,
                     id: asset.identifier,
-                    value: asset.amount,
+                    amount: asset.amount,
                     data: ""
                 });
-            } else {
-                /// Checks: Ensure the asset being unlocked has a valid asset class.
-                revert NoneAssetType();
             }
         }
     }
@@ -89,57 +82,38 @@ contract MAVault is IMAVault, Ownable, Multicall, Initializable {
     /**
      * @inheritdoc IMAVault
      */
-    function unlockNativeToken(uint256 amount, address receiver) external {
-        /// Copy key bindings struct into memory to avoid SLOADs.
-        KeyBinds memory _keyBinds = keyBinds;
+    function unlockNativeToken(address receiver) external onlyOwner {
+        /// Checks: Ensure the associated keys have been burnt.
+        if (boundKeyId != 0) revert KeysBinded();
 
-        /// If a vault is key binded, only the holder of all keys can unlock the native token.
-        if (_keyBinds.keyId != 0) {
-            /// Checks: Ensure the caller holds the correct amount of keys.
-            uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, _keyBinds.keyId);
-            if (keysHeld != _keyBinds.amount) revert InsufficientKeys();
-        } else {
-            /// Reverts with `Unauthorized()` if caller is not the owner.
-            _checkOwner();
-        }
-
-        (bool success,) = receiver.call{ value: amount }("");
+        (bool success,) = receiver.call{ value: address(this).balance }("");
         if (!success) revert NativeTokenUnlockFailed();
     }
 
     /**
      * @inheritdoc IMAVault
      */
-    function bindKeys(uint256 keyAmount) external onlyOwner {
-        /// Checks: Ensure the vault is not already key binded.
-        if (keyBinds.keyId != 0) revert KeysAlreadyBinded();
+    function claimOwnership() external {
+        /// Checks: Ensure a valid key ID is binded to the vault.
+        if (boundKeyId == 0) revert NoKeysBinded();
 
-        /// Mint the desired amount of keys to the owner.
-        uint256 keyId = keys.createKeys({ amount: keyAmount, receiver: msg.sender });
+        /// Burn the keys associated with the vault, this will revert if the caller
+        /// doesn't hold the full supply of keys.
+        uint256 keySupply = keys.getKeyConfig(boundKeyId).supply;
+        keys.burnKeys({ holder: msg.sender, keyId: boundKeyId, amount: keySupply });
 
-        /// Update the associated key bindings.
-        keyBinds = KeyBinds({ keyId: keyId, amount: keyAmount });
+        /// Reset the bounded key ID.
+        boundKeyId = 0;
+
+        /// Transfer ownership to the caller.
+        _setOwner(msg.sender);
     }
 
     /**
      * @inheritdoc IMAVault
      */
-    function unbindKeys() external {
-        /// Cache key bindings in memory.
-        KeyBinds memory _keyBinds = keyBinds;
-
-        /// Checks: Ensure the vault has keys binded.
-        if (_keyBinds.keyId == 0) revert NoKeysBinded();
-
-        /// Checks: Ensure the caller holds the full amount of keys.
-        uint256 keysHeld = IERC1155(address(keys)).balanceOf(msg.sender, _keyBinds.keyId);
-        if (keysHeld != _keyBinds.amount) revert InsufficientKeys();
-
-        /// Clear key bindings.
-        keyBinds = KeyBinds({ keyId: 0, amount: 0 });
-
-        /// Burn the associated keys.
-        keys.burnKeys(msg.sender, _keyBinds.keyId, _keyBinds.amount);
+    function getKeyConfig() external view returns (KeyConfig memory) {
+        return keys.getKeyConfig(boundKeyId);
     }
 
     /**

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.20;
+pragma solidity 0.8.19;
 
 import { UUPSUpgradeable } from "@openzeppelin/proxy/utils/UUPSUpgradeable.sol";
 import { IUpgradeHandler } from "../interfaces/IUpgradeHandler.sol";
@@ -7,12 +7,11 @@ import { IUpgradeHandler } from "../interfaces/IUpgradeHandler.sol";
 /**
  * @title UpgradeHandler
  * @notice This contract is responsible for handling any upgrades that are proposed to the inheriting
- * contract, it does so with a timelock whereby the duration is defined by `_UPGRADE_TIMELOCK`.
+ * contract, it does so with a timelock whereby the duration is defined by `UPGRADE_TIMELOCK`.
  */
-
 abstract contract UpgradeHandler is IUpgradeHandler, UUPSUpgradeable {
     /// Implementation upgrade proposals cannot be executed for 5 days.
-    uint256 private constant _UPGRADE_TIMELOCK = 5 days;
+    uint256 public constant UPGRADE_TIMELOCK = 5 days;
 
     /// The current upgrade proposal.
     IUpgradeHandler.UpgradeProposal public upgradeProposal;
@@ -25,7 +24,7 @@ abstract contract UpgradeHandler is IUpgradeHandler, UUPSUpgradeable {
         /// Checks: Ensure that a proposal is not currently in progress.
         if (upgradeProposal.deadline != 0) revert ProposalInProgress();
 
-        uint40 proposalDeadline = uint40(block.timestamp + _UPGRADE_TIMELOCK);
+        uint40 proposalDeadline = uint40(block.timestamp + UPGRADE_TIMELOCK);
 
         /// forgefmt: disable-next-item
         upgradeProposal = IUpgradeHandler.UpgradeProposal({
@@ -70,7 +69,7 @@ abstract contract UpgradeHandler is IUpgradeHandler, UUPSUpgradeable {
         upgradeProposal = IUpgradeHandler.UpgradeProposal({ newImplementation: address(0), deadline: 0 });
 
         /// Upgrade to the proposed implementation address.
-        upgradeToAndCall({ newImplementation: proposedImplementation, data: payload });
+        _upgradeToAndCallUUPS({ newImplementation: proposedImplementation, data: payload, forceCall: false });
     }
 
     /**

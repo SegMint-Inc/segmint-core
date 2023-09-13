@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+pragma solidity 0.8.19;
 
 import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
 import { ISignerRegistry } from "../interfaces/ISignerRegistry.sol";
 
 /**
  * @title SignerRegistry
- * @notice See documentation for {ISignerRegistry}.
+ * @notice Allows the ecosystem signer address to be queried from a single contract.
  */
 
 contract SignerRegistry is ISignerRegistry, OwnableRoles {
-    /// @dev keccak256("_ADMIN_ROLE")
-    uint256 private constant _ADMIN_ROLE = 0x4a4566510e9351b52a3e4f6550fc68d8577350bec07d7a69da4906b0efe533bc;
+    /// `keccak256("ADMIN_ROLE");`
+    uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
     address private _signer;
 
     constructor(address admin_, address signer_) {
         _initializeOwner(msg.sender);
-        _grantRoles(admin_, _ADMIN_ROLE);
+        _grantRoles(admin_, ADMIN_ROLE);
 
         _signer = signer_;
 
@@ -26,7 +26,7 @@ contract SignerRegistry is ISignerRegistry, OwnableRoles {
     /**
      * @inheritdoc ISignerRegistry
      */
-    function setSigner(address newSigner) external onlyRoles(_ADMIN_ROLE) {
+    function setSigner(address newSigner) external onlyRoles(ADMIN_ROLE) {
         address oldSigner = _signer;
         _signer = newSigner;
 

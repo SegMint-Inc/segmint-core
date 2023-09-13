@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+pragma solidity 0.8.19;
 
 import { ISignerRegistry } from "../interfaces/ISignerRegistry.sol";
 
 /**
- * @title IKYCRegistry
- * @notice This contract returns the access type associated with a given address on-chain. Users
- * will be able to initialize their access type once they have KYC'd on the SegMint platform.
+ * @title IAccessRegistry
  */
-
-interface IKYCRegistry {
+interface IAccessRegistry {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ERRORS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -53,8 +50,9 @@ interface IKYCRegistry {
      * Emitted when the access type of an address has been set for the first time.
      * @param account The address whose access type has been set.
      * @param accessType Associated `{AccessType}` Enum.
+     * @param signature Signature used for access registration.
      */
-    event AccessTypeSet(address indexed account, AccessType accessType);
+    event AccessTypeSet(address indexed account, AccessType accessType, bytes signature);
 
     /**
      * Emitted when the access type of an address has been modified by an admin.

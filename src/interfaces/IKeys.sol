@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+pragma solidity 0.8.19;
 
-import { VaultType, KeyBinds } from "../types/DataTypes.sol";
+import { VaultType, KeyConfig } from "../types/DataTypes.sol";
 
 /**
  * @title IKeys
- * @notice This contract implements the ERC-1155 keys contract.
  */
-
 interface IKeys {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ERRORS                           */
@@ -49,19 +47,24 @@ interface IKeys {
     error InvalidKeyAmount();
 
     /**
-     * Thrown when trying to transfer a key that has been provided on a lend.
-     */
-    error SoulboundKey();
-
-    /**
      * Thrown when trying to transfer keys that have been frozen.
      */
     error KeysFrozen();
 
     /**
-     * Thrown when an non-registered address attempts to create keys.
+     * Thrown when an non-registered vault address attempts to create keys.
      */
-    error CallerNotRegistered();
+    error CallerNotVault();
+
+    /**
+     * Thrown when attempting to lend out zero keys.
+     */
+    error ZeroLendAmount();
+
+    /**
+     * Thrown when trying to lend keys to self.
+     */
+    error CannotLendToSelf();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           EVENTS                           */
@@ -102,11 +105,12 @@ interface IKeys {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * Function used to create keys and return the key ID associated with them.
-     * @param amount Number of keys being created.
-     * @param receiver Address receiving the newly created keys.
+     * Function used to mint new keys and return the key ID associated with them.
+     * @param amount Number of keys to create.
+     * @param receiver Address that will receive the newly created keys.
+     * @param vaultType Type of vault that keys are being associated with.
      */
-    function createKeys(uint256 amount, address receiver) external returns (uint256);
+    function createKeys(uint256 amount, address receiver, VaultType vaultType) external returns (uint256);
 
     /**
      * Function used to burn keys.
@@ -151,14 +155,15 @@ interface IKeys {
     function unfreezeKeys(uint256 keyId) external;
 
     /**
-     * Function used to view the original key creator.
+     * Function used to view the config associated with a given key ID.
      * @param keyId Unique key identifier.
      */
-    function creatorOf(uint256 keyId) external view returns (address);
+    function getKeyConfig(uint256 keyId) external view returns (KeyConfig memory);
 
     /**
-     * Function used to view the bindings associated with a given vault.
-     * @param vault Vault address.
+     * Function used to view the lending terms associated with a lendee and key ID.
+     * @param lendee Address to check active lends for.
+     * @param keyId Unique key identifier.
      */
-    // function keyBinds(address vault) external view returns (KeyBinds memory);
+    function activeLends(address lendee, uint256 keyId) external view returns (LendingTerms memory);
 }
