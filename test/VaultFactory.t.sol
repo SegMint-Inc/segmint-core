@@ -57,51 +57,45 @@ contract VaultFactoryTest is BaseTest {
         });
     }
 
-    function test_CreateMultiAssetVault() public {
-        (uint256 maNonce, uint256 saNonce) = vaultFactory.getNonces({ account: users.alice.account });
-        assertEq(maNonce, 0);
-        assertEq(saNonce, 0);
+    function test_CreateMultiAssetVault_Fuzzed(uint256 keyAmount) public {
+        keyAmount = bound(keyAmount, 1, keys.MAX_KEYS());
 
-        bytes memory signature =
-            getVaultCreationSignature({ account: users.alice.account, nonce: maNonce, vaultType: VaultType.MULTI });
+        (uint256 maNonce,) = vaultFactory.getNonces(users.alice.account);
+        assertEq(maNonce, 0);
+
+        bytes memory signature = getVaultCreationSignature(users.alice.account, maNonce, VaultType.MULTI);
 
         hoax(users.alice.account);
         vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: true, checkData: true });
         emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.MULTI });
-        vaultFactory.createMultiAssetVault(signature);
+        vaultFactory.createMultiAssetVault({ keyAmount: keyAmount, signature: signature });
 
-        (uint256 newMaNonce,) = vaultFactory.getNonces({ account: users.alice.account });
+        (uint256 newMaNonce,) = vaultFactory.getNonces(users.alice.account);
         assertEq(newMaNonce, maNonce + 1);
 
         address[] memory maVaults = vaultFactory.getMultiAssetVaults({ account: users.alice.account });
         assertEq(maVaults.length, 1);
 
         address payable maVault = payable(maVaults[0]);
-        uint256 codeSize = 0;
-
-        assembly {
-            codeSize := extcodesize(maVault)
-        }
-
-        assertGt(codeSize, 0);
-        assertEq(MAVault(maVault).owner(), users.alice.account);
-        assertEq(MAVault(maVault).keys(), keys);
-        assertEq(MAVault(maVault).boundKeyId(), 0);
         assertTrue(keys.isRegistered(maVault));
+
+        MAVault vault = MAVault(maVault);
+        assertEq(vault.owner(), users.alice.account);
+        assertEq(vault.keys(), keys);
+        assertEq(vault.boundKeyId(), 1);
     }
 
-    function test_CreateMultiAssetVault_Many() public {
-        uint256 amount = 50;
+    function test_CreateMultiAssetVault_Many_Fuzzed(uint256 amount) public {
+        amount = bound(amount, 2, 10);
         bytes memory signature;
 
         startHoax(users.alice.account);
         for (uint256 i = 0; i < amount; i++) {
-            signature =
-                getVaultCreationSignature({ account: users.alice.account, nonce: i, vaultType: VaultType.MULTI });
+            signature = getVaultCreationSignature(users.alice.account, i, VaultType.MULTI);
 
             vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: true, checkData: true });
             emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.MULTI });
-            vaultFactory.createMultiAssetVault(signature);
+            vaultFactory.createMultiAssetVault(i+1, signature);
         }
         vm.stopPrank();
 
@@ -113,38 +107,31 @@ contract VaultFactoryTest is BaseTest {
 
         for (uint256 i = 0; i < maVaults.length; i++) {
             address payable maVault = payable(maVaults[i]);
-            uint256 codeSize = 0;
-
-            assembly {
-                codeSize := extcodesize(maVault)
-            }
-
-            assertGt(codeSize, 0);
-            assertEq(MAVault(maVault).owner(), users.alice.account);
-            assertEq(MAVault(maVault).keys(), keys);
             assertTrue(keys.isRegistered(maVault));
+            
+            MAVault vault = MAVault(maVault);
+            assertEq(vault.owner(), users.alice.account);
+            assertEq(vault.keys(), keys);
         }
     }
 
     function testCannot_CreateMultiAssetVault_InvalidAccessType() public {
-        (uint256 maNonce,) = vaultFactory.getNonces({ account: users.eve.account });
-        bytes memory signature =
-            getVaultCreationSignature({ account: users.eve.account, nonce: maNonce, vaultType: VaultType.MULTI });
+        (uint256 maNonce,) = vaultFactory.getNonces(users.eve.account);
+        bytes memory signature = getVaultCreationSignature(users.eve.account, maNonce, VaultType.MULTI);
 
         hoax(users.eve.account);
         vm.expectRevert(IAccessRegistry.InvalidAccessType.selector);
-        vaultFactory.createMultiAssetVault({ signature: signature });
+        vaultFactory.createMultiAssetVault({ keyAmount: 1, signature: signature });
     }
 
     function testCannot_CreateMultiAssetVault_SignerMismatch_Fuzzed(uint256 randomNonce) public {
         vm.assume(randomNonce > 0);
 
-        bytes memory signature =
-            getVaultCreationSignature({ account: users.alice.account, nonce: randomNonce, vaultType: VaultType.MULTI });
+        bytes memory signature = getVaultCreationSignature(users.alice.account, randomNonce, VaultType.MULTI);
 
         hoax(users.alice.account);
         vm.expectRevert(ISignerRegistry.SignerMismatch.selector);
-        vaultFactory.createMultiAssetVault({ signature: signature });
+        vaultFactory.createMultiAssetVault({ keyAmount: 1, signature: signature });
     }
 
     function test_CreateSingleAssetVault_ERC721() public {

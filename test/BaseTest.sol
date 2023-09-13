@@ -66,8 +66,7 @@ abstract contract BaseTest is Base, Assertions, Events {
             admin: users.admin,
             signer: users.signer.account,
             feeReceiver: FEE_RECEIVER,
-            weth: address(mockWETH),
-            factoryRole: FACTORY_ROLE
+            weth: address(mockWETH)
         });
     }
 

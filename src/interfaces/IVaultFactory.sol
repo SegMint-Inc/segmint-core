@@ -58,9 +58,10 @@ interface IVaultFactory {
 
     /**
      * Function used to create a multi-asset vault.
+     * @param keyAmount Number of keys to bind to the vault.
      * @param signature Signed message digest.
      */
-    function createMultiAssetVault(bytes calldata signature) external;
+    function createMultiAssetVault(uint256 keyAmount, bytes calldata signature) external;
 
     /**
      * Function used to create a single-asset vault.

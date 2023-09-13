@@ -63,7 +63,7 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
     /**
      * @inheritdoc IVaultFactory
      */
-    function createMultiAssetVault(bytes calldata signature) external {
+    function createMultiAssetVault(uint256 keyAmount, bytes calldata signature) external {
         /// Checks: Ensure the caller has valid access.
         IAccessRegistry.AccessType _accessType = accessRegistry.accessType(msg.sender);
         if (_accessType == IAccessRegistry.AccessType.BLOCKED) revert IAccessRegistry.InvalidAccessType();
@@ -77,19 +77,18 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
         /// Checks: Ensure the provided signature is valid.
         if (signerRegistry.getSigner() != recoveredSigner) revert ISignerRegistry.SignerMismatch();
 
-        /// Caclulate CREATE2 salt.
+        /// Caclulate CREATE2 salt and create a clone.
         bytes32 salt = keccak256(abi.encodePacked(msg.sender, maNonce));
-
-        /// Create a clone of the `maVault` implementation.
         address newVault = maVault.cloneDeterministic(salt);
-
-        /// Initialize the newly created clone.
-        IMAVault(newVault).initialize({ owner_: msg.sender, keys_: keys });
 
         /// Approve the newly created vault with the keys contract to allow for
         /// further interactions with `keys` to be decoupled from this contract.
         keys.registerVault(newVault);
 
+        /// Initialize the newly created clone.
+        IMAVault(newVault).initialize({ owner_: msg.sender, keys_: keys, keyAmount_: keyAmount });
+
+        /// Emit vault creation event.
         emit IVaultFactory.VaultCreated({ user: msg.sender, vault: newVault, vaultType: VaultType.MULTI });
     }
 

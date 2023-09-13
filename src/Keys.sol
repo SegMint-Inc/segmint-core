@@ -79,7 +79,6 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         _keyConfig[keyId] = KeyConfig({
             creator: receiver,
             vaultType: vaultType,
-            vault: msg.sender,
             isFrozen: false,
             isBurned: false,
             supply: uint8(amount)

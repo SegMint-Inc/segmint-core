@@ -33,9 +33,6 @@ abstract contract Base is Script, Test {
         FORK
     }
 
-    /// Type of deployment to use.
-    Deployment deploymentType;
-
     /// Core contracts.
     SignerRegistry public signerRegistry;
     AccessRegistry public accessRegistry;
@@ -46,7 +43,7 @@ abstract contract Base is Script, Test {
     MAVault public maVault;
     SAVault public saVault;
 
-    function coreSetup(address admin, address signer, address feeReceiver, address weth, uint256 factoryRole) public {
+    function coreSetup(address admin, address signer, address feeReceiver, address weth) public {
         /// Deploy registry contracts.
         signerRegistry = new SignerRegistry({ admin_: admin, signer_: signer });
         accessRegistry = new AccessRegistry({ admin_: admin, signerRegistry_: ISignerRegistry(signerRegistry) });
@@ -84,6 +81,7 @@ abstract contract Base is Script, Test {
         });
 
         /// Grant `factoryRole` to service factory.
+        uint256 factoryRole = keys.FACTORY_ROLE();
         keys.grantRoles({ user: address(vaultFactoryProxy), roles: factoryRole });
 
         /// Interface the proxy contract with the implementation so that calls are delegated correctly.

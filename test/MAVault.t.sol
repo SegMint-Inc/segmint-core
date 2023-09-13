@@ -5,6 +5,7 @@ import "./BaseTest.sol";
 
 contract MAVaultTest is BaseTest {
     MAVault public vault;
+    uint256 public keySupply = 100;
 
     /// Deposit assets into the multi-asset vault.
     modifier depositAssets() {
@@ -13,21 +14,6 @@ contract MAVaultTest is BaseTest {
         mockERC20.transfer(address(vault), ERC20_BALANCE);
         mockERC721.safeTransferFrom(users.alice.account, address(vault), ALICE_721_ID);
         mockERC1155.safeTransferFrom(users.alice.account, address(vault), ERC1155_ID, 1, "");
-
-        vm.stopPrank();
-
-        _;
-    }
-
-    /// Deposits assets then binds the maximum number of keys to a vault.
-    modifier depositAssetsAndBind() {
-        startHoax(users.alice.account);
-
-        mockERC20.transfer(address(vault), ERC20_BALANCE);
-        mockERC721.safeTransferFrom(users.alice.account, address(vault), ALICE_721_ID);
-        mockERC1155.safeTransferFrom(users.alice.account, address(vault), ERC1155_ID, 1, "");
-
-        vault.bindKeys({ keyAmount: keys.MAX_KEYS() });
 
         vm.stopPrank();
 
@@ -43,22 +29,113 @@ contract MAVaultTest is BaseTest {
         bytes memory signature = getVaultCreationSignature(users.alice.account, maNonce, VaultType.MULTI);
 
         hoax(users.alice.account);
-        vaultFactory.createMultiAssetVault({ signature: signature });
+        vaultFactory.createMultiAssetVault({ keyAmount: keySupply, signature: signature });
 
         vault = MAVault(payable(vaultFactory.getMultiAssetVaults({ account: users.alice.account })[0]));
     }
 
-    function test_UnlockAssets() public depositAssets {
-        /// Ensure vault holds the following assets.
-        assertEq(mockERC20.balanceOf(address(vault)), ERC20_BALANCE);
-        assertEq(mockERC721.balanceOf(address(vault)), 1);
+    function test_MAVault_Deployment() public {
+        assertEq(vault.owner(), users.alice.account);
+        assertEq(vault.keys(), keys);
+        assertEq(vault.boundKeyId(), 1);  // First key ID.
+
+        KeyConfig memory keyConfig = vault.getKeyConfig();
+        assertEq(keyConfig.creator, users.alice.account);
+        assertEq(keyConfig.vaultType, VaultType.MULTI);
+        assertFalse(keyConfig.isFrozen);
+        assertFalse(keyConfig.isBurned);
+        assertEq(keyConfig.supply, keySupply);
+    }
+
+    function testCannot_Initialize_Twice() public {
+        hoax(users.eve.account);
+        vm.expectRevert("Initializable: contract is already initialized");
+        vault.initialize({ owner_: users.eve.account, keys_: keys, keyAmount_: 0 });
+    }
+
+    function test_UnlockAssets_ERC20() public {
+        Asset[] memory assets = new Asset[](1);
+        assets[0] = getERC20Asset();
+
+        startHoax(users.alice.account);
+
+        mockERC20.transfer(address(vault), assets[0].amount);
+        assertEq(mockERC20.balanceOf(address(vault)), assets[0].amount);
+
+        vault.claimOwnership();
+
+        vault.unlockAssets({ assets: assets, receiver: users.alice.account });
+        assertEq(mockERC20.balanceOf(address(vault)), 0);
+    }
+
+    function test_UnlockAssets_ERC721() public {
+        startHoax(users.alice.account);
+
+        mockERC721.transferFrom(users.alice.account, address(vault), 0);
         assertEq(mockERC721.ownerOf(0), address(vault));
+        assertEq(mockERC721.balanceOf(address(vault)), 1);
+
+        vault.claimOwnership();
+
+        Asset[] memory assets = new Asset[](1);
+        assets[0] = getERC721Asset();
+
+        vault.unlockAssets({ assets: assets, receiver: users.alice.account });
+        assertEq(mockERC721.ownerOf(0), users.alice.account);
+    }
+
+    function test_UnlockAssets_ERC1155() public {
+        Asset[] memory assets = new Asset[](1);
+        assets[0] = getERC1155Asset();
+
+        startHoax(users.alice.account);
+
+        mockERC1155.safeTransferFrom(users.alice.account, address(vault), 0, 1, "");
         assertEq(mockERC1155.balanceOf(address(vault), 0), 1);
 
+        vault.claimOwnership();
+        vault.unlockAssets({ assets: assets, receiver: users.alice.account });
+        assertEq(mockERC1155.balanceOf(users.alice.account, 0), 1);
+    }
+
+    function test_UnlockAssets_Many() public {
         Asset[] memory assets = getAssets();
 
-        hoax(users.alice.account);
+        startHoax(users.alice.account);
+
+        /// Transfer assets in.
+        mockERC20.transfer({
+            to: address(vault),
+            amount: assets[0].amount
+        });
+        mockERC721.safeTransferFrom({
+            from: users.alice.account,
+            to: address(vault),
+            tokenId: assets[1].identifier
+        });
+        mockERC1155.safeTransferFrom({
+            from: users.alice.account,
+            to: address(vault),
+            id: assets[2].identifier,
+            amount: assets[2].amount,
+            data: ""
+        });
+
+        vault.claimOwnership();
         vault.unlockAssets({ assets: assets, receiver: users.alice.account });
+
+        assertEq(mockERC20.balanceOf(address(vault)), 0);
+        assertEq(mockERC721.balanceOf(address(vault)), 0);
+        assertEq(mockERC1155.balanceOf(address(vault), assets[2].identifier), 0);
+    }
+
+    function testCannot_UnlockAssets_Unauthorized(address nonOwner) public {
+        vm.assume(nonOwner != vault.owner());
+        Asset[] memory assets = getAssets();
+
+        hoax(nonOwner);
+        vm.expectRevert(UNAUTHORIZED_SELECTOR);
+        vault.unlockAssets({ assets: assets, receiver: nonOwner });
     }
 
     function testCannot_UnlockAssets_ZeroAssetAmount() public {
@@ -69,75 +146,51 @@ contract MAVaultTest is BaseTest {
         vault.unlockAssets({ assets: assets, receiver: users.alice.account });
     }
 
-    function testCannot_UnlockAssets_Unauthorized(address nonOwner) public depositAssets {
-        vm.assume(nonOwner != users.alice.account);
-
+    function testCannot_UnlockAssets_KeysBinded() public {
         Asset[] memory assets = getAssets();
 
-        hoax(nonOwner);
-        vm.expectRevert(UNAUTHORIZED_SELECTOR);
-        vault.unlockAssets({ assets: assets, receiver: nonOwner });
+        hoax(users.alice.account);
+        vm.expectRevert(IMAVault.KeysBinded.selector);
+        vault.unlockAssets({ assets: assets, receiver: users.alice.account });
     }
 
     function testCannot_UnlockAssets_NoneAssetType() public {
         Asset[] memory assets = getAssets();
         assets[0].class = AssetClass.NONE;
 
-        hoax(users.alice.account);
+        startHoax(users.alice.account);
+        vault.claimOwnership();
+
         vm.expectRevert(IMAVault.NoneAssetType.selector);
-        vault.unlockAssets({ assets: assets, receiver: users.alice.account });
-    }
-
-    function test_UnlockAssets_AsKeyHolder() public depositAssetsAndBind {
-        uint256 keyId = vault.boundKeyId();
-        uint256 keySupply = vault.getKeyConfig().supply;
-
-        /// Transfer keys to someone other than the original owner.
-        hoax(users.alice.account);
-        keys.safeTransferFrom(users.alice.account, users.bob.account, keyId, keySupply, "");
-
-        Asset[] memory assets = getAssets();
-
-        hoax(users.bob.account);
-        vault.unlockAssets({ assets: assets, receiver: users.bob.account });
-    }
-
-    function testCannot_UnlockAssets_AsOwner_InsufficientKeys() public depositAssetsAndBind {
-        uint256 keyId = vault.boundKeyId();
-        uint256 keySupply = vault.getKeyConfig().supply;
-
-        /// Transfer keys to someone other than the original owner.
-        hoax(users.alice.account);
-        keys.safeTransferFrom(users.alice.account, users.bob.account, keyId, keySupply, "");
-
-        Asset[] memory assets = getAssets();
-
-        hoax(users.alice.account);
-        vm.expectRevert(IMAVault.InsufficientKeys.selector);
         vault.unlockAssets({ assets: assets, receiver: users.alice.account });
     }
 
     function test_UnlockNativeToken_Fuzzed(uint256 amount) public {
         amount = bound(amount, 1 wei, 100 ether);
+        deal(address(vault), amount);
 
-        deal({ to: address(vault), give: amount });
         assertEq(address(vault).balance, amount);
 
-        hoax(users.alice.account, 0 ether);
-        vault.unlockNativeToken({ amount: amount, receiver: users.alice.account });
+        startHoax(users.alice.account, 0 ether);
+        vault.claimOwnership();
+        vault.unlockNativeToken(users.alice.account);
+        
         assertEq(users.alice.account.balance, amount);
+        assertEq(address(vault).balance, 0 ether);
     }
 
-    function testCannot_UnlockNativeToken_Unauthorized_Fuzzed(address nonOwner) public {
-        vm.assume(nonOwner != users.alice.account);
-
-        uint256 amount = 1 ether;
-        deal({ to: address(vault), give: amount });
-        assertEq(address(vault).balance, amount);
+    function testCannot_UnlockNativeToken_Unauthorized(address nonOwner) public {
+        vm.assume(nonOwner != vault.owner());
 
         hoax(nonOwner);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
-        vault.unlockNativeToken({ amount: amount, receiver: nonOwner });
+        vault.unlockNativeToken(nonOwner);
+    }
+
+    function testCannot_UnlockNativeToken_KeysBinded() public {
+        hoax(users.alice.account);
+        vm.expectRevert(IMAVault.KeysBinded.selector);
+        vault.unlockNativeToken(users.alice.account);
     }
 
     function testCannot_UnlockNativeToken_NativeTokenUnlockFailed() public {
@@ -147,115 +200,52 @@ contract MAVaultTest is BaseTest {
 
         vm.mockCallRevert({ callee: users.alice.account, data: "", revertData: "" });
 
-        hoax(users.alice.account);
-        vm.expectRevert(IMAVault.NativeTokenUnlockFailed.selector);
-        vault.unlockNativeToken({ amount: amount, receiver: users.alice.account });
-    }
-
-    function test_UnlockNativeToken_AsKeyHolder_Fuzzed(uint256 amount) public depositAssetsAndBind {
-        amount = bound(amount, 1 wei, 100 ether);
-
-        deal({ to: address(vault), give: amount });
-        assertEq(address(vault).balance, amount);
-
-        uint256 keyId = vault.boundKeyId();
-        uint256 keySupply = vault.getKeyConfig().supply;
-
-        /// Transfer keys to someone other than the original owner.
-        hoax(users.alice.account);
-        keys.safeTransferFrom(users.alice.account, users.bob.account, keyId, keySupply, "");
-
-        hoax(users.bob.account, 0 ether);
-        vault.unlockNativeToken({ amount: amount, receiver: users.bob.account });
-        assertEq(users.bob.account.balance, amount);
-    }
-
-    function testCannot_UnlockNativeToken_AsOwner_InsufficientKeys() public depositAssetsAndBind {
-        uint256 keyId = vault.boundKeyId();
-        uint256 keySupply = vault.getKeyConfig().supply;
-
-        /// Transfer keys to someone other than the original owner.
-        hoax(users.alice.account);
-        keys.safeTransferFrom(users.alice.account, users.bob.account, keyId, keySupply, "");
-
-        hoax(users.alice.account);
-        vm.expectRevert(IMAVault.InsufficientKeys.selector);
-        vault.unlockNativeToken({ amount: 0, receiver: users.alice.account });
-    }
-
-    function test_BindKeys() public depositAssets {
-        uint256 keyAmount = keys.MAX_KEYS();
-
-        hoax(users.alice.account);
-        vault.bindKeys({ keyAmount: keyAmount });
-
-        uint256 keyId = vault.boundKeyId();
-        assertTrue(keyId != 0);
-        assertEq(keys.keysCreated(), 1);
-
-        KeyConfig memory vaultKeyConfig = vault.getKeyConfig();
-        assertEq(vaultKeyConfig.creator, users.alice.account);
-        assertEq(vaultKeyConfig.vaultType, VaultType.MULTI);
-        assertFalse(vaultKeyConfig.isFrozen);
-        assertFalse(vaultKeyConfig.isBurned);
-        assertEq(vaultKeyConfig.supply, keyAmount);
-
-        /// Even though the vault pulls the key config from the key contract, we should
-        /// guarantee that the values match.
-        KeyConfig memory keyConfig = keys.getKeyConfig(keyId);
-        assertEq(keyConfig.creator, vaultKeyConfig.creator);
-        assertEq(keyConfig.vaultType, vaultKeyConfig.vaultType);
-        assertEq(keyConfig.isFrozen, vaultKeyConfig.isFrozen);
-        assertEq(keyConfig.isFrozen, vaultKeyConfig.isBurned);
-        assertEq(keyConfig.supply, vaultKeyConfig.supply);
-    }
-
-    function testCannot_BindKeys_Unauthorized(address nonOwner) public {
-        vm.assume(nonOwner != users.alice.account);
-
-        uint256 keyAmount = keys.MAX_KEYS();
-
-        hoax(nonOwner);
-        vm.expectRevert(UNAUTHORIZED_SELECTOR);
-        vault.bindKeys({ keyAmount: keyAmount });
-    }
-
-    function testCannot_BindKeys_KeysAlreadyBinded() public {
-        uint256 keyAmount = keys.MAX_KEYS();
-
         startHoax(users.alice.account);
-        vault.bindKeys({ keyAmount: keyAmount });
-        vm.expectRevert(IMAVault.KeysAlreadyBinded.selector);
-        vault.bindKeys({ keyAmount: keyAmount });
+        vault.claimOwnership();
+
+        vm.expectRevert(IMAVault.NativeTokenUnlockFailed.selector);
+        vault.unlockNativeToken(users.alice.account);
     }
 
-    function test_UnbindKeys() public depositAssetsAndBind {
-        uint256 preBurnKeyId = vault.boundKeyId();
+    function test_ClaimOwnership() public {
+        uint256 keyId = vault.boundKeyId();
 
+        assertEq(vault.owner(), users.alice.account);
+        assertEq(keys.balanceOf(users.alice.account, keyId), keySupply);
+        assertEq(keys.balanceOf(users.bob.account, keyId), 0);
+
+        /// Transfer keys to Bob.
         hoax(users.alice.account);
-        vault.unbindKeys();
+        keys.safeTransferFrom(users.alice.account, users.bob.account, keyId, keySupply, "");
+        assertEq(keys.balanceOf(users.alice.account, keyId), 0);
+        assertEq(keys.balanceOf(users.bob.account, keyId), keySupply);
 
-        uint256 newKeyId = vault.boundKeyId();
-        assertEq(newKeyId, 0);
+        hoax(users.bob.account);
+        vault.claimOwnership();
+        assertEq(keys.balanceOf(users.alice.account, keyId), 0);
+        assertEq(keys.balanceOf(users.bob.account, keyId), 0);
+        assertEq(vault.boundKeyId(), 0);
+        assertEq(vault.owner(), users.bob.account);
 
-        KeyConfig memory keyConfig = keys.getKeyConfig(preBurnKeyId);
+        KeyConfig memory keyConfig = keys.getKeyConfig(keyId);
         assertEq(keyConfig.creator, users.alice.account);
         assertEq(keyConfig.vaultType, VaultType.MULTI);
         assertFalse(keyConfig.isFrozen);
         assertTrue(keyConfig.isBurned);
-        assertEq(keyConfig.supply, keys.MAX_KEYS());
+        assertEq(keyConfig.supply, keySupply);
     }
 
-    function testCannot_UnbindKeys_NoKeysBinded() public {
-        hoax(users.alice.account);
+    function testCannot_ClaimOwnership_NoKeysBinded() public {
+        startHoax(users.alice.account);
+        vault.claimOwnership();
         vm.expectRevert(IMAVault.NoKeysBinded.selector);
-        vault.unbindKeys();
+        vault.claimOwnership();
     }
 
-    function testCannot_UnbindKeys_InsufficientKeys() public depositAssetsAndBind {
-        hoax(users.eve.account);
+    function testCannot_ClaimOwnership_InsufficientKeys() public {
+        hoax(users.bob.account);
         vm.expectRevert(IMAVault.InsufficientKeys.selector);
-        vault.unbindKeys();
+        vault.claimOwnership();
     }
 
     function test_OnERC1155BatchReceived() public {

@@ -34,7 +34,6 @@ contract SAVaultTest is BaseTest {
         KeyConfig memory keyConfig = keys.getKeyConfig(keyId);
         assertEq(keyConfig.creator, users.alice.account);
         assertEq(keyConfig.vaultType, VaultType.SINGLE);
-        assertEq(keyConfig.vault, address(newVault));
         assertFalse(keyConfig.isFrozen);
         assertTrue(keyConfig.isBurned);
         assertEq(keyConfig.supply, keyAmount);
@@ -71,7 +70,6 @@ contract SAVaultTest is BaseTest {
         KeyConfig memory keyConfig = keys.getKeyConfig(keyId);
         assertEq(keyConfig.creator, users.alice.account);
         assertEq(keyConfig.vaultType, VaultType.SINGLE);
-        assertEq(keyConfig.vault, address(newVault));
         assertFalse(keyConfig.isFrozen);
         assertTrue(keyConfig.isBurned);
         assertEq(keyConfig.supply, keyAmount);

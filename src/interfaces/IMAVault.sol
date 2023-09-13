@@ -32,7 +32,7 @@ interface IMAVault {
     /**
      * Thrown when trying to bind keys to an already key binded vault.
      */
-    error KeysAlreadyBinded();
+    error KeysBinded();
 
     /**
      * Thrown when trying to unbind keys from a non-key binded vault.
@@ -52,8 +52,9 @@ interface IMAVault {
      * Function used to initialize the vault.
      * @param owner_ Address of the caller that created the vault.
      * @param keys_ Address of {SegMintKeys} contract.
+     * @param keyAmount_ Number of keys to bind to the vault.
      */
-    function initialize(address owner_, IKeys keys_) external;
+    function initialize(address owner_, IKeys keys_, uint256 keyAmount_) external;
 
     /**
      * Function used to unlock assets from the vault.
@@ -64,21 +65,14 @@ interface IMAVault {
 
     /**
      * Function used to unlock the Native Token from the vault.
-     * @param amount Amount of Ether to unlock.
      * @param receiver Receiving address of the unlocked Ether.
      */
-    function unlockNativeToken(uint256 amount, address receiver) external;
+    function unlockNativeToken(address receiver) external;
 
     /**
-     * Function used to bind keys to the vault.
-     * @param keyAmount Number of keys to create and bind.
+     * Function used to claim ownership of the vault, enabling asset and native token unlocking.
      */
-    function bindKeys(uint256 keyAmount) external;
-
-    /**
-     * Function used to unbind keys from the vault.
-     */
-    function unbindKeys() external;
+    function claimOwnership() external;
 
     /**
      * Function used to view the key config associated the vaults key ID.
@@ -89,9 +83,4 @@ interface IMAVault {
      * Function used to return the key ID associated with a vault.
      */
     function boundKeyId() external view returns (uint256);
-
-    /**
-     * Function used to view the last block an asset with withdrawn.
-     */
-    function lastWithdrawBlock() external view returns (uint256);
 }

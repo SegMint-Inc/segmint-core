@@ -39,7 +39,6 @@ enum VaultType {
  * Struct encapsulating the configuration associated with a specifc key ID.
  * @param creator Address that minted the keys.
  * @param vaultType Type of vault the keys are associated with.
- * @param vault Address of the vault.
  * @param isFrozen Flag if the keys are tradeable.
  * @param isBurned Flag if the keys have been burnt.
  * @param supply Number of keys of key ID in circulation.
@@ -47,7 +46,6 @@ enum VaultType {
 struct KeyConfig {
     address creator;
     VaultType vaultType;
-    address vault;
     bool isFrozen;
     bool isBurned;
     uint8 supply;
