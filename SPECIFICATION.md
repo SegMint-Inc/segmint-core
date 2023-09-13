@@ -144,7 +144,7 @@ Due to regulatory reasons, users with the `RESTRICTED` access type should not be
 
 #### Fees
 
-The Key Exchange should take a 5.00% protocol fee (subject to change) on all trades that are facilitated through the Key Exchange.
+The Key Exchange should take a 5.00% protocol fee (subject to change) on all trades that are facilitated through the Key Exchange. Fees are not taken when users perform a buy back and/or reserve purchase.
 
 **Considerations**:
 
