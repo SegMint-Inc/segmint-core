@@ -86,7 +86,8 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
             _checkAccess(order.maker);
 
             /// Checks: Ensure that the key terms have been defined for the associated key ID.
-            if (_keyTerms[order.keyId].market == MarketType.UNDEFINED) revert KeyTermsUndefined();
+            MarketType keyMarket = _keyTerms[order.keyId].market;
+            if (keyMarket == MarketType.UNDEFINED || keyMarket == MarketType.INACTIVE) revert InvalidKeyMarket();
 
             /// Get the EIP712 digest of the provided order.
             bytes32 orderHash = _hashOrder(order);
@@ -161,7 +162,8 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
             _checkAccess(bid.maker);
 
             /// Checks: Ensure that key terms have been defined for the key identifier.
-            if (_keyTerms[bid.keyId].market == MarketType.UNDEFINED) revert KeyTermsUndefined();
+            MarketType keyMarket = _keyTerms[bid.keyId].market;
+            if (keyMarket == MarketType.UNDEFINED || keyMarket == MarketType.INACTIVE) revert InvalidKeyMarket();
 
             /// Get the EIP712 digest of the provided bid.
             bytes32 bidHash = _hashBid(bid);
@@ -303,11 +305,19 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
             if (!success) revert NativeTransferFailed();
         }
 
-        /// Checks: Ensure the full amount of native token was provided.
-        if (msgValue != 0) revert InvalidNativeTokenAmount();
+        /// Refund any remaining native token to the caller.
+        if (msgValue > 0) {
+            (bool success,) = msg.sender.call{ value: msgValue }("");
+            if (!success) revert NativeTransferFailed();
+        }
 
         /// Checks: Ensure all keys were successfully transferred to the holder.
         if (IERC1155(address(keys)).balanceOf(msg.sender, keyId) != keyConfig.supply) revert BuyBackFailed();
+
+        /// Set key terms to inactive to prevent further trading.
+        _keyTerms[keyId] = KeyTerms({ market: MarketType.INACTIVE, buyBack: 0, reserve: 0 });
+
+        emit BuyOutExecuted({ caller: msg.sender, keyId: keyId });
     }
 
     /**
@@ -334,7 +344,6 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
         uint256 msgValue = msg.value;
 
         for (uint256 i = 0; i < holders.length; i++) {
-            /// Cache calldata values.
             address holder = holders[i];
             uint256 amount = amounts[i];
 
@@ -353,9 +362,20 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
             if (!success) revert NativeTransferFailed();
         }
 
-        /// Checks: Ensure the full amount of native token was provided. Since the buyout amount cannot change
-        /// we check for an exact amount.
-        if (msgValue != 0) revert InvalidNativeTokenAmount();
+        /// Refund any remaining native token to the caller.
+        if (msgValue > 0) {
+            (bool success,) = msg.sender.call{ value: msgValue }("");
+            if (!success) revert NativeTransferFailed();
+        }
+
+        /// Checks: Ensure all keys were successfully transferred to the holder.
+        uint256 maxSupply = keys.getKeyConfig(keyId).supply;
+        if (IERC1155(address(keys)).balanceOf(msg.sender, keyId) != maxSupply) revert BuyBackFailed();
+
+        /// Set key terms to inactive to prevent further trading.
+        _keyTerms[keyId] = KeyTerms({ market: MarketType.INACTIVE, buyBack: 0, reserve: 0 });
+
+        emit ReserveBuyOut({ caller: msg.sender, keyId: keyId });
     }
 
     /**
@@ -372,7 +392,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
         if (msg.sender != keyConfig.creator) revert CallerNotKeyCreator();
 
         /// Checks: Ensure that a valid market type has been provided.
-        if (finalTerms.market == MarketType.UNDEFINED) revert InvalidMarketType();
+        if (finalTerms.market == MarketType.UNDEFINED || finalTerms.market == MarketType.INACTIVE) revert InvalidMarketType();
 
         /// Checks: Ensure key terms have not already been set.
         if (_keyTerms[keyId].market != MarketType.UNDEFINED) revert KeyTermsDefined();
