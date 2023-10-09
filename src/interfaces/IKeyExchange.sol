@@ -22,7 +22,7 @@ interface IKeyExchange {
     /**
      * Thrown when attempting to trade a key that has no terms defined.
      */
-    error KeyTermsUndefined();
+    error InvalidKeyMarket();
 
     /**
      * Thrown when trying to set the terms for a buyout market key with a zero buyback or reserve price.
@@ -157,6 +157,16 @@ interface IKeyExchange {
      */
     event BidCancelled(bytes32 bidHash);
 
+    /**
+     * Emitted when a key buyout at the buy back price is executed.
+     */
+    event BuyOutExecuted(address indexed caller, uint256 keyId);
+
+    /**
+     * Emitted when a key buyout at the reserve price is executed.
+     */
+    event ReserveBuyOut(address indexed caller, uint256 keyId);
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ENUMS                            */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -165,11 +175,13 @@ interface IKeyExchange {
      * Enum encapsulating the market type associated with a listing.
      * @custom:param FREE: The lister cannot perform a buy out at a later point in time.
      * @custom:param BUYOUT: The lister has the ability to buy the key back at some point in the future.
+     * @custom:param INACTIVE: This market type specifies that a key ID has been bought out.
      */
     enum MarketType {
         UNDEFINED,
         FREE,
-        BUYOUT
+        BUYOUT,
+        INACTIVE
     }
 
     /**
