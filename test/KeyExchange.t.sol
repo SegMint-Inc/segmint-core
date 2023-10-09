@@ -126,13 +126,13 @@ contract KeyExchangeTest is BaseTest {
         keyExchange.executeOrders(orders);
     }
 
-    function testCannot_ExecuteOrders_KeyTermsUndefined() public {
+    function testCannot_ExecuteOrders_InvalidKeyMarket() public {
         IKeyExchange.Order memory order = getGenericOrder(users.alice.account);
         IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](1);
         orders[0] = signOrder(order, users.alice.privateKey);
 
         hoax(users.bob.account);
-        vm.expectRevert(IKeyExchange.KeyTermsUndefined.selector);
+        vm.expectRevert(IKeyExchange.InvalidKeyMarket.selector);
         keyExchange.executeOrders{ value: order.price }(orders);
     }
 
@@ -310,13 +310,13 @@ contract KeyExchangeTest is BaseTest {
         keyExchange.executeBids(bids);
     }
 
-    function testCannot_ExecuteBids_KeyTermsUndefined() public {
+    function testCannot_ExecuteBids_InvalidKeyMarket() public {
         IKeyExchange.Bid memory bid = getGenericBid(users.bob.account);
         IKeyExchange.BidParams[] memory bids = new IKeyExchange.BidParams[](1);
         bids[0] = signBid(bid, users.bob.privateKey);
 
         hoax(users.alice.account);
-        vm.expectRevert(IKeyExchange.KeyTermsUndefined.selector);
+        vm.expectRevert(IKeyExchange.InvalidKeyMarket.selector);
         keyExchange.executeBids(bids);
     }
 
@@ -519,6 +519,48 @@ contract KeyExchangeTest is BaseTest {
         uint256 totalCost = keySupply * buyBackCost;
 
         hoax(users.alice.account);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
+        emit BuyOutExecuted({ caller: users.alice.account, keyId: keyId });
+        keyExchange.executeBuyBack{ value: totalCost }(keyId, holders, amounts);
+
+        assertEq(keys.balanceOf(users.alice.account, keyId), keySupply);
+
+        for (uint256 i = 0; i < holders.length; i++) {
+            address holder = holders[i];
+
+            assertEq(keys.balanceOf(holder, keyId), 0);
+            assertEq(holder.balance, buyBackCost);
+        }
+
+        IKeyExchange.KeyTerms memory keyTerms = keyExchange.keyTerms(keyId);
+        assertEq(keyTerms.market, IKeyExchange.MarketType.INACTIVE);
+        assertEq(keyTerms.buyBack, 0);
+        assertEq(keyTerms.reserve, 0);
+    }
+
+    function test_ExecuteBuyBack_RefundsExcess() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
+        uint256 excessFunds = 69 wei;
+        address[] memory holders = getHolders(keySupply);
+        uint256[] memory amounts = getAmounts(keySupply);
+
+        /// Transfer 1 key to each of the holders.
+        for (uint256 i = 0; i < holders.length; i++) {
+            address holder = holders[i];
+
+            hoax(users.admin);
+            accessRegistry.modifyAccessType(holder, IAccessRegistry.AccessType.UNRESTRICTED);
+
+            hoax(users.alice.account);
+            keys.safeTransferFrom(users.alice.account, holder, keyId, 1, "");
+            assertEq(keys.balanceOf(holder, keyId), 1);
+        }
+
+        assertEq(keys.balanceOf(users.alice.account, keyId), 0);
+
+        uint256 buyBackCost = keyExchange.keyTerms(keyId).buyBack;
+        uint256 totalCost = keySupply * buyBackCost;
+
+        hoax(users.alice.account, totalCost + excessFunds);
         keyExchange.executeBuyBack{ value: totalCost }(keyId, holders, amounts);
         assertEq(keys.balanceOf(users.alice.account, keyId), keySupply);
 
@@ -528,6 +570,8 @@ contract KeyExchangeTest is BaseTest {
             assertEq(keys.balanceOf(holder, keyId), 0);
             assertEq(holder.balance, buyBackCost);
         }
+
+        assertEq(users.alice.account.balance, excessFunds);
     }
 
     function testCannot_ExecuteBuyBack_CallerNotKeyCreator() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
@@ -596,33 +640,6 @@ contract KeyExchangeTest is BaseTest {
         keyExchange.executeBuyBack{ value: totalCost - 1 wei }(keyId, holders, amounts);
     }
 
-    function testCannot_ExecuteBuyBack_InvalidNativeTokenAmount_Excess()
-        public
-        setKeyTerms(IKeyExchange.MarketType.BUYOUT)
-    {
-        address[] memory holders = getHolders(keySupply);
-        uint256[] memory amounts = getAmounts(keySupply);
-
-        /// Transfer 1 key to each of the holders.
-        for (uint256 i = 0; i < holders.length; i++) {
-            address holder = holders[i];
-
-            hoax(users.admin);
-            accessRegistry.modifyAccessType(holder, IAccessRegistry.AccessType.UNRESTRICTED);
-
-            hoax(users.alice.account);
-            keys.safeTransferFrom(users.alice.account, holder, keyId, 1, "");
-            assertEq(keys.balanceOf(holder, keyId), 1);
-        }
-
-        uint256 buyBackCost = keyExchange.keyTerms(keyId).buyBack;
-        uint256 totalCost = keySupply * buyBackCost;
-
-        hoax(users.alice.account);
-        vm.expectRevert(IKeyExchange.InvalidNativeTokenAmount.selector);
-        keyExchange.executeBuyBack{ value: totalCost + 1 wei }(keyId, holders, amounts);
-    }
-
     function testCannot_ExecuteBuyBack_NativeTransferFailed() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
         address[] memory holders = getHolders(keySupply);
         uint256[] memory amounts = getAmounts(keySupply);
@@ -677,9 +694,8 @@ contract KeyExchangeTest is BaseTest {
         keyExchange.executeBuyBack{ value: totalCost }(keyId, holders, amounts);
     }
 
-    function test_BuyAtReserve_Fuzzed(uint256 holderCount) public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
-        holderCount = bound(holderCount, 1, 50);
-
+    function test_BuyAtReserve() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
+        uint256 holderCount = 100;
         address[] memory holders = getHolders(holderCount);
         uint256[] memory amounts = getAmounts(holderCount);
 
@@ -696,12 +712,60 @@ contract KeyExchangeTest is BaseTest {
             assertEq(holder.balance, 0 ether);
         }
 
-        /// Calculate the expected cost of the action in native token and the protocol fee.
+        /// Calculate the expected cost of the action in native token.
         uint256 reservePrice = keyExchange.keyTerms(keyId).reserve;
         uint256 expectedTotal = reservePrice * holderCount;
 
         /// Buy a key from each of the holders at the reserve price as Bob.
         hoax(users.bob.account, expectedTotal);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: true, checkData: true });
+        emit ReserveBuyOut({ caller: users.bob.account, keyId: keyId });
+        keyExchange.buyAtReserve{ value: expectedTotal }(keyId, holders, amounts);
+
+        /// Ensure the transfer of key and ETH was as expected.
+        for (uint256 i = 0; i < holders.length; i++) {
+            address holder = holders[i];
+
+            assertEq(keys.balanceOf(holder, keyId), 0);
+            assertEq(holder.balance, reservePrice);
+        }
+        
+        assertEq(keys.balanceOf(users.bob.account, keyId), holderCount);
+        assertEq(users.bob.account.balance, 0 ether);
+
+        IKeyExchange.KeyTerms memory keyTerms = keyExchange.keyTerms(keyId);
+        assertEq(keyTerms.market, IKeyExchange.MarketType.INACTIVE);
+        assertEq(keyTerms.buyBack, 0);
+        assertEq(keyTerms.reserve, 0);
+    }
+
+    function test_BuyAtReserve_RefundsExcess() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
+        uint256 excessFunds = 69 wei;
+        uint256 holderCount = 100;
+        address[] memory holders = getHolders(holderCount);
+        uint256[] memory amounts = getAmounts(holderCount);
+
+        /// KYC holders and transfer a single key to each of them.
+        for (uint256 i = 0; i < holders.length; i++) {
+            address holder = holders[i];
+
+            hoax(users.admin);
+            accessRegistry.modifyAccessType(holder, IAccessRegistry.AccessType.UNRESTRICTED);
+
+            hoax(users.alice.account);
+            keys.safeTransferFrom(users.alice.account, holder, keyId, 1, "");
+            assertEq(keys.balanceOf(holder, keyId), 1);
+            assertEq(holder.balance, 0 ether);
+        }
+
+        /// Calculate the expected cost of the action in native token.
+        uint256 reservePrice = keyExchange.keyTerms(keyId).reserve;
+        uint256 expectedTotal = reservePrice * holderCount;
+
+        /// Buy a key from each of the holders at the reserve price as Bob.
+        hoax(users.bob.account, expectedTotal + excessFunds);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: true, checkData: true });
+        emit ReserveBuyOut({ caller: users.bob.account, keyId: keyId });
         keyExchange.buyAtReserve{ value: expectedTotal }(keyId, holders, amounts);
 
         /// Ensure the transfer of key and ETH was as expected.
@@ -713,7 +777,7 @@ contract KeyExchangeTest is BaseTest {
         }
 
         assertEq(keys.balanceOf(users.bob.account, keyId), holderCount);
-        assertEq(users.bob.account.balance, 0 ether);
+        assertEq(users.bob.account.balance, excessFunds);
     }
 
     function testCannot_BuyAtReserve_ZeroLengthArray() public {
@@ -793,18 +857,41 @@ contract KeyExchangeTest is BaseTest {
 
         uint256 reservePrice = keyExchange.keyTerms(keyId).reserve;
         uint256 badMinAmount = reservePrice * keySupply - 1 wei;
-        uint256 badMaxAmount = reservePrice * keySupply + 1 wei;
 
         startHoax(users.bob.account);
 
         /// Reverts during iteration before logic attempts to subtract a value greater than itself.
         vm.expectRevert(IKeyExchange.InvalidNativeTokenAmount.selector);
         keyExchange.buyAtReserve{ value: badMinAmount }(keyId, holders, amounts);
-
-        /// Reverts during at end of function.
-        vm.expectRevert(IKeyExchange.InvalidNativeTokenAmount.selector);
-        keyExchange.buyAtReserve{ value: badMaxAmount }(keyId, holders, amounts);
     }
+
+    function testCannot_BuyAtReserve_BuyBackFailed_Fuzzed(uint256 holderCount) public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
+        holderCount = bound(holderCount, 1, keySupply - 1);
+        address[] memory holders = getHolders(holderCount);
+        uint256[] memory amounts = getAmounts(holderCount);
+
+        /// KYC holders and transfer a single key to each of them.
+        for (uint256 i = 0; i < holders.length; i++) {
+            address holder = holders[i];
+
+            hoax(users.admin);
+            accessRegistry.modifyAccessType(holder, IAccessRegistry.AccessType.UNRESTRICTED);
+
+            hoax(users.alice.account);
+            keys.safeTransferFrom(users.alice.account, holder, keyId, 1, "");
+            assertEq(keys.balanceOf(holder, keyId), 1);
+            assertEq(holder.balance, 0 ether);
+        }
+
+        /// Calculate the expected cost of the action in native token.
+        uint256 reservePrice = keyExchange.keyTerms(keyId).reserve;
+        uint256 expectedTotal = reservePrice * holderCount;
+
+        /// Buy a key from each of the holders at the reserve price as Bob.
+        hoax(users.bob.account, expectedTotal);
+        vm.expectRevert(IKeyExchange.BuyBackFailed.selector);
+        keyExchange.buyAtReserve{ value: expectedTotal }(keyId, holders, amounts);
+    } 
 
     function test_SetKeyTerms_FreeMarket() public {
         IKeyExchange.MarketType marketType = IKeyExchange.MarketType.FREE;
