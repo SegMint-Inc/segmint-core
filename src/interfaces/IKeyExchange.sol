@@ -167,6 +167,11 @@ interface IKeyExchange {
      */
     event ReserveBuyOut(address indexed caller, uint256 keyId);
 
+    /**
+     * Emitted when key terms are defined.
+     */
+    event KeyTermsSet(uint256 indexed keyId, KeyTerms keyTerms);
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ENUMS                            */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/

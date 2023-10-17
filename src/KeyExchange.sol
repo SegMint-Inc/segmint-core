@@ -392,7 +392,9 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
         if (msg.sender != keyConfig.creator) revert CallerNotKeyCreator();
 
         /// Checks: Ensure that a valid market type has been provided.
-        if (finalTerms.market == MarketType.UNDEFINED || finalTerms.market == MarketType.INACTIVE) revert InvalidMarketType();
+        if (finalTerms.market == MarketType.UNDEFINED || finalTerms.market == MarketType.INACTIVE) {
+            revert InvalidMarketType();
+        }
 
         /// Checks: Ensure key terms have not already been set.
         if (_keyTerms[keyId].market != MarketType.UNDEFINED) revert KeyTermsDefined();
@@ -410,6 +412,8 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
 
         /// Set the buy out terms in storage.
         _keyTerms[keyId] = finalTerms;
+
+        emit KeyTermsSet({ keyId: keyId, keyTerms: finalTerms });
     }
 
     /**

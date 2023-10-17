@@ -729,7 +729,7 @@ contract KeyExchangeTest is BaseTest {
             assertEq(keys.balanceOf(holder, keyId), 0);
             assertEq(holder.balance, reservePrice);
         }
-        
+
         assertEq(keys.balanceOf(users.bob.account, keyId), holderCount);
         assertEq(users.bob.account.balance, 0 ether);
 
@@ -865,7 +865,10 @@ contract KeyExchangeTest is BaseTest {
         keyExchange.buyAtReserve{ value: badMinAmount }(keyId, holders, amounts);
     }
 
-    function testCannot_BuyAtReserve_BuyBackFailed_Fuzzed(uint256 holderCount) public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
+    function testCannot_BuyAtReserve_BuyBackFailed_Fuzzed(uint256 holderCount)
+        public
+        setKeyTerms(IKeyExchange.MarketType.BUYOUT)
+    {
         holderCount = bound(holderCount, 1, keySupply - 1);
         address[] memory holders = getHolders(holderCount);
         uint256[] memory amounts = getAmounts(holderCount);
@@ -891,13 +894,16 @@ contract KeyExchangeTest is BaseTest {
         hoax(users.bob.account, expectedTotal);
         vm.expectRevert(IKeyExchange.BuyBackFailed.selector);
         keyExchange.buyAtReserve{ value: expectedTotal }(keyId, holders, amounts);
-    } 
+    }
 
     function test_SetKeyTerms_FreeMarket() public {
         IKeyExchange.MarketType marketType = IKeyExchange.MarketType.FREE;
+        IKeyExchange.KeyTerms memory keyTerms = IKeyExchange.KeyTerms(marketType, 0, 0);
 
         hoax(users.alice.account);
-        keyExchange.setKeyTerms(keyId, IKeyExchange.KeyTerms(marketType, 0, 0));
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
+        emit KeyTermsSet({ keyId: keyId, keyTerms: keyTerms });
+        keyExchange.setKeyTerms(keyId, keyTerms);
 
         IKeyExchange.KeyTerms memory terms = keyExchange.keyTerms(keyId);
         assertEq(terms.market, marketType);
@@ -907,9 +913,13 @@ contract KeyExchangeTest is BaseTest {
 
     function test_SetKeyTerms_BuyOutMarket() public {
         IKeyExchange.MarketType marketType = IKeyExchange.MarketType.BUYOUT;
+        IKeyExchange.KeyTerms memory keyTerms =
+            IKeyExchange.KeyTerms(marketType, defaultBuyBackPrice, defaultReservePrice);
 
         hoax(users.alice.account);
-        keyExchange.setKeyTerms(keyId, IKeyExchange.KeyTerms(marketType, defaultBuyBackPrice, defaultReservePrice));
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
+        emit KeyTermsSet({ keyId: keyId, keyTerms: keyTerms });
+        keyExchange.setKeyTerms(keyId, keyTerms);
 
         IKeyExchange.KeyTerms memory terms = keyExchange.keyTerms(keyId);
         assertEq(terms.market, marketType);
