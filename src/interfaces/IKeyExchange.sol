@@ -170,7 +170,7 @@ interface IKeyExchange {
     /**
      * Emitted when key terms are defined.
      */
-    event KeyTermsSet(uint256 indexed keyId, KeyTerms keyTerms);
+    event KeyTermsSet(address indexed caller, uint256 indexed keyId, KeyTerms keyTerms);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ENUMS                            */

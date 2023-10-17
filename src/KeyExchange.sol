@@ -413,7 +413,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
         /// Set the buy out terms in storage.
         _keyTerms[keyId] = finalTerms;
 
-        emit KeyTermsSet({ keyId: keyId, keyTerms: finalTerms });
+        emit KeyTermsSet({ caller: msg.sender, keyId: keyId, keyTerms: finalTerms });
     }
 
     /**

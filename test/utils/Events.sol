@@ -29,7 +29,7 @@ abstract contract Events {
     event BidCancelled(bytes32 bidHash);
     event BuyOutExecuted(address indexed caller, uint256 keyId);
     event ReserveBuyOut(address indexed caller, uint256 keyId);
-    event KeyTermsSet(uint256 indexed keyId, IKeyExchange.KeyTerms keyTerms);
+    event KeyTermsSet(address indexed caller, uint256 indexed keyId, IKeyExchange.KeyTerms keyTerms);
 
     /// {IVaultFactory} Events.
     event VaultCreated(address indexed user, address indexed vault, VaultType vaultType);

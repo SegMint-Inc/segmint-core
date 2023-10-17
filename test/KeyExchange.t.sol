@@ -901,8 +901,8 @@ contract KeyExchangeTest is BaseTest {
         IKeyExchange.KeyTerms memory keyTerms = IKeyExchange.KeyTerms(marketType, 0, 0);
 
         hoax(users.alice.account);
-        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
-        emit KeyTermsSet({ keyId: keyId, keyTerms: keyTerms });
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: true, checkData: true });
+        emit KeyTermsSet({ caller: users.alice.account, keyId: keyId, keyTerms: keyTerms });
         keyExchange.setKeyTerms(keyId, keyTerms);
 
         IKeyExchange.KeyTerms memory terms = keyExchange.keyTerms(keyId);
@@ -917,8 +917,8 @@ contract KeyExchangeTest is BaseTest {
             IKeyExchange.KeyTerms(marketType, defaultBuyBackPrice, defaultReservePrice);
 
         hoax(users.alice.account);
-        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
-        emit KeyTermsSet({ keyId: keyId, keyTerms: keyTerms });
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: true, checkData: true });
+        emit KeyTermsSet({ caller: users.alice.account, keyId: keyId, keyTerms: keyTerms });
         keyExchange.setKeyTerms(keyId, keyTerms);
 
         IKeyExchange.KeyTerms memory terms = keyExchange.keyTerms(keyId);
