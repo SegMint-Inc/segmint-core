@@ -23,6 +23,11 @@ contract SAVault is ISAVault, Initializable {
      */
     uint256 public boundKeyId;
 
+    constructor() {
+        /// Prevent implementation contract from being initialized.
+        _disableInitializers();
+    }
+
     /**
      * @inheritdoc ISAVault
      */

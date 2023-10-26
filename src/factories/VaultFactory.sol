@@ -37,6 +37,11 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
     mapping(address account => uint256 nonce) private _maVaultNonce;
     mapping(address account => uint256 nonce) private _saVaultNonce;
 
+    constructor() {
+        /// Prevent implementation contract from being initialized.
+        _disableInitializers();
+    }
+
     /**
      * @inheritdoc IVaultFactory
      */
@@ -163,21 +168,21 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
     /**
      * @inheritdoc IVaultFactory
      */
-    function proposeUpgrade(address newImplementation) external onlyRoles(ADMIN_ROLE) {
+    function proposeUpgrade(address newImplementation) external onlyRoles(ADMIN_ROLE) onlyProxy {
         _proposeUpgrade(newImplementation);
     }
 
     /**
      * @inheritdoc IVaultFactory
      */
-    function cancelUpgrade() external onlyRoles(ADMIN_ROLE) {
+    function cancelUpgrade() external onlyRoles(ADMIN_ROLE) onlyProxy {
         _cancelUpgrade();
     }
 
     /**
      * @inheritdoc IVaultFactory
      */
-    function executeUpgrade(bytes memory payload) external onlyRoles(ADMIN_ROLE) {
+    function executeUpgrade(bytes memory payload) external onlyRoles(ADMIN_ROLE) onlyProxy {
         _executeUpgrade(payload);
     }
 
