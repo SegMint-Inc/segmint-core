@@ -25,23 +25,23 @@ contract VaultFactoryTest is BaseTest {
         assertEq(version, "1.0");
     }
 
-    function test_Initialize_SetsVaules() public {
-        VaultFactory testVaultFactory = new VaultFactory();
-        testVaultFactory.initialize({
-            admin_: users.eve.account,
-            maVault_: address(maVault),
-            saVault_: address(saVault),
-            signerRegistry_: signerRegistry,
-            accessRegistry_: accessRegistry,
-            keys_: keys
-        });
+    function testCannot_Initialize_Implementation_VaultFactory() public {
+        /// @dev Since we cast the original implementation in `Base.sol` to the proxy, we need to
+        /// load the EIP-1967 slot to get the true implementation address.
+        bytes32 implementationSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+        bytes32 vaultFactoryImplementation = vm.load(address(vaultFactory), implementationSlot);
+        address implementation = address(uint160(uint256(vaultFactoryImplementation)));
 
-        assertEq(testVaultFactory.owner(), address(this));
-        assertEq(testVaultFactory.maVault(), address(maVault));
-        assertEq(testVaultFactory.saVault(), address(saVault));
-        assertEq(testVaultFactory.signerRegistry(), signerRegistry);
-        assertEq(testVaultFactory.accessRegistry(), accessRegistry);
-        assertEq(testVaultFactory.keys(), keys);
+        hoax(users.eve.account);
+        vm.expectRevert("Initializable: contract is already initialized");
+        VaultFactory(implementation).initialize({
+            admin_: users.eve.account,
+            maVault_: address(0),
+            saVault_: address(0),
+            signerRegistry_: ISignerRegistry(address(0)),
+            accessRegistry_: IAccessRegistry(address(0)),
+            keys_: IKeys(address(0))
+        });
     }
 
     function testCannot_Initialize_Twice() public {

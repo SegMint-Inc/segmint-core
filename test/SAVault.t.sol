@@ -15,6 +15,12 @@ contract SAVaultTest is BaseTest {
         vm.stopPrank();
     }
 
+    function testCannot_Initialize_Implementation_SAVault() public {
+        Asset memory emptyAsset = Asset({ class: AssetClass.ERC721, token: address(0x01), identifier: 0, amount: 1 });
+        vm.expectRevert("Initializable: contract is already initialized");
+        saVault.initialize({ _asset: emptyAsset, _keys: keys, _keyAmount: 0, _receiver: users.eve.account });
+    }
+
     function test_UnlockAsset_Fuzzed(uint256 keyAmount, bool isERC721) public {
         keyAmount = bound(keyAmount, 1, keys.MAX_KEYS());
         Asset memory asset = isERC721 ? getERC721Asset() : getERC1155Asset();

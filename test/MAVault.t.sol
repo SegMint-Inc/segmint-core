@@ -47,6 +47,11 @@ contract MAVaultTest is BaseTest {
         assertEq(keyConfig.supply, keySupply);
     }
 
+    function testCannot_Initialize_Implementation_MAVault() public {
+        vm.expectRevert("Initializable: contract is already initialized");
+        maVault.initialize({ owner_: users.eve.account, keys_: keys, keyAmount_: 0 });
+    }
+
     function testCannot_Initialize_Twice() public {
         hoax(users.eve.account);
         vm.expectRevert("Initializable: contract is already initialized");
