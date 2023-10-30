@@ -553,4 +553,14 @@ contract VaultFactoryTest is BaseTest {
         vm.expectRevert(IUpgradeHandler.UpgradeTimeLocked.selector);
         vaultFactory.executeUpgrade({ payload: "" });
     }
+
+    function testCannot_UpgradeTo_UUPSUpgradeable() public {
+        vm.expectRevert(IUpgradeHandler.UpgradeMethodBlocked.selector);
+        vaultFactory.upgradeTo({ newImplementation: address(0) });
+    }
+
+    function testCannot_UpgradeToAndCall_UUPSUpgradeable() public {
+        vm.expectRevert(IUpgradeHandler.UpgradeMethodBlocked.selector);
+        vaultFactory.upgradeToAndCall({ newImplementation: address(0), data: "" });
+    }
 }
