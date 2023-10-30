@@ -92,4 +92,10 @@ abstract contract UpgradeHandler is IUpgradeHandler, UUPSUpgradeable {
      * @dev Defined to allow for the inheriting contract to implement `_authorizeUpgrade()`.
      */
     function _authorizeUpgrade(address newImplementation) internal virtual override;
+
+    /**
+     * @dev Reserve an additional amount of storage slots to prevent issues with the inheritence chain
+     * in future upgrades.
+     */
+    uint256[49] private __gap;
 }
