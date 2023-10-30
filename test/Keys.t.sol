@@ -374,9 +374,6 @@ contract KeysTest is BaseTest {
         uint256 keySupply = 1;
         address badOperator = address(0xCAFE);
 
-        hoax(users.admin);
-        keys.updateOperatorStatus({ operator: badOperator, status: true });
-
         hoax(users.alice.account);
         uint256 id = keys.createKeys({ amount: keySupply, receiver: users.alice.account, vaultType: VaultType.SINGLE });
 
@@ -521,9 +518,6 @@ contract KeysTest is BaseTest {
         uint256[] memory ids = new uint256[](keySupply);
         uint256[] memory amounts = new uint256[](keySupply);
 
-        hoax(users.admin);
-        keys.updateOperatorStatus({ operator: badOperator, status: true });
-
         hoax(users.alice.account);
         uint256 id = keys.createKeys({ amount: keySupply, receiver: users.alice.account, vaultType: VaultType.SINGLE });
 
@@ -658,7 +652,7 @@ contract KeysTest is BaseTest {
         emit OperatorStatusUpdated({ operator: operator, status: status });
         keys.updateOperatorStatus(operator, status);
 
-        assertEq(keys.isOperatorBlocked(operator), status);
+        assertEq(keys.isOperatorAllowed(operator), status);
     }
 
     function testCannot_UpdateOperatorStatus_Unauthorized(address nonAdmin) public {
@@ -666,13 +660,10 @@ contract KeysTest is BaseTest {
 
         hoax(nonAdmin);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
-        keys.updateOperatorStatus({ operator: nonAdmin, status: false });
+        keys.updateOperatorStatus({ operator: nonAdmin, isAllowed: false });
     }
 
     function testCannot_SetApprovalForAll_OperatorBlocked_Fuzzed(address blockedOperator) public {
-        hoax(users.admin);
-        keys.updateOperatorStatus({ operator: blockedOperator, status: true });
-
         hoax(users.alice.account);
         vm.expectRevert(IOperatorFilter.OperatorBlocked.selector);
         keys.setApprovalForAll(blockedOperator, true);

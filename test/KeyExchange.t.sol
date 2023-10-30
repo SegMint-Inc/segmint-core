@@ -50,8 +50,10 @@ contract KeyExchangeTest is BaseTest {
         keyId = keys.createKeys(keySupply, users.alice.account, VaultType.SINGLE);
 
         /// For ease of testing, allow restricted users to trade.
-        hoax(users.admin);
+        startHoax(users.admin);
         keyExchange.toggleAllowRestrictedUsers();
+        keys.updateOperatorStatus({ operator: address(keyExchange), isAllowed: true });
+        vm.stopPrank();
     }
 
     function test_ExecuteOrders_Single() public setKeyTerms(IKeyExchange.MarketType.FREE) {
