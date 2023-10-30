@@ -4,13 +4,14 @@ pragma solidity 0.8.19;
 import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
 import { ECDSA } from "solady/src/utils/ECDSA.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
+import { IERC20 } from "@openzeppelin/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { TypeHasher } from "./handlers/TypeHasher.sol";
 import { NonceManager } from "./managers/NonceManager.sol";
 import { IKeyExchange } from "./interfaces/IKeyExchange.sol";
 import { IAccessRegistry } from "./interfaces/IAccessRegistry.sol";
 import { IMAVault } from "./interfaces/IMAVault.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
-import { IWETH } from "./interfaces/IWETH.sol";
 import { VaultType, KeyConfig } from "./types/DataTypes.sol";
 
 /**
@@ -19,6 +20,7 @@ import { VaultType, KeyConfig } from "./types/DataTypes.sol";
  */
 
 contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
+    using SafeERC20 for IERC20;
     using ECDSA for bytes32;
 
     /// @dev Total basis points used for fee calculation.
@@ -28,7 +30,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
     uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
 
     /// @dev Wrapped native token contract.
-    IWETH public immutable WETH;
+    IERC20 public immutable WETH;
 
     IKeys public keys;
     IAccessRegistry public accessRegistry;
@@ -51,7 +53,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
         _initializeOwner(msg.sender);
         _grantRoles(admin_, ADMIN_ROLE);
 
-        WETH = IWETH(weth_);
+        WETH = IERC20(weth_);
         feeReceiver = feeReceiver_;
 
         keys = keys_;
@@ -191,12 +193,10 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
             uint256 takerEarnings = bid.price - calculatedFee;
 
             /// Pay protocol fee.
-            bool success = WETH.transferFrom(bid.maker, feeReceiver, calculatedFee);
-            if (!success) revert NativeTransferFailed();
+            WETH.safeTransferFrom(bid.maker, feeReceiver, calculatedFee);
 
             /// Pay bid maker.
-            success = WETH.transferFrom(bid.maker, msg.sender, takerEarnings);
-            if (!success) revert NativeTransferFailed();
+            WETH.safeTransferFrom(bid.maker, msg.sender, takerEarnings);
 
             /// Emit event to acknowledge the bid has been filled.
             emit BidFilled(bidHash);
