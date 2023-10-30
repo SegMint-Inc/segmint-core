@@ -318,6 +318,14 @@ contract KeysTest is BaseTest {
         keys.unfreezeKeys(keyId);
     }
 
+    function testCannot_ClearLendingTerms_Unauthorized(address nonKeyExchange) public {
+        vm.assume(nonKeyExchange != address(keyExchange));
+
+        hoax(nonKeyExchange);
+        vm.expectRevert(IKeys.CallerNotExchange.selector);
+        keys.clearLendingTerms({ lendee: nonKeyExchange, keyId: 0 });
+    }
+
     function test_SetKeyExchange_Fuzzed(address newKeyExchange) public {
         keys.setKeyExchange(newKeyExchange);
         assertEq(keys.keyExchange(), newKeyExchange);
