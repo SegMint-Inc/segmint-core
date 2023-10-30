@@ -378,7 +378,7 @@ contract KeyExchangeTest is BaseTest {
         vm.mockCall({ callee: address(mockWETH), data: "", returnData: abi.encode(false) });
 
         hoax(users.alice.account);
-        vm.expectRevert(IKeyExchange.NativeTransferFailed.selector);
+        vm.expectRevert("SafeERC20: ERC20 operation did not succeed");
         keyExchange.executeBids(bids);
     }
 
@@ -406,7 +406,7 @@ contract KeyExchangeTest is BaseTest {
         vm.mockCall({ callee: address(mockWETH), data: data, returnData: abi.encode(false) });
 
         hoax(users.alice.account);
-        vm.expectRevert(IKeyExchange.NativeTransferFailed.selector);
+        vm.expectRevert("SafeERC20: ERC20 operation did not succeed");
         keyExchange.executeBids(bids);
     }
 
