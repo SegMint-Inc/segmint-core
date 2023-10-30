@@ -16,6 +16,22 @@ abstract contract UpgradeHandler is IUpgradeHandler, UUPSUpgradeable {
     /// The current upgrade proposal.
     IUpgradeHandler.UpgradeProposal public upgradeProposal;
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                 UUPSUPGRADEABLE OVERRIDES                  */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * @dev The functions below have been override to make them uncallable.
+     */
+
+    function upgradeTo(address newImplementation) public override {
+        revert UpgradeMethodBlocked();
+    }
+
+    function upgradeToAndCall(address newImplementation, bytes memory data) public payable override {
+        revert UpgradeMethodBlocked();
+    }
+
     /**
      * Function used to propose an upgrade to the implementation address.
      * @param newImplementation The new implementation address.
