@@ -8,7 +8,7 @@ import { IOperatorFilter } from "../interfaces/IOperatorFilter.sol";
  * @notice This contract manages the filtering of operators on the ERC1155 keys contract.
  */
 abstract contract OperatorFilter is IOperatorFilter {
-    mapping(address operator => bool blocked) public isOperatorBlocked;
+    mapping(address operator => bool allowed) public isOperatorAllowed;
 
     /**
      * Modifier used to validate an operator address when {IERC1155.setApprovalForAll} is called.
@@ -28,13 +28,13 @@ abstract contract OperatorFilter is IOperatorFilter {
     }
 
     /**
-     * Function used to block an operator.
+     * Function used to update an operators status.
      * @param operator Address of the operator.
-     * @param isBlocked Flag indicating if the operator is blocked or not.
+     * @param isAllowed Flag indicating if the operator is allowed or not.
      */
-    function _updateOperatorStatus(address operator, bool isBlocked) internal {
-        isOperatorBlocked[operator] = isBlocked;
-        emit OperatorStatusUpdated({ operator: operator, status: isBlocked });
+    function _updateOperatorStatus(address operator, bool isAllowed) internal {
+        isOperatorAllowed[operator] = isAllowed;
+        emit OperatorStatusUpdated({ operator: operator, status: isAllowed });
     }
 
     /**
@@ -42,6 +42,6 @@ abstract contract OperatorFilter is IOperatorFilter {
      */
     function _checkOperatorStatus(address operator) internal view {
         /// Checks: Ensure the operator address is not blocked.
-        if (isOperatorBlocked[operator]) revert OperatorBlocked();
+        if (!isOperatorAllowed[operator]) revert OperatorBlocked();
     }
 }

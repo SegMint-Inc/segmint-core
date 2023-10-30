@@ -235,8 +235,8 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
     /**
      * Function used to update an operators status.
      */
-    function updateOperatorStatus(address operator, bool status) external onlyRoles(ADMIN_ROLE) {
-        _updateOperatorStatus(operator, status);
+    function updateOperatorStatus(address operator, bool isAllowed) external onlyRoles(ADMIN_ROLE) {
+        _updateOperatorStatus(operator, isAllowed);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
