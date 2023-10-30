@@ -66,6 +66,11 @@ interface IKeys {
      */
     error CannotLendToSelf();
 
+    /**
+     * Thrown when the caller is not the exchange.
+     */
+    error CallerNotExchange();
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           EVENTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -166,4 +171,11 @@ interface IKeys {
      * @param keyId Unique key identifier.
      */
     function activeLends(address lendee, uint256 keyId) external view returns (LendingTerms memory);
+
+    /**
+     * Function used to clear lending terms for a specified lendee.
+     * @param lendee Address to clear a lend for.
+     * @param keyId Unique key identifier.
+     */
+    function clearLendingTerms(address lendee, uint256 keyId) external;
 }

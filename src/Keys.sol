@@ -210,8 +210,16 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
     }
 
     /**
+     * @inheritdoc IKeys
+     */
+    function clearLendingTerms(address lendee, uint256 keyId) external {
+        /// Checks: Ensure the caller is the Key Exchange.
+        if (msg.sender != keyExchange) revert CallerNotExchange();
+        _activeLends[lendee][keyId] = LendingTerms({ lender: address(0), amount: 0, expiryTime: 0 });
+    }
+
+    /**
      * Function used to set the key exchange address.
-     * @dev This function may only be called once during deployment.
      */
     function setKeyExchange(address newKeyExchange) external onlyOwner {
         keyExchange = newKeyExchange;

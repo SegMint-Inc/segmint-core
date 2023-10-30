@@ -125,9 +125,9 @@ interface IKeyExchange {
     error Restricted();
 
     /**
-     * Thrown when an asset withdraw occurs in the same block as a sale for a multi-asset vault.
+     * Thrown when a holder has no keys.
      */
-    error AssetMovementInSaleBlock();
+    error NoKeysHeld();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           EVENTS                           */
@@ -304,17 +304,15 @@ interface IKeyExchange {
      * Function used to execute a buy back of all keys from existing holders.
      * @param keyId Unique key idenitifier.
      * @param holders Array of holders to purchase the keys from.
-     * @param amounts Array of amounts to purchase from each holder.
      */
-    function executeBuyBack(uint256 keyId, address[] calldata holders, uint256[] calldata amounts) external payable;
+    function executeBuyBack(uint256 keyId, address[] calldata holders) external payable;
 
     /**
      * Function used to purchase keys at the reserve price from existing holders.
      * @param keyId Unique key idenitifier.
      * @param holders Array of holders to purchase the keys from.
-     * @param amounts Array of amounts to purchase from each holder.
      */
-    function buyAtReserve(uint256 keyId, address[] calldata holders, uint256[] calldata amounts) external payable;
+    function buyAtReserve(uint256 keyId, address[] calldata holders) external payable;
 
     /**
      * Function used to set the key terms associated with a key idenitifier.
