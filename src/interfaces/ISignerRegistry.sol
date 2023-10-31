@@ -14,6 +14,11 @@ interface ISignerRegistry {
      */
     error SignerMismatch();
 
+    /**
+     * Thrown when the zero address is provided.
+     */
+    error ZeroAddressInvalid();
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           EVENTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/

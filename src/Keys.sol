@@ -56,6 +56,8 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
     }
 
     constructor(address admin_, string memory uri_, IAccessRegistry accessRegistry_) ERC1155(uri_) {
+        if (admin_ == address(0) || address(accessRegistry_) == address(0)) revert ZeroAddressInvalid();
+
         _initializeOwner(msg.sender);
         _grantRoles(admin_, ADMIN_ROLE);
 
@@ -113,6 +115,9 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
      * @inheritdoc IKeys
      */
     function lendKeys(address lendee, uint256 keyId, uint256 lendAmount, uint256 lendDuration) external {
+        /// Checks: Ensure `lendee` is not the zero address to prevent excess gas consumption.
+        if (lendee == address(0)) revert ZeroAddressInvalid();
+
         /// Checks: Ensure the key idenitifier is not frozen.
         if (_keyConfig[keyId].isFrozen) revert KeysFrozen();
 
@@ -174,6 +179,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
      * @inheritdoc IKeys
      */
     function registerVault(address vault) external onlyRoles(FACTORY_ROLE) {
+        if (vault == address(0)) revert ZeroAddressInvalid();
         isRegistered[vault] = true;
     }
 
@@ -222,6 +228,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
      * Function used to set the key exchange address.
      */
     function setKeyExchange(address newKeyExchange) external onlyOwner {
+        if (newKeyExchange == address(0)) revert ZeroAddressInvalid();
         keyExchange = newKeyExchange;
     }
 

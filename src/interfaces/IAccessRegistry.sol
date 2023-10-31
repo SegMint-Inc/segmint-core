@@ -26,6 +26,11 @@ interface IAccessRegistry {
      */
     error DeadlinePassed();
 
+    /**
+     * Thrown when the zero address is provided.
+     */
+    error ZeroAddressInvalid();
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ENUMS                            */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/

@@ -15,6 +15,8 @@ contract SignerRegistry is ISignerRegistry, OwnableRoles {
     address private _signer;
 
     constructor(address admin_, address signer_) {
+        if (admin_ == address(0) || signer_ == address(0)) revert ZeroAddressInvalid();
+
         _initializeOwner(msg.sender);
         _grantRoles(admin_, ADMIN_ROLE);
 
@@ -27,6 +29,8 @@ contract SignerRegistry is ISignerRegistry, OwnableRoles {
      * @inheritdoc ISignerRegistry
      */
     function setSigner(address newSigner) external onlyRoles(ADMIN_ROLE) {
+        if (newSigner == address(0)) revert ZeroAddressInvalid();
+
         address oldSigner = _signer;
         _signer = newSigner;
 

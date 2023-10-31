@@ -16,9 +16,9 @@ interface IVaultFactory {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * Thrown when the predicted deployment address does not match the actual deployment address.
+     * Thrown when the zero address is provided.
      */
-    error AddressMismatch();
+    error ZeroAddressInvalid();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           EVENTS                           */

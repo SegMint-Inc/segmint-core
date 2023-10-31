@@ -32,6 +32,11 @@ interface ISAVault {
      */
     error ZeroAssetAmount();
 
+    /**
+     * Thrown when the zero address is provided.
+     */
+    error ZeroAddressInvalid();
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                         FUNCTIONS                          */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/

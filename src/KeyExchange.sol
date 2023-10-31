@@ -50,6 +50,12 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
     mapping(uint256 keyId => KeyTerms keyTerms) private _keyTerms;
 
     constructor(address admin_, address feeReceiver_, address weth_, IKeys keys_, IAccessRegistry accessRegistry_) {
+        if (admin_ == address(0)) revert ZeroAddressInvalid();
+        if (feeReceiver_ == address(0)) revert ZeroAddressInvalid();
+        if (weth_ == address(0)) revert ZeroAddressInvalid();
+        if (address(keys_) == address(0)) revert ZeroAddressInvalid();
+        if (address(accessRegistry_) == address(0)) revert ZeroAddressInvalid();
+
         _initializeOwner(msg.sender);
         _grantRoles(admin_, ADMIN_ROLE);
 
@@ -377,6 +383,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
      * @inheritdoc IKeyExchange
      */
     function setFeeReceiver(address newFeeReceiver) external onlyRoles(ADMIN_ROLE) {
+        if (newFeeReceiver == address(0)) revert ZeroAddressInvalid();
         feeReceiver = newFeeReceiver;
     }
 

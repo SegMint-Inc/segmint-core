@@ -36,6 +36,8 @@ contract MAVault is IMAVault, Ownable, Initializable {
      * @inheritdoc IMAVault
      */
     function initialize(address owner_, IKeys keys_, uint256 keyAmount_) external initializer {
+        if (owner_ == address(0) || address(keys_) == address(0)) revert ZeroAddressInvalid();
+
         _initializeOwner(owner_);
 
         keys = keys_;
@@ -50,6 +52,9 @@ contract MAVault is IMAVault, Ownable, Initializable {
     function unlockAssets(Asset[] calldata assets, address receiver) external onlyOwner {
         /// Checks: Ensure a non-zero amount of assets has been specified.
         if (assets.length == 0) revert ZeroAssetAmount();
+
+        /// Checks: Ensure `receiver` is not zero address to prevent excess gas consumption.
+        if (receiver == address(0)) revert ZeroAddressInvalid();
 
         /// Checks: Ensure the associated keys have been burnt.
         if (boundKeyId != 0) revert KeysBinded();
@@ -90,6 +95,9 @@ contract MAVault is IMAVault, Ownable, Initializable {
     function unlockNativeToken(address receiver) external onlyOwner {
         /// Checks: Ensure the associated keys have been burnt.
         if (boundKeyId != 0) revert KeysBinded();
+
+        /// Checks: Ensure `receiver` is not zero address to prevent excess gas consumption.
+        if (receiver == address(0)) revert ZeroAddressInvalid();
 
         (bool success,) = receiver.call{ value: address(this).balance }("");
         if (!success) revert NativeTokenUnlockFailed();

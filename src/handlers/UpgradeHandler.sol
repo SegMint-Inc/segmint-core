@@ -21,10 +21,11 @@ abstract contract UpgradeHandler is IUpgradeHandler, UUPSUpgradeable {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * @dev The functions below have been override to make them uncallable.
+     * @dev The functions below have been override to make them uncallable. Parameter names
+     * have been included for completeness.
      */
 
-    function upgradeTo(address newImplementation) public override {
+    function upgradeTo(address newImplementation) public pure override {
         revert UpgradeMethodBlocked();
     }
 

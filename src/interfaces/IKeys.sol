@@ -71,6 +71,11 @@ interface IKeys {
      */
     error CallerNotExchange();
 
+    /**
+     * Thrown when the zero address is provided.
+     */
+    error ZeroAddressInvalid();
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           EVENTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/

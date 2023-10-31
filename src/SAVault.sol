@@ -44,6 +44,8 @@ contract SAVault is ISAVault, Initializable {
         /// Checks: Ensure that if the asset is an ERC721 token, the amount is 1.
         if (_asset.class == AssetClass.ERC721 && _asset.amount != 1) revert Invalid721Amount();
 
+        if (address(_keys) == address(0) || _receiver == address(0)) revert ZeroAddressInvalid();
+
         _lockedAsset = _asset;
         keys = _keys;
 
@@ -55,6 +57,9 @@ contract SAVault is ISAVault, Initializable {
      * @inheritdoc ISAVault
      */
     function unlockAsset(address receiver) external {
+        /// Checks: Ensure `receiver` is not the zero address to prevent excessive gas consumption.
+        if (receiver == address(0)) revert ZeroAddressInvalid();
+
         /// Copy `Asset` struct into memory.
         Asset memory asset = _lockedAsset;
 

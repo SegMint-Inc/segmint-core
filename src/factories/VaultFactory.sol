@@ -53,6 +53,13 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
         IAccessRegistry accessRegistry_,
         IKeys keys_
     ) external initializer {
+        if (admin_ == address(0)) revert ZeroAddressInvalid();
+        if (maVault_ == address(0)) revert ZeroAddressInvalid();
+        if (saVault_ == address(0)) revert ZeroAddressInvalid();
+        if (address(signerRegistry_) == address(0)) revert ZeroAddressInvalid();
+        if (address(accessRegistry_) == address(0)) revert ZeroAddressInvalid();
+        if (address(keys_) == address(0)) revert ZeroAddressInvalid();
+
         _initializeOwner(msg.sender);
         _grantRoles(admin_, ADMIN_ROLE);
 
@@ -169,6 +176,7 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
      * @inheritdoc IVaultFactory
      */
     function proposeUpgrade(address newImplementation) external onlyRoles(ADMIN_ROLE) onlyProxy {
+        if (newImplementation == address(0)) revert ZeroAddressInvalid();
         _proposeUpgrade(newImplementation);
     }
 

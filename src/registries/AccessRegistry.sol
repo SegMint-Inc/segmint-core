@@ -23,6 +23,8 @@ contract AccessRegistry is IAccessRegistry, OwnableRoles {
     mapping(address account => AccessType accessType) public accessType;
 
     constructor(address admin_, ISignerRegistry signerRegistry_) {
+        if (admin_ == address(0) || address(signerRegistry_) == address(0)) revert ZeroAddressInvalid();
+
         _initializeOwner(msg.sender);
         _grantRoles(admin_, ADMIN_ROLE);
 
@@ -72,6 +74,7 @@ contract AccessRegistry is IAccessRegistry, OwnableRoles {
      * @inheritdoc IAccessRegistry
      */
     function setSignerRegistry(ISignerRegistry newSignerRegistry) external onlyRoles(ADMIN_ROLE) {
+        if (address(newSignerRegistry) == address(0)) revert ZeroAddressInvalid();
         signerRegistry = newSignerRegistry;
     }
 }
