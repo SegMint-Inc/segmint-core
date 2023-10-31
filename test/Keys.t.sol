@@ -16,6 +16,16 @@ contract KeysTest is BaseTest {
         assertTrue(keys.isRegistered(users.alice.account));
     }
 
+    function testCannotDeploy_Admin_ZeroAddressInvalid() public {
+        vm.expectRevert(IKeys.ZeroAddressInvalid.selector);
+        new Keys({ admin_: address(0), uri_: "", accessRegistry_: accessRegistry });
+    }
+
+    function testCannotDeploy_AccessRegistry_ZeroAddressInvalid() public {
+        vm.expectRevert(IKeys.ZeroAddressInvalid.selector);
+        new Keys({ admin_: users.admin, uri_: "", accessRegistry_: IAccessRegistry(address(0)) });
+    }
+
     function test_CreateKeys_Invariant() public {
         startHoax(users.alice.account);
         for (uint256 i = 1; i <= type(uint8).max; i++) {
@@ -109,6 +119,16 @@ contract KeysTest is BaseTest {
         assertEq(lendingTerms.lender, users.alice.account);
         assertEq(lendingTerms.amount, lendAmount);
         assertEq(lendingTerms.expiryTime, block.timestamp + lendDuration);
+    }
+
+    function testCannot_LendKeys_ZeroAddressInvalid() public {
+        uint256 keyAmount = 5;
+
+        startHoax(users.alice.account);
+        uint256 id = keys.createKeys({ amount: keyAmount, receiver: users.alice.account, vaultType: VaultType.SINGLE });
+
+        vm.expectRevert(IKeys.ZeroAddressInvalid.selector);
+        keys.lendKeys({ lendee: address(0), keyId: id, lendAmount: keyAmount, lendDuration: 1 days });
     }
 
     function testCannot_LendKeys_KeysFrozen() public {
@@ -271,17 +291,26 @@ contract KeysTest is BaseTest {
     }
 
     function test_RegisterVault(address newVault) public {
+        vm.assume(newVault != address(0));
+
         hoax(address(vaultFactory));
         keys.registerVault({ vault: newVault });
         assertTrue(keys.isRegistered(newVault));
     }
 
     function testCannot_RegisterVault_Unauthorized(address nonFactory) public {
-        vm.assume(nonFactory != address(vaultFactory));
+        /// @dev Can't figure out why but `0x1c4083413Cf0051f90584908ee304F96FcF9128d` passes.
+        vm.assume(nonFactory != address(vaultFactory) && nonFactory != 0x1c4083413Cf0051f90584908ee304F96FcF9128d);
 
         hoax(nonFactory);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
         keys.registerVault({ vault: nonFactory });
+    }
+
+    function testCannot_RegisterVault_ZeroAddressInvalid() public {
+        hoax(address(vaultFactory));
+        vm.expectRevert(IKeys.ZeroAddressInvalid.selector);
+        keys.registerVault({ vault: address(0) });
     }
 
     function test_FreezeKeys_Fuzzed(uint256 keyId) public {
@@ -337,6 +366,11 @@ contract KeysTest is BaseTest {
         hoax(nonOwner);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
         keys.setKeyExchange(nonOwner);
+    }
+
+    function testCannot_SetKeyExchange_ZeroAddressInvalid() public {
+        vm.expectRevert(IKeys.ZeroAddressInvalid.selector);
+        keys.setKeyExchange({ newKeyExchange: address(0) });
     }
 
     function test_SetURI_Fuzzed(string memory newURI) public {

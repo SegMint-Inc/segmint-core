@@ -56,6 +56,61 @@ contract KeyExchangeTest is BaseTest {
         vm.stopPrank();
     }
 
+    function testCannotDeploy_Admin_ZeroAddressInvalid() public {
+        vm.expectRevert(IKeyExchange.ZeroAddressInvalid.selector);
+        new KeyExchange({
+            admin_: address(0),
+            feeReceiver_: FEE_RECEIVER,
+            weth_: address(mockWETH),
+            keys_: keys,
+            accessRegistry_: accessRegistry
+        });
+    }
+
+    function testCannotDeploy_FeeReceiver_ZeroAddressInvalid() public {
+        vm.expectRevert(IKeyExchange.ZeroAddressInvalid.selector);
+        new KeyExchange({
+            admin_: users.admin,
+            feeReceiver_: address(0),
+            weth_: address(mockWETH),
+            keys_: keys,
+            accessRegistry_: accessRegistry
+        });
+    }
+
+    function testCannotDeploy_WETH_ZeroAddressInvalid() public {
+        vm.expectRevert(IKeyExchange.ZeroAddressInvalid.selector);
+        new KeyExchange({
+            admin_: users.admin,
+            feeReceiver_: FEE_RECEIVER,
+            weth_: address(0),
+            keys_: keys,
+            accessRegistry_: accessRegistry
+        });
+    }
+
+    function testCannotDeploy_Keys_ZeroAddressInvalid() public {
+        vm.expectRevert(IKeyExchange.ZeroAddressInvalid.selector);
+        new KeyExchange({
+            admin_: users.admin,
+            feeReceiver_: FEE_RECEIVER,
+            weth_: address(mockWETH),
+            keys_: IKeys(address(0)),
+            accessRegistry_: accessRegistry
+        });
+    }
+
+    function testCannotDeploy_AccessRegistry_ZeroAddressInvalid() public {
+        vm.expectRevert(IKeyExchange.ZeroAddressInvalid.selector);
+        new KeyExchange({
+            admin_: users.admin,
+            feeReceiver_: FEE_RECEIVER,
+            weth_: address(mockWETH),
+            keys_: keys,
+            accessRegistry_: IAccessRegistry(address(0))
+        });
+    }
+
     function test_ExecuteOrders_Single() public setKeyTerms(IKeyExchange.MarketType.FREE) {
         IKeyExchange.Order memory order = getGenericOrder(users.alice.account);
         bytes32 orderHash = keyExchange.hashOrder(order);
@@ -1015,6 +1070,12 @@ contract KeyExchangeTest is BaseTest {
         hoax(users.eve.account);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
         keyExchange.setFeeReceiver(users.eve.account);
+    }
+
+    function testCannot_SetFeeReceiver_ZeroAddressInvalid() public {
+        hoax(users.admin);
+        vm.expectRevert(IKeyExchange.ZeroAddressInvalid.selector);
+        keyExchange.setFeeReceiver({ newFeeReceiver: address(0) });
     }
 
     function test_IncrementNonce_Fuzzed(address account) public {

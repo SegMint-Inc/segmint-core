@@ -19,6 +19,16 @@ contract AccessRegistryTest is BaseTest {
         assertTrue(result);
     }
 
+    function testCannotDeploy_Admin_ZeroAddressInvalid() public {
+        vm.expectRevert(IAccessRegistry.ZeroAddressInvalid.selector);
+        new AccessRegistry({ admin_: address(0), signerRegistry_: signerRegistry });
+    }
+
+    function testCannotDeploy_SignerRegistry_ZeroAddressInvalid() public {
+        vm.expectRevert(IAccessRegistry.ZeroAddressInvalid.selector);
+        new AccessRegistry({ admin_: users.admin, signerRegistry_: ISignerRegistry(address(0)) });
+    }
+
     function test_InitAccessType() public {
         uint256 deadline = block.timestamp + 1 hours;
         IAccessRegistry.AccessType accessType = IAccessRegistry.AccessType.RESTRICTED;
@@ -102,6 +112,8 @@ contract AccessRegistryTest is BaseTest {
     }
 
     function test_SetSignerRegistry_Fuzzed(ISignerRegistry newSignerRegistry) public {
+        vm.assume(address(newSignerRegistry) != address(0));
+
         hoax(users.admin);
         accessRegistry.setSignerRegistry(newSignerRegistry);
         assertEq(accessRegistry.signerRegistry(), newSignerRegistry);
@@ -113,5 +125,11 @@ contract AccessRegistryTest is BaseTest {
         hoax(nonAdmin);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
         accessRegistry.setSignerRegistry(badRegistry);
+    }
+
+    function testCannot_SetSignerRegistry_ZeroAddressInvalid() public {
+        hoax(users.admin);
+        vm.expectRevert(ISignerRegistry.ZeroAddressInvalid.selector);
+        accessRegistry.setSignerRegistry({ newSignerRegistry: ISignerRegistry(address(0)) });
     }
 }

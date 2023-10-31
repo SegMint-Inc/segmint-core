@@ -19,7 +19,19 @@ contract SignerRegistryTest is BaseTest {
         assertTrue(result);
     }
 
+    function testCannotDeploy_Admin_ZeroAddressInvalid() public {
+        vm.expectRevert(ISignerRegistry.ZeroAddressInvalid.selector);
+        new SignerRegistry({ admin_: address(0), signer_: address(1) });
+    }
+
+    function testCannotDeploy_Signer_ZeroAddressInvalid() public {
+        vm.expectRevert(ISignerRegistry.ZeroAddressInvalid.selector);
+        new SignerRegistry({ admin_: users.admin, signer_: address(0) });
+    }
+
     function test_SetSigner_Fuzzed(address signer) public {
+        vm.assume(signer != address(0));
+
         address initialSigner = signerRegistry.getSigner();
 
         hoax(users.admin);
@@ -36,5 +48,11 @@ contract SignerRegistryTest is BaseTest {
         hoax(nonAdmin);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
         signerRegistry.setSigner({ newSigner: nonAdmin });
+    }
+
+    function testCannot_SetSigner_ZeroAddressInvalid() public {
+        hoax(users.admin);
+        vm.expectRevert(ISignerRegistry.ZeroAddressInvalid.selector);
+        signerRegistry.setSigner({ newSigner: address(0) });
     }
 }

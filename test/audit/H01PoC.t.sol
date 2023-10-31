@@ -11,7 +11,7 @@ contract Destroyer {
         selfdestruct(payable(address(0)));
     }
 
-    function proxiableUUID() external view returns (bytes32) {
+    function proxiableUUID() external pure returns (bytes32) {
         return _IMPLEMENTATION_SLOT;
     }
 }
@@ -46,7 +46,7 @@ contract HO1PoCTest is BaseTest {
         vm.stopPrank();
     }
 
-    function test_VaultFactory_Implementation_Destruction() public {
+    function test_VaultFactory_Implementation_Destruction() public view {
         // Print out the bytecode of the VaultFactory implementation
         console.logBytes(address(0x212224D2F2d262cd093eE13240ca4873fcCBbA3C).code);
         // Call the methods of the implementation via proxy

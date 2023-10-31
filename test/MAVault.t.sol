@@ -58,6 +58,34 @@ contract MAVaultTest is BaseTest {
         vault.initialize({ owner_: users.eve.account, keys_: keys, keyAmount_: 0 });
     }
 
+    function testCannot_Initialize_MAVault_Owner_ZeroAddressInvalid() public {
+        MAVault testVault = new MAVault();
+        vm.expectRevert(IMAVault.ZeroAddressInvalid.selector);
+        new ERC1967Proxy({
+            _logic: address(testVault),
+            _data: abi.encodeWithSelector(
+                IMAVault.initialize.selector,
+                address(0),  // owner
+                keys,
+                1
+            )
+        });
+    }
+
+    function testCannot_Initialize_MAVault_Keys_ZeroAddressInvalid() public {
+        MAVault testVault = new MAVault();
+        vm.expectRevert(IMAVault.ZeroAddressInvalid.selector);
+        new ERC1967Proxy({
+            _logic: address(testVault),
+            _data: abi.encodeWithSelector(
+                IMAVault.initialize.selector,
+                users.alice.account,
+                address(0),  // Keys
+                1
+            )
+        });
+    }
+
     function test_UnlockAssets_ERC20() public {
         Asset[] memory assets = new Asset[](1);
         assets[0] = getERC20Asset();
@@ -144,6 +172,14 @@ contract MAVaultTest is BaseTest {
         vault.unlockAssets({ assets: assets, receiver: users.alice.account });
     }
 
+    function testCannot_UnlockAssets_ZeroAddressInvalid() public {
+        Asset[] memory assets = new Asset[](1);
+
+        hoax(users.alice.account);
+        vm.expectRevert(IMAVault.ZeroAddressInvalid.selector);
+        vault.unlockAssets({ assets: assets, receiver: address(0) });
+    }
+
     function testCannot_UnlockAssets_KeysBinded() public {
         Asset[] memory assets = getAssets();
 
@@ -183,6 +219,18 @@ contract MAVaultTest is BaseTest {
         hoax(nonOwner);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
         vault.unlockNativeToken(nonOwner);
+    }
+
+    function testCannot_UnlockNativeToken_ZeroAddressInvalid() public {
+        uint256 amount = 1 ether;
+        deal(address(vault), amount);
+        assertEq(address(vault).balance, amount);
+
+        startHoax(users.alice.account, 0 ether);
+        vault.claimOwnership();
+
+        vm.expectRevert(IMAVault.ZeroAddressInvalid.selector);
+        vault.unlockNativeToken({ receiver: address(0) });
     }
 
     function testCannot_UnlockNativeToken_KeysBinded() public {
