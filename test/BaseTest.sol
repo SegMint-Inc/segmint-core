@@ -161,6 +161,17 @@ abstract contract BaseTest is Base, Assertions, Events {
         return abi.encodePacked(r, s, v);
     }
 
+    /// Used for {KYCRegistry.initAccessType}.
+    function getAccessSignature(IAccessRegistry.AccessParams memory accessParams)
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes32 digest = accessRegistry.hashAccessParams(accessParams);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign({ privateKey: users.signer.privateKey, digest: digest });
+        return abi.encodePacked(r, s, v);
+    }
+
     /// Used for {ServiceFactory} vault creation functions.
     function getVaultCreationSignature(address account, uint256 nonce, VaultType vaultType)
         internal

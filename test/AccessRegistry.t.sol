@@ -32,61 +32,123 @@ contract AccessRegistryTest is BaseTest {
     function test_InitAccessType() public {
         uint256 deadline = block.timestamp + 1 hours;
         IAccessRegistry.AccessType accessType = IAccessRegistry.AccessType.RESTRICTED;
-        bytes memory signature = getAccessSignature(users.alice.account, deadline, accessType);
+
+        IAccessRegistry.AccessParams memory accessParams = IAccessRegistry.AccessParams({
+            user: users.alice.account,
+            deadline: deadline,
+            nonce: accessRegistry.accountNonce(users.alice.account),
+            accessType: accessType
+        });
+        bytes memory signature = getAccessSignature(accessParams);
 
         hoax(users.alice.account);
         vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: true, checkData: true });
         emit AccessTypeSet({ account: users.alice.account, accessType: accessType, signature: signature });
-        accessRegistry.initAccessType({ signature: signature, deadline: deadline, newAccessType: accessType });
+        accessRegistry.initAccessType(accessParams, signature);
 
         assertEq(accessRegistry.accessType({ account: users.alice.account }), accessType);
+        assertEq(accessRegistry.accountNonce({ account: users.alice.account }), 1);
     }
 
     function testCannot_InitAccessType_DeadlinePassed() public {
-        uint256 deadline = block.timestamp;
-        IAccessRegistry.AccessType accessType = IAccessRegistry.AccessType.RESTRICTED;
-        bytes memory signature = getAccessSignature(users.alice.account, deadline, accessType);
+        IAccessRegistry.AccessParams memory accessParams = IAccessRegistry.AccessParams({
+            user: users.alice.account,
+            deadline: block.timestamp,
+            nonce: accessRegistry.accountNonce(users.alice.account),
+            accessType: IAccessRegistry.AccessType.RESTRICTED
+        });
+        bytes memory signature = getAccessSignature(accessParams);
 
-        vm.warp(deadline + 1 seconds);
+        vm.warp(accessParams.deadline + 1 seconds);
 
         hoax(users.alice.account);
         vm.expectRevert(IAccessRegistry.DeadlinePassed.selector);
-        accessRegistry.initAccessType({ signature: signature, deadline: deadline, newAccessType: accessType });
+        accessRegistry.initAccessType(accessParams, signature);
     }
 
     function testCannot_InitAccessType_AccessTypeDefined() public {
-        uint256 deadline = block.timestamp + 1 hours;
-        IAccessRegistry.AccessType accessType = IAccessRegistry.AccessType.RESTRICTED;
-        bytes memory signature = getAccessSignature(users.alice.account, deadline, accessType);
+        IAccessRegistry.AccessParams memory accessParams = IAccessRegistry.AccessParams({
+            user: users.alice.account,
+            deadline: block.timestamp,
+            nonce: accessRegistry.accountNonce(users.alice.account),
+            accessType: IAccessRegistry.AccessType.RESTRICTED
+        });
+        bytes memory signature = getAccessSignature(accessParams);
 
         startHoax(users.alice.account);
-        accessRegistry.initAccessType({ signature: signature, deadline: deadline, newAccessType: accessType });
+        accessRegistry.initAccessType(accessParams, signature);
+
         vm.expectRevert(IAccessRegistry.AccessTypeDefined.selector);
-        accessRegistry.initAccessType({ signature: signature, deadline: deadline, newAccessType: accessType });
+        accessRegistry.initAccessType(accessParams, signature);
+    }
+
+    function testCannot_InitAccessType_UserAddressMismatch() public {
+        IAccessRegistry.AccessType accessType = IAccessRegistry.AccessType.RESTRICTED;
+        IAccessRegistry.AccessParams memory accessParams = IAccessRegistry.AccessParams({
+            user: users.alice.account,
+            deadline: block.timestamp,
+            nonce: accessRegistry.accountNonce(users.alice.account),
+            accessType: accessType
+        });
+        bytes memory signature = getAccessSignature(accessParams);
+
+        hoax(users.bob.account);
+        vm.expectRevert(IAccessRegistry.UserAddressMismatch.selector);
+        accessRegistry.initAccessType(accessParams, signature);
     }
 
     function testCannot_InitAccessType_InvalidAccessType() public {
-        uint256 deadline = block.timestamp;
-        IAccessRegistry.AccessType accessType = IAccessRegistry.AccessType.BLOCKED;
-        bytes memory signature = getAccessSignature(users.alice.account, deadline, accessType);
+        IAccessRegistry.AccessParams memory accessParams = IAccessRegistry.AccessParams({
+            user: users.alice.account,
+            deadline: block.timestamp,
+            nonce: accessRegistry.accountNonce(users.alice.account),
+            accessType: IAccessRegistry.AccessType.BLOCKED
+        });
+        bytes memory signature = getAccessSignature(accessParams);
 
         hoax(users.alice.account);
         vm.expectRevert(IAccessRegistry.InvalidAccessType.selector);
-        accessRegistry.initAccessType({ signature: signature, deadline: deadline, newAccessType: accessType });
+        accessRegistry.initAccessType(accessParams, signature);
+    }
+
+    function testCannot_InitAccessType_NonceUsed() public {
+        IAccessRegistry.AccessParams memory accessParams = IAccessRegistry.AccessParams({
+            user: users.alice.account,
+            deadline: block.timestamp,
+            nonce: accessRegistry.accountNonce(users.alice.account),
+            accessType: IAccessRegistry.AccessType.RESTRICTED
+        });
+        bytes memory signature = getAccessSignature(accessParams);
+
+        hoax(users.alice.account);
+        accessRegistry.initAccessType(accessParams, signature);
+
+        hoax(users.admin);
+        accessRegistry.modifyAccessType({
+            account: users.alice.account,
+            newAccessType: IAccessRegistry.AccessType.BLOCKED
+        });
+
+        hoax(users.alice.account);
+        vm.expectRevert(IAccessRegistry.NonceUsed.selector);
+        accessRegistry.initAccessType(accessParams, signature);
+        
     }
 
     function testCannot_InitAccessType_SignerMismatch() public {
-        uint256 deadline = block.timestamp + 1 hours;
-        IAccessRegistry.AccessType accessType = IAccessRegistry.AccessType.RESTRICTED;
-        bytes memory signature = getAccessSignature(users.alice.account, deadline, accessType);
+        IAccessRegistry.AccessParams memory accessParams = IAccessRegistry.AccessParams({
+            user: users.alice.account,
+            deadline: block.timestamp,
+            nonce: accessRegistry.accountNonce(users.alice.account),
+            accessType: IAccessRegistry.AccessType.RESTRICTED
+        });
+        bytes memory signature = getAccessSignature(accessParams);
+        accessParams.accessType = IAccessRegistry.AccessType.UNRESTRICTED;
+
 
         hoax(users.alice.account);
         vm.expectRevert(ISignerRegistry.SignerMismatch.selector);
-        accessRegistry.initAccessType({
-            signature: signature,
-            deadline: deadline,
-            newAccessType: IAccessRegistry.AccessType.UNRESTRICTED
-        });
+        accessRegistry.initAccessType(accessParams, signature);
     }
 
     function test_ModifyAccessType() public {
