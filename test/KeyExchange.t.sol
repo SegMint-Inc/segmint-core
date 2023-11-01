@@ -134,7 +134,7 @@ contract KeyExchangeTest is BaseTest {
         assertEq(keys.balanceOf(users.alice.account, order.keyId), keySupply - order.amount);
         assertEq(keys.balanceOf(users.bob.account, order.keyId), order.amount);
 
-        uint256 expectedFee = order.price * keyExchange.protocolFee() / 10_000;
+        uint256 expectedFee = order.price * order.protocolFee / 10_000;
         uint256 expectedEarnings = order.price - expectedFee;
 
         assertEq(users.alice.account.balance, initialMakerBalance + expectedEarnings);
@@ -167,11 +167,46 @@ contract KeyExchangeTest is BaseTest {
         assertEq(keys.balanceOf(users.alice.account, order.keyId), keySupply - order.amount);
         assertEq(keys.balanceOf(users.bob.account, order.keyId), order.amount);
 
-        uint256 expectedFee = order.price * keyExchange.protocolFee() / 10_000;
+        uint256 expectedFee = order.price * order.protocolFee / 10_000;
         uint256 expectedEarnings = order.price - expectedFee;
 
         assertEq(users.alice.account.balance, initialMakerBalance + expectedEarnings);
         assertEq(users.bob.account.balance, excess);
+        assertEq(keyExchange.feeReceiver().balance, initialFeeBalance + expectedFee);
+    }
+
+    function test_ExecuteOrders_AfterFeeChange() public setKeyTerms(IKeyExchange.MarketType.FREE) {
+        IKeyExchange.Order memory order = getGenericOrder(users.alice.account);
+        bytes32 orderHash = keyExchange.hashOrder(order);
+
+        IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](1);
+        orders[0] = signOrder(order, users.alice.privateKey);
+
+        assertEq(keyExchange.orderStatus(orderHash), IKeyExchange.Status.OPEN);
+        assertEq(keys.balanceOf(users.alice.account, order.keyId), keySupply);
+        assertEq(keys.balanceOf(users.bob.account, order.keyId), 0);
+
+        uint256 initialMakerBalance = users.alice.account.balance;
+        uint256 initialFeeBalance = keyExchange.feeReceiver().balance;
+
+        /// Change protocol fee after the order has been signed.
+        hoax(users.admin);
+        keyExchange.setProtocolFee({ newProtocolFee: 1_000 }); // 10.00%
+
+        hoax(users.bob.account, order.price);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
+        emit OrderFilled({ orderHash: orderHash });
+        keyExchange.executeOrders{ value: order.price }(orders);
+
+        assertEq(keyExchange.orderStatus(orderHash), IKeyExchange.Status.FILLED);
+        assertEq(keys.balanceOf(users.alice.account, order.keyId), keySupply - order.amount);
+        assertEq(keys.balanceOf(users.bob.account, order.keyId), order.amount);
+
+        uint256 expectedFee = order.price * order.protocolFee / 10_000;
+        uint256 expectedEarnings = order.price - expectedFee;
+
+        assertEq(users.alice.account.balance, initialMakerBalance + expectedEarnings);
+        assertEq(users.bob.account.balance, 0);
         assertEq(keyExchange.feeReceiver().balance, initialFeeBalance + expectedFee);
     }
 
@@ -258,7 +293,7 @@ contract KeyExchangeTest is BaseTest {
         IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](1);
         orders[0] = signOrder(order, users.alice.privateKey);
 
-        uint256 expectedFee = order.price * keyExchange.protocolFee() / 10_000;
+        uint256 expectedFee = order.price * order.protocolFee / 10_000;
         uint256 expectedEarnings = order.price - expectedFee;
 
         bytes memory callData = abi.encodeWithSelector(mockWETH.transfer.selector, order.maker, expectedEarnings);
@@ -351,7 +386,7 @@ contract KeyExchangeTest is BaseTest {
         assertEq(keys.balanceOf(users.alice.account, bid.keyId), keySupply - bid.amount);
         assertEq(keys.balanceOf(users.bob.account, bid.keyId), bid.amount);
 
-        uint256 expectedFee = bid.price * keyExchange.protocolFee() / 10_000;
+        uint256 expectedFee = bid.price * bid.protocolFee / 10_000;
         uint256 expectedEarnings = bid.price - expectedFee;
 
         assertEq(mockWETH.balanceOf(users.alice.account), expectedEarnings);
@@ -454,7 +489,7 @@ contract KeyExchangeTest is BaseTest {
         hoax(users.bob.account);
         mockWETH.approve(address(keyExchange), type(uint256).max);
 
-        uint256 calculatedFee = bid.price * keyExchange.protocolFee() / 10_000;
+        uint256 calculatedFee = bid.price * bid.protocolFee / 10_000;
         uint256 takerEarnings = bid.price - calculatedFee;
 
         /// Ensure the WETH transfer of earnings to Alice fails and returns false.
@@ -1109,7 +1144,8 @@ contract KeyExchangeTest is BaseTest {
             amount: defaultOrderAmount,
             nonce: 0,
             startTime: block.timestamp,
-            endTime: block.timestamp + 7 days
+            endTime: block.timestamp + 7 days,
+            protocolFee: keyExchange.protocolFee()
         });
     }
 
@@ -1121,7 +1157,8 @@ contract KeyExchangeTest is BaseTest {
             amount: defaultBidAmount,
             nonce: 0,
             startTime: block.timestamp,
-            endTime: block.timestamp + 7 days
+            endTime: block.timestamp + 7 days,
+            protocolFee: keyExchange.protocolFee()
         });
     }
 
