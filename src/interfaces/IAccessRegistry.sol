@@ -31,6 +31,16 @@ interface IAccessRegistry {
      */
     error ZeroAddressInvalid();
 
+    /**
+     * Thrown when the provided nonce has been consumed.
+     */
+    error NonceUsed();
+
+    /**
+     * Thrown when the user address does not match `msg.sender`.
+     */
+    error UserAddressMismatch();
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ENUMS                            */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -45,6 +55,24 @@ interface IAccessRegistry {
         BLOCKED,
         RESTRICTED,
         UNRESTRICTED
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                          STRUCTS                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * Struct encapsulating the data related to setting an access type.
+     * @param user Account that is being granted the access type.
+     * @param deadline The timestamp by which the signature must be used.
+     * @param nonce Unique nonce.
+     * @param accessType Type of access the user has within the protocol.
+     */
+    struct AccessParams {
+        address user;
+        uint256 deadline;
+        uint256 nonce;
+        AccessType accessType;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -76,11 +104,10 @@ interface IAccessRegistry {
 
     /**
      * Function used to initialise the access type of an address.
+     * @param accessParams Desired `{AccessParams}` struct.
      * @param signature Signed message digest.
-     * @param deadline Timestamp of when the signature expires.
-     * @param newAccessType New `{AccessType}` Enum value.
      */
-    function initAccessType(bytes calldata signature, uint256 deadline, AccessType newAccessType) external;
+    function initAccessType(AccessParams calldata accessParams, bytes calldata signature) external;
 
     /**
      * Function used to modify the access type of an address.
@@ -96,7 +123,20 @@ interface IAccessRegistry {
     function setSignerRegistry(ISignerRegistry newSignerRegistry) external;
 
     /**
-     * Function used to view the access type of an address
+     * Function used to view the access type of an address.
+     * @param account Account to view the access type for.
      */
     function accessType(address account) external view returns (AccessType);
+
+    /**
+     * Function used to view the nonce for a given account.
+     * @param account Account to check the nonce for.
+     */
+    function accountNonce(address account) external view returns (uint256);
+
+    /**
+     * Function used to get the `AccessParams` struct hash in accordance with EIP712.
+     * @param accessParams Desired `AccessParams` struct.
+     */
+    function hashAccessParams(AccessParams calldata accessParams) external view returns (bytes32);
 }

@@ -378,7 +378,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
         if (newProtocolFee > _BASIS_POINTS) revert FeeExceedsBps();
         uint256 oldProtocolFee = protocolFee;
         protocolFee = newProtocolFee;
-        emit ProtocolFeeUpdated({ oldFee: oldProtocolFee, newFee: newProtocolFee});
+        emit ProtocolFeeUpdated({ oldFee: oldProtocolFee, newFee: newProtocolFee });
     }
 
     /**
