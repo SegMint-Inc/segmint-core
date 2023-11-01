@@ -122,7 +122,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
             IERC1155(address(keys)).safeTransferFrom(order.maker, msg.sender, order.keyId, order.amount, "");
 
             /// Calculate the protocol fee and subtract from the order price.
-            uint256 calculatedFee = order.price * protocolFee / _BASIS_POINTS;
+            uint256 calculatedFee = order.price * order.protocolFee / _BASIS_POINTS;
             uint256 makerEarnings = order.price - calculatedFee;
 
             /// Update the total amount of native token to pay the protocol.
@@ -195,7 +195,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
             IERC1155(address(keys)).safeTransferFrom(msg.sender, bid.maker, bid.keyId, bid.amount, "");
 
             /// Calculate protocol fee.
-            uint256 calculatedFee = bid.price * protocolFee / _BASIS_POINTS;
+            uint256 calculatedFee = bid.price * bid.protocolFee / _BASIS_POINTS;
             uint256 takerEarnings = bid.price - calculatedFee;
 
             /// Pay protocol fee.
@@ -376,7 +376,9 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
      */
     function setProtocolFee(uint256 newProtocolFee) external onlyRoles(ADMIN_ROLE) {
         if (newProtocolFee > _BASIS_POINTS) revert FeeExceedsBps();
+        uint256 oldProtocolFee = protocolFee;
         protocolFee = newProtocolFee;
+        emit ProtocolFeeUpdated({ oldFee: oldProtocolFee, newFee: newProtocolFee});
     }
 
     /**

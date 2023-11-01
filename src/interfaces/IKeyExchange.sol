@@ -172,6 +172,11 @@ interface IKeyExchange {
      */
     event ReserveBuyOut(address indexed caller, uint256 keyId);
 
+    /**
+     * Emitted when the protocol fee is updated.
+     */
+    event ProtocolFeeUpdated(uint256 indexed oldFee, uint256 indexed newFee);
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ENUMS                            */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -225,6 +230,7 @@ interface IKeyExchange {
      * @param nonce Nonce of the maker at the time this order was created.
      * @param startTime Timestamp that this order was created.
      * @param endTime Timestamp that this order will become invalid.
+     * @param protocolFee Protocol fee at the time the order was created.
      */
     struct Order {
         uint256 price;
@@ -235,6 +241,7 @@ interface IKeyExchange {
         uint256 nonce;
         uint256 startTime;
         uint256 endTime;
+        uint256 protocolFee;
     }
 
     /**
@@ -246,6 +253,7 @@ interface IKeyExchange {
      * @param nonce Nonce of the bidder at the time this order was created.
      * @param startTime Timestamp that this bid was created.
      * @param endTime Timestamp that this bid will become invalid.
+     * @param protocolFee Protocol fee at the time the order was created.
      */
     struct Bid {
         address maker;
@@ -255,6 +263,7 @@ interface IKeyExchange {
         uint256 nonce;
         uint256 startTime;
         uint256 endTime;
+        uint256 protocolFee;
     }
 
     /**
