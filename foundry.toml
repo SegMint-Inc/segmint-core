@@ -4,6 +4,19 @@ out = "out"
 evm_version = "paris"
 libs = ["lib"]
 fs_permissions = [{ access = "read", path = "./"}]
+gas_reports = [
+    "VaultFactory",
+    "OperatorFilter",
+    "TypeHasher",
+    "UpgradeHandler",
+    "NonceManager",
+    "AccessRegsitry",
+    "SignerRegistry",
+    "KeyExchange",
+    "Keys",
+    "MAVault",
+    "SAVault"
+]
 
 [rpc_endpoints]
 goerli = "${GOERLI_RPC_URL}"
