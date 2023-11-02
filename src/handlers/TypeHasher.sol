@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { EIP712 } from "solady/src/utils/EIP712.sol";
+import { EIP712 } from "@solady/src/utils/EIP712.sol";
 import { IKeyExchange } from "../interfaces/IKeyExchange.sol";
 
 /**

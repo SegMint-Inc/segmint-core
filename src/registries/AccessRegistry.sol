@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
-import { ECDSA } from "solady/src/utils/ECDSA.sol";
-import { EIP712 } from "solady/src/utils/EIP712.sol";
+import { OwnableRoles } from "@solady/src/auth/OwnableRoles.sol";
+import { ECDSA } from "@solady/src/utils/ECDSA.sol";
+import { EIP712 } from "@solady/src/utils/EIP712.sol";
 import { IAccessRegistry } from "../interfaces/IAccessRegistry.sol";
 import { ISignerRegistry } from "../interfaces/ISignerRegistry.sol";
 

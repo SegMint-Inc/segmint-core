@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import "forge-std/console2.sol";
 import "./Base.sol";
 
-import { ECDSA } from "solady/src/utils/ECDSA.sol";
+import { ECDSA } from "@solady/src/utils/ECDSA.sol";
 import { IERC20 } from "@openzeppelin/token/ERC20/IERC20.sol";
 import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";

@@ -4,4 +4,4 @@ erc721a/=lib/erc721a/
 forge-std/=lib/forge-std/src/
 @openzeppelin-contracts/=lib/openzeppelin-contracts/
 @openzeppelin/=lib/openzeppelin-contracts/contracts/
-solady/=lib/solady/
+@solady/=lib/solady/
