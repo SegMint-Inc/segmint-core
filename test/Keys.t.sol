@@ -358,6 +358,32 @@ contract KeysTest is BaseTest {
         keys.clearLendingTerms({ lendee: nonKeyExchange, keyId: 0 });
     }
 
+    function test_SetAccessRegistry_Fuzzed(IAccessRegistry newAccessRegistry) public {
+        vm.assume(address(newAccessRegistry) != address(0));
+        IAccessRegistry oldAccessRegistry = keys.accessRegistry();
+
+        hoax(users.admin);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
+        emit AccessRegistryUpdated({ oldAccessRegistry: oldAccessRegistry, newAccessRegistry: newAccessRegistry });
+        keys.setAccessRegistry(newAccessRegistry);
+
+        assertEq(keys.accessRegistry(), newAccessRegistry);
+    }
+
+    function testCannot_SetAccessRegistry_Unauthorized(address nonAdmin) public {
+        vm.assume(nonAdmin != users.admin && nonAdmin != 0x2a07706473244BC757E10F2a9E86fB532828afe3);
+
+        hoax(nonAdmin);
+        vm.expectRevert(UNAUTHORIZED_SELECTOR);
+        keys.setAccessRegistry(IAccessRegistry(address(0x01)));
+    }
+
+    function testCannot_SetAccessRegistry_ZeroAddressInvalid() public {
+        hoax(users.admin);
+        vm.expectRevert(IAccessRegistry.ZeroAddressInvalid.selector);
+        keys.setAccessRegistry({ newAccessRegistry: IAccessRegistry(address(0) )});
+    }
+
     function test_SetKeyExchange_Fuzzed(address newKeyExchange) public {
         vm.assume(newKeyExchange != address(0));
         address oldKeyExchange = keys.keyExchange();

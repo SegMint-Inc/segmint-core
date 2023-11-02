@@ -47,6 +47,7 @@ abstract contract Events {
     event VaultRegistered(address indexed registeredVault);
     event KeyExchangeUpdated(address indexed oldKeyExchange, address indexed newKeyExchange);
     event URIUpdated(string newURI);
+    event AccessRegistryUpdated(IAccessRegistry indexed oldAccessRegistry, IAccessRegistry indexed newAccessRegistry);
 
     /// {IUpgradeHandler} Events.
     event UpgradeProposed(address indexed admin, address implementation, uint40 deadline);
