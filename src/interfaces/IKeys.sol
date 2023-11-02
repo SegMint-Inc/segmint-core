@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
+import { IAccessRegistry } from "./IAccessRegistry.sol";
 import { VaultType, KeyConfig } from "../types/DataTypes.sol";
 
 /**
@@ -99,6 +100,13 @@ interface IKeys {
      * @param registeredVault Address of the newly registered vault.
      */
     event VaultRegistered(address indexed registeredVault);
+
+    /**
+     * Emitted when the Access Registry address is updated.
+     * @param oldAccessRegistry Old Access Registry address.
+     * @param newAccessRegistry New Access Registry address.
+     */
+    event AccessRegistryUpdated(IAccessRegistry indexed oldAccessRegistry, IAccessRegistry indexed newAccessRegistry);
 
     /**
      * Emitted when the Key Exchange address is updated.

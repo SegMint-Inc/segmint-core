@@ -31,9 +31,8 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
 
     /// @dev Wrapped native token contract.
     IERC20 public immutable WETH;
-
-    IKeys public keys;
-    IAccessRegistry public accessRegistry;
+    IKeys public immutable keys;
+    IAccessRegistry public immutable accessRegistry;
 
     /// Default protocol fee to 05.00%
     uint256 public protocolFee = 500;

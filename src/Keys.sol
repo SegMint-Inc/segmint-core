@@ -224,6 +224,18 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
     }
 
     /**
+     * Function used to set the `accessRegistry` address.
+     */
+    function setAccessRegistry(IAccessRegistry newAccessRegistry) external onlyRoles(ADMIN_ROLE) {
+        if (address(newAccessRegistry) == address(0)) revert ZeroAddressInvalid();
+
+        IAccessRegistry oldAccessRegistry = accessRegistry;
+        accessRegistry = newAccessRegistry;
+
+        emit AccessRegistryUpdated({ oldAccessRegistry: oldAccessRegistry, newAccessRegistry: newAccessRegistry });
+    }
+
+    /**
      * Function used to set the `keyExchange` address.
      */
     function setKeyExchange(address newKeyExchange) external onlyOwner {
