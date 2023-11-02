@@ -370,8 +370,9 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
             uint256 freeKeys = this.balanceOf(from, id) - lendingTerms.amount;
 
             /// If the number of keys being transferred exceeds the number of free keys owned by
-            /// `from`, they shouldn't be able to move any keys.
-            if (amount > freeKeys) revert OverFreeKeyBalance();
+            /// `from`, they shouldn't be able to move any keys as this would result in lended keys being
+            /// transferred.
+            if (amount > freeKeys) revert CannotTransferLendedKeys();
         }
     }
 }

@@ -32,9 +32,9 @@ interface IKeys {
     error NoActiveLend();
 
     /**
-     * Thrown when trying to transfer an amount of keys that exceeds the accounts free key balance.
+     * Thrown when trying to transfer keys that taps into the accounts lended key balance.
      */
-    error OverFreeKeyBalance();
+    error CannotTransferLendedKeys();
 
     /**
      * Thrown when trying to transfer a zero amount of keys.

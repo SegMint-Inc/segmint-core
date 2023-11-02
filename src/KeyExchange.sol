@@ -85,59 +85,61 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
         /// Tracks the total fees to be paid for all orders.
         uint256 totalFees = 0;
 
-        for (uint256 i = 0; i < orders.length; i++) {
-            /// Cache respective order parameters.
-            Order calldata order = orders[i].order;
-            bytes calldata signature = orders[i].signature;
+        unchecked {
+            for (uint256 i = 0; i < orders.length; ++i) {
+                /// Cache respective order parameters.
+                Order calldata order = orders[i].order;
+                bytes calldata signature = orders[i].signature;
 
-            /// Checks: Ensure the order maker has valid access to the Key Exchange.
-            _checkAccess(order.maker);
+                /// Checks: Ensure the order maker has valid access to the Key Exchange.
+                _checkAccess(order.maker);
 
-            /// Checks: Ensure that the key terms have been defined for the associated key ID.
-            MarketType keyMarket = _keyTerms[order.keyId].market;
-            if (keyMarket == MarketType.UNDEFINED || keyMarket == MarketType.INACTIVE) revert InvalidKeyMarket();
+                /// Checks: Ensure that the key terms have been defined for the associated key ID.
+                MarketType keyMarket = _keyTerms[order.keyId].market;
+                if (keyMarket == MarketType.UNDEFINED || keyMarket == MarketType.INACTIVE) revert InvalidKeyMarket();
 
-            /// Get the EIP712 digest of the provided order.
-            bytes32 orderHash = _hashOrder(order);
+                /// Get the EIP712 digest of the provided order.
+                bytes32 orderHash = _hashOrder(order);
 
-            /// Checks: Determine if the order has a valid status.
-            if (orderStatus[orderHash] != Status.OPEN) revert InvalidOrderStatus();
+                /// Checks: Determine if the order has a valid status.
+                if (orderStatus[orderHash] != Status.OPEN) revert InvalidOrderStatus();
 
-            /// Checks: Confirm that the signature attached matches the order maker.
-            if (orderHash.recover(signature) != order.maker) revert SignerNotMaker();
+                /// Checks: Confirm that the signature attached matches the order maker.
+                if (orderHash.recover(signature) != order.maker) revert SignerNotMaker();
 
-            /// Checks: Determine if a taker has been specified and if the caller is the taker.
-            if (order.taker != address(0) && msg.sender != order.taker) revert CallerNotTaker();
+                /// Checks: Determine if a taker has been specified and if the caller is the taker.
+                if (order.taker != address(0) && msg.sender != order.taker) revert CallerNotTaker();
 
-            /// Checks: Ensure bid start time has elapsed.
-            if (block.timestamp < order.startTime) revert InactiveOrderOrBid();
+                /// Checks: Ensure bid start time has elapsed.
+                if (block.timestamp < order.startTime) revert InactiveOrderOrBid();
 
-            /// Checks: Ensure bid end time hasn't passed.
-            if (block.timestamp > order.endTime) revert ExpiredOrderOrBid();
+                /// Checks: Ensure bid end time hasn't passed.
+                if (block.timestamp > order.endTime) revert ExpiredOrderOrBid();
 
-            /// Acknowledge that the order will be filled upon success.
-            orderStatus[orderHash] = Status.FILLED;
+                /// Acknowledge that the order will be filled upon success.
+                orderStatus[orderHash] = Status.FILLED;
 
-            /// Transfer keys to caller.
-            IERC1155(address(keys)).safeTransferFrom(order.maker, msg.sender, order.keyId, order.amount, "");
+                /// Transfer keys to caller.
+                IERC1155(address(keys)).safeTransferFrom(order.maker, msg.sender, order.keyId, order.amount, "");
 
-            /// Calculate the protocol fee and subtract from the order price.
-            uint256 calculatedFee = order.price * order.protocolFee / _BASIS_POINTS;
-            uint256 makerEarnings = order.price - calculatedFee;
+                /// Calculate the protocol fee and subtract from the order price.
+                uint256 calculatedFee = order.price * order.protocolFee / _BASIS_POINTS;
+                uint256 makerEarnings = order.price - calculatedFee;
 
-            /// Update the total amount of native token to pay the protocol.
-            totalFees += calculatedFee;
+                /// Update the total amount of native token to pay the protocol.
+                totalFees += calculatedFee;
 
-            /// Pay the maker earnings, forward a sufficient amount of gas.
-            (bool success,) = order.maker.call{ value: makerEarnings }("");
-            if (!success) revert NativeTransferFailed();
+                /// Pay the maker earnings, forward a sufficient amount of gas.
+                (bool success,) = order.maker.call{ value: makerEarnings }("");
+                if (!success) revert NativeTransferFailed();
 
-            /// Checks: Ensure a sufficient amount of native token has been provided.
-            if (order.price > msgValue) revert InvalidNativeTokenAmount();
-            msgValue -= order.price;
+                /// Checks: Ensure a sufficient amount of native token has been provided.
+                if (order.price > msgValue) revert InvalidNativeTokenAmount();
+                msgValue -= order.price;
 
-            /// Emit event after the order has been completely filled.
-            emit OrderFilled(orderHash);
+                /// Emit event after the order has been completely filled.
+                emit OrderFilled(orderHash);
+            }
         }
 
         /// Pay the total fee amount to the fee receiver.
@@ -160,52 +162,54 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
     function executeBids(BidParams[] calldata bidParams) external checkCaller {
         /// Checks: Ensure a non zero amount of bids have been provided.
         if (bidParams.length == 0) revert ZeroLengthArray();
+        
+        unchecked {
+            for (uint256 i = 0; i < bidParams.length; ++i) {
+                /// Cache respective bid parameters.
+                Bid calldata bid = bidParams[i].bid;
+                bytes calldata signature = bidParams[i].signature;
 
-        for (uint256 i = 0; i < bidParams.length; i++) {
-            /// Cache respective bid parameters.
-            Bid calldata bid = bidParams[i].bid;
-            bytes calldata signature = bidParams[i].signature;
+                /// Checks: Ensure the bid maker has valid access to the Key Exchange.
+                _checkAccess(bid.maker);
 
-            /// Checks: Ensure the bid maker has valid access to the Key Exchange.
-            _checkAccess(bid.maker);
+                /// Checks: Ensure that key terms have been defined for the key identifier.
+                MarketType keyMarket = _keyTerms[bid.keyId].market;
+                if (keyMarket == MarketType.UNDEFINED || keyMarket == MarketType.INACTIVE) revert InvalidKeyMarket();
 
-            /// Checks: Ensure that key terms have been defined for the key identifier.
-            MarketType keyMarket = _keyTerms[bid.keyId].market;
-            if (keyMarket == MarketType.UNDEFINED || keyMarket == MarketType.INACTIVE) revert InvalidKeyMarket();
+                /// Get the EIP712 digest of the provided bid.
+                bytes32 bidHash = _hashBid(bid);
 
-            /// Get the EIP712 digest of the provided bid.
-            bytes32 bidHash = _hashBid(bid);
+                /// Checks: Determine if the bid has already been filled.
+                if (bidStatus[bidHash] != Status.OPEN) revert InvalidBidStatus();
 
-            /// Checks: Determine if the bid has already been filled.
-            if (bidStatus[bidHash] != Status.OPEN) revert InvalidBidStatus();
+                /// Checks: Confirm that the signature attached matches the order signer.
+                if (bidHash.recover(signature) != bid.maker) revert SignerNotMaker();
 
-            /// Checks: Confirm that the signature attached matches the order signer.
-            if (bidHash.recover(signature) != bid.maker) revert SignerNotMaker();
+                /// Checks: Ensure bid start time has elapsed.
+                if (block.timestamp < bid.startTime) revert InactiveOrderOrBid();
 
-            /// Checks: Ensure bid start time has elapsed.
-            if (block.timestamp < bid.startTime) revert InactiveOrderOrBid();
+                /// Checks: Ensure bid end time hasn't passed.
+                if (block.timestamp > bid.endTime) revert ExpiredOrderOrBid();
 
-            /// Checks: Ensure bid end time hasn't passed.
-            if (block.timestamp > bid.endTime) revert ExpiredOrderOrBid();
+                /// Acknowledge the bid will be filled.
+                bidStatus[bidHash] = Status.FILLED;
 
-            /// Acknowledge the bid will be filled.
-            bidStatus[bidHash] = Status.FILLED;
+                /// Transfer assets to the bid maker.
+                IERC1155(address(keys)).safeTransferFrom(msg.sender, bid.maker, bid.keyId, bid.amount, "");
 
-            /// Transfer assets to the bid maker.
-            IERC1155(address(keys)).safeTransferFrom(msg.sender, bid.maker, bid.keyId, bid.amount, "");
+                /// Calculate protocol fee.
+                uint256 calculatedFee = bid.price * bid.protocolFee / _BASIS_POINTS;
+                uint256 takerEarnings = bid.price - calculatedFee;
 
-            /// Calculate protocol fee.
-            uint256 calculatedFee = bid.price * bid.protocolFee / _BASIS_POINTS;
-            uint256 takerEarnings = bid.price - calculatedFee;
+                /// Pay protocol fee.
+                WETH.safeTransferFrom(bid.maker, feeReceiver, calculatedFee);
 
-            /// Pay protocol fee.
-            WETH.safeTransferFrom(bid.maker, feeReceiver, calculatedFee);
+                /// Pay bid maker.
+                WETH.safeTransferFrom(bid.maker, msg.sender, takerEarnings);
 
-            /// Pay bid maker.
-            WETH.safeTransferFrom(bid.maker, msg.sender, takerEarnings);
-
-            /// Emit event to acknowledge the bid has been filled.
-            emit BidFilled(bidHash);
+                /// Emit event to acknowledge the bid has been filled.
+                emit BidFilled(bidHash);
+            }
         }
     }
 
@@ -217,24 +221,26 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
         if (orders.length == 0) revert ZeroLengthArray();
 
         /// Iterate through each order.
-        for (uint256 i = 0; i < orders.length; i++) {
-            /// Cache order parameter.
-            Order calldata order = orders[i];
+        unchecked {
+            for (uint256 i = 0; i < orders.length; ++i) {
+                /// Cache order parameter.
+                Order calldata order = orders[i];
 
-            /// Checks: Ensure the caller is the maker of the order.
-            if (order.maker != msg.sender) revert CallerNotMaker();
+                /// Checks: Ensure the caller is the maker of the order.
+                if (order.maker != msg.sender) revert CallerNotMaker();
 
-            /// Get the EIP712 digest of the provided order.
-            bytes32 orderHash = _hashOrder(order);
+                /// Get the EIP712 digest of the provided order.
+                bytes32 orderHash = _hashOrder(order);
 
-            /// Checks: Ensure the order isn't already cancelled or filled.
-            if (orderStatus[orderHash] != Status.OPEN) revert InvalidOrderStatus();
+                /// Checks: Ensure the order isn't already cancelled or filled.
+                if (orderStatus[orderHash] != Status.OPEN) revert InvalidOrderStatus();
 
-            /// Cancel the order by updating its status to cancelled.
-            orderStatus[orderHash] = Status.CANCELLED;
+                /// Cancel the order by updating its status to cancelled.
+                orderStatus[orderHash] = Status.CANCELLED;
 
-            /// Emit event for order cancellation.
-            emit OrderCancelled(orderHash);
+                /// Emit event for order cancellation.
+                emit OrderCancelled(orderHash);
+            }   
         }
     }
 
@@ -246,24 +252,26 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
         if (bids.length == 0) revert ZeroLengthArray();
 
         /// Iterate through each bid.
-        for (uint256 i = 0; i < bids.length; i++) {
-            /// Cache bid parameter.
-            Bid calldata bid = bids[i];
+        unchecked {
+            for (uint256 i = 0; i < bids.length; ++i) {
+                /// Cache bid parameter.
+                Bid calldata bid = bids[i];
 
-            /// Checks: Ensure the caller is the maker of the bid.
-            if (bid.maker != msg.sender) revert CallerNotMaker();
+                /// Checks: Ensure the caller is the maker of the bid.
+                if (bid.maker != msg.sender) revert CallerNotMaker();
 
-            /// Get the EIP712 digest of the provided bid.
-            bytes32 bidHash = _hashBid(bid);
+                /// Get the EIP712 digest of the provided bid.
+                bytes32 bidHash = _hashBid(bid);
 
-            /// Checks: Ensure the bid isn't cancelled of filled.
-            if (bidStatus[bidHash] != Status.OPEN) revert InvalidBidStatus();
+                /// Checks: Ensure the bid isn't cancelled of filled.
+                if (bidStatus[bidHash] != Status.OPEN) revert InvalidBidStatus();
 
-            /// Cancel the bid by updating its status.
-            bidStatus[bidHash] = Status.CANCELLED;
+                /// Cancel the bid by updating its status.
+                bidStatus[bidHash] = Status.CANCELLED;
 
-            /// Emit event for bid cancellation.
-            emit BidCancelled(bidHash);
+                /// Emit event for bid cancellation.
+                emit BidCancelled(bidHash);
+            }
         }
     }
 
@@ -470,46 +478,48 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
         /// Push original `msg.value` on to the stack.
         uint256 msgValue = msg.value;
 
-        for (uint256 i = 0; i < holders.length; i++) {
-            address holder = holders[i];
-            uint256 keyBalance = IERC1155(address(keys)).balanceOf(holder, keyId);
-            if (keyBalance == 0) revert NoKeysHeld();
+        unchecked {
+            for (uint256 i = 0; i < holders.length; ++i) {
+                address holder = holders[i];
+                uint256 keyBalance = IERC1155(address(keys)).balanceOf(holder, keyId);
+                if (keyBalance == 0) revert NoKeysHeld();
 
-            /// Calculate the earnings to be distributed.
-            uint256 earnings = keyPrice * keyBalance;
-            if (earnings > msgValue) revert InvalidNativeTokenAmount();
-            msgValue -= earnings;
+                /// Calculate the earnings to be distributed.
+                uint256 earnings = keyPrice * keyBalance;
+                if (earnings > msgValue) revert InvalidNativeTokenAmount();
+                msgValue -= earnings;
 
-            /// Check if the keys held by the holder are lended and distribute earnings accordingly.
-            IKeys.LendingTerms memory lendingTerms = keys.activeLends(holder, keyId);
+                /// Check if the keys held by the holder are lended and distribute earnings accordingly.
+                IKeys.LendingTerms memory lendingTerms = keys.activeLends(holder, keyId);
 
-            if (lendingTerms.amount == 0) {
-                (bool success,) = holder.call{ value: earnings }("");
-                if (!success) revert NativeTransferFailed();
-            } else {
-                /// Clear the associated lend to allow for key transfers after earnings distribution. Doing so
-                /// avoids the transaction reverting with `OverFreeKeyBalance`.
-                keys.clearLendingTerms({ lendee: holder, keyId: keyId });
-
-                /// If all keys held by the holder are lended, distribute the earnings to the original lender.
-                if (lendingTerms.amount == keyBalance) {
-                    (bool success,) = lendingTerms.lender.call{ value: earnings }("");
+                if (lendingTerms.amount == 0) {
+                    (bool success,) = holder.call{ value: earnings }("");
                     if (!success) revert NativeTransferFailed();
+                } else {
+                    /// Clear the associated lend to allow for key transfers after earnings distribution. Doing so
+                    /// avoids the transaction reverting with `CannotTransferLendedKeys`.
+                    keys.clearLendingTerms({ lendee: holder, keyId: keyId });
+
+                    /// If all keys held by the holder are lended, distribute the earnings to the original lender.
+                    if (lendingTerms.amount == keyBalance) {
+                        (bool success,) = lendingTerms.lender.call{ value: earnings }("");
+                        if (!success) revert NativeTransferFailed();
 
                     /// Otherwise, distribute earnings to both the lender and holder.
-                } else {
-                    uint256 holderEarnings = keyPrice * (keyBalance - lendingTerms.amount);
+                    } else {
+                        uint256 holderEarnings = keyPrice * (keyBalance - lendingTerms.amount);
 
-                    (bool success,) = holder.call{ value: holderEarnings }("");
-                    if (!success) revert NativeTransferFailed();
+                        (bool success,) = holder.call{ value: holderEarnings }("");
+                        if (!success) revert NativeTransferFailed();
 
-                    (success,) = lendingTerms.lender.call{ value: earnings - holderEarnings }("");
-                    if (!success) revert NativeTransferFailed();
+                        (success,) = lendingTerms.lender.call{ value: earnings - holderEarnings }("");
+                        if (!success) revert NativeTransferFailed();
+                    }
                 }
-            }
 
-            /// Transfer keys to the caller.
-            IERC1155(address(keys)).safeTransferFrom(holder, msg.sender, keyId, keyBalance, "");
+                /// Transfer keys to the caller.
+                IERC1155(address(keys)).safeTransferFrom(holder, msg.sender, keyId, keyBalance, "");
+            }
         }
 
         /// Refund any remaining native token to the caller.

@@ -57,7 +57,7 @@ contract MAVault is IMAVault, Ownable, Initializable {
         if (receiver == address(0)) revert ZeroAddressInvalid();
 
         /// Checks: Ensure the associated keys have been burnt.
-        if (boundKeyId != 0) revert KeysBinded();
+        if (boundKeyId != 0) revert KeysBindedToVault();
 
         for (uint256 i = 0; i < assets.length; i++) {
             Asset calldata asset = assets[i];
@@ -94,7 +94,7 @@ contract MAVault is IMAVault, Ownable, Initializable {
      */
     function unlockNativeToken(address receiver) external onlyOwner {
         /// Checks: Ensure the associated keys have been burnt.
-        if (boundKeyId != 0) revert KeysBinded();
+        if (boundKeyId != 0) revert KeysBindedToVault();
 
         /// Checks: Ensure `receiver` is not zero address to prevent excess gas consumption.
         if (receiver == address(0)) revert ZeroAddressInvalid();
@@ -111,7 +111,7 @@ contract MAVault is IMAVault, Ownable, Initializable {
      */
     function claimOwnership() external {
         /// Checks: Ensure a valid key ID is binded to the vault.
-        if (boundKeyId == 0) revert NoKeysBinded();
+        if (boundKeyId == 0) revert NoKeysBindedToVault();
 
         /// Burn the keys associated with the vault, this will revert if the caller
         /// doesn't hold the full supply of keys.
