@@ -175,9 +175,13 @@ contract AccessRegistryTest is BaseTest {
 
     function test_SetSignerRegistry_Fuzzed(ISignerRegistry newSignerRegistry) public {
         vm.assume(address(newSignerRegistry) != address(0));
+        ISignerRegistry oldSignerRegistry = accessRegistry.signerRegistry();
 
         hoax(users.admin);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
+        emit SignerRegistryUpdated({ oldSignerRegistry: oldSignerRegistry, newSignerRegistry: newSignerRegistry });
         accessRegistry.setSignerRegistry(newSignerRegistry);
+
         assertEq(accessRegistry.signerRegistry(), newSignerRegistry);
     }
 

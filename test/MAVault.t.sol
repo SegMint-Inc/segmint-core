@@ -207,6 +207,9 @@ contract MAVaultTest is BaseTest {
 
         startHoax(users.alice.account, 0 ether);
         vault.claimOwnership();
+
+        vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
+        emit NativeTokenUnlocked({ receiver: users.alice.account, amount: amount });
         vault.unlockNativeToken(users.alice.account);
 
         assertEq(users.alice.account.balance, amount);

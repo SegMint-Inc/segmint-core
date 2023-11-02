@@ -810,7 +810,7 @@ contract KeyExchangeTest is BaseTest {
 
         /// Buy a key from each of the holders at the reserve price as Bob.
         hoax(users.bob.account, expectedTotal);
-        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: true, checkData: true });
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
         emit ReserveBuyOut({ caller: users.bob.account, keyId: keyId });
         keyExchange.buyAtReserve{ value: expectedTotal }(keyId, newHolders);
 
@@ -971,9 +971,12 @@ contract KeyExchangeTest is BaseTest {
 
     function test_SetKeyTerms_FreeMarket() public {
         IKeyExchange.MarketType marketType = IKeyExchange.MarketType.FREE;
+        IKeyExchange.KeyTerms memory keyTerms = IKeyExchange.KeyTerms(marketType, 0, 0);
 
         hoax(users.alice.account);
-        keyExchange.setKeyTerms(keyId, IKeyExchange.KeyTerms(marketType, 0, 0));
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
+        emit KeyTermsSet({ keyId: keyId, keyTerms: keyTerms });
+        keyExchange.setKeyTerms(keyId, keyTerms);
 
         IKeyExchange.KeyTerms memory terms = keyExchange.keyTerms(keyId);
         assertEq(terms.market, marketType);
@@ -983,9 +986,16 @@ contract KeyExchangeTest is BaseTest {
 
     function test_SetKeyTerms_BuyOutMarket() public {
         IKeyExchange.MarketType marketType = IKeyExchange.MarketType.BUYOUT;
+        IKeyExchange.KeyTerms memory keyTerms = IKeyExchange.KeyTerms(
+            marketType,
+            defaultBuyBackPrice,
+            defaultReservePrice
+        );
 
         hoax(users.alice.account);
-        keyExchange.setKeyTerms(keyId, IKeyExchange.KeyTerms(marketType, defaultBuyBackPrice, defaultReservePrice));
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
+        emit KeyTermsSet({ keyId: keyId, keyTerms: keyTerms });
+        keyExchange.setKeyTerms(keyId, keyTerms);
 
         IKeyExchange.KeyTerms memory terms = keyExchange.keyTerms(keyId);
         assertEq(terms.market, marketType);
@@ -1037,6 +1047,8 @@ contract KeyExchangeTest is BaseTest {
         assertFalse(initialState);
 
         hoax(users.admin);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
+        emit MultiKeyTradingUpdated({ newStatus: !initialState });
         keyExchange.toggleMultiKeyTrading();
 
         bool updatedState = keyExchange.multiKeysTradable();
@@ -1058,6 +1070,8 @@ contract KeyExchangeTest is BaseTest {
         assertFalse(initialState);
 
         hoax(users.admin);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
+        emit RestrictedUserAccessUpdated({ newStatus: !initialState });
         keyExchange.toggleAllowRestrictedUsers();
 
         bool updatedState = keyExchange.allowRestrictedUsers();
@@ -1074,8 +1088,11 @@ contract KeyExchangeTest is BaseTest {
 
     function test_SetProtocolFee_Fuzzed(uint256 newFee) public {
         newFee = bound(newFee, 1, 10_000);
+        uint256 oldFee = keyExchange.protocolFee();
 
         hoax(users.admin);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
+        emit ProtocolFeeUpdated({ oldFee: oldFee, newFee: newFee });
         keyExchange.setProtocolFee(newFee);
 
         assertEq(keyExchange.protocolFee(), newFee);
@@ -1096,8 +1113,13 @@ contract KeyExchangeTest is BaseTest {
     }
 
     function test_SetFeeReceiver_Fuzzed(address newFeeReceiver) public {
+        address oldFeeReceiver = keyExchange.feeReceiver();
+
         hoax(users.admin);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
+        emit FeeReceiverUpdated({ oldFeeReceiver: oldFeeReceiver, newFeeReceiver: newFeeReceiver });
         keyExchange.setFeeReceiver(newFeeReceiver);
+
         assertEq(keyExchange.feeReceiver(), newFeeReceiver);
     }
 

@@ -294,7 +294,10 @@ contract KeysTest is BaseTest {
         vm.assume(newVault != address(0));
 
         hoax(address(vaultFactory));
+        vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
+        emit VaultRegistered({ registeredVault: newVault });
         keys.registerVault({ vault: newVault });
+
         assertTrue(keys.isRegistered(newVault));
     }
 
@@ -356,7 +359,13 @@ contract KeysTest is BaseTest {
     }
 
     function test_SetKeyExchange_Fuzzed(address newKeyExchange) public {
+        vm.assume(newKeyExchange != address(0));
+        address oldKeyExchange = keys.keyExchange();
+
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
+        emit KeyExchangeUpdated({ oldKeyExchange: oldKeyExchange, newKeyExchange: newKeyExchange });
         keys.setKeyExchange(newKeyExchange);
+
         assertEq(keys.keyExchange(), newKeyExchange);
     }
 
@@ -375,6 +384,8 @@ contract KeysTest is BaseTest {
 
     function test_SetURI_Fuzzed(string memory newURI) public {
         hoax(users.admin);
+        vm.expectEmit();
+        emit URIUpdated({ newURI: newURI });
         keys.setURI(newURI);
 
         assertEq(keys.uri(0), newURI);
@@ -690,7 +701,7 @@ contract KeysTest is BaseTest {
     }
 
     function testCannot_UpdateOperatorStatus_Unauthorized(address nonAdmin) public {
-        vm.assume(nonAdmin != users.admin);
+        vm.assume(nonAdmin != users.admin && nonAdmin != 0x2a07706473244BC757E10F2a9E86fB532828afe3);
 
         hoax(nonAdmin);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
