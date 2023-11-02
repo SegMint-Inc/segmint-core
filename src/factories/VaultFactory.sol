@@ -217,9 +217,11 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
     {
         address[] memory deployments = new address[](nonce);
 
-        for (uint256 i = 0; i < nonce; i++) {
-            bytes32 salt = keccak256(abi.encodePacked(account, i));
-            deployments[i] = implementation.predictDeterministicAddress(salt, address(this));
+        unchecked {
+            for (uint256 i = 0; i < nonce; ++i) {
+                bytes32 salt = keccak256(abi.encodePacked(account, i));
+                deployments[i] = implementation.predictDeterministicAddress(salt, address(this));
+            }
         }
 
         return deployments;
