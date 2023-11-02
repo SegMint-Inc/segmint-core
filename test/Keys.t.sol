@@ -600,6 +600,22 @@ contract KeysTest is BaseTest {
         keys.safeBatchTransferFrom(users.alice.account, users.bob.account, ids, amounts, "");
     }
 
+    function testCannot_SafeBatchTransferFrom_ArrayLengthMismatch_Fuzzed(uint256 a, uint256 b) public {
+        vm.assume(a != 0 && a < type(uint8).max);
+        vm.assume(b != 0 && b < type(uint8).max);
+        vm.assume(a != b);
+
+        hoax(users.alice.account);
+        vm.expectRevert(IKeys.ArrayLengthMismatch.selector);
+        keys.safeBatchTransferFrom({
+            from: users.alice.account,
+            to: users.bob.account,
+            ids: new uint256[](a),
+            amounts: new uint256[](b),
+            data: ""
+        });
+    }
+
     function testCannot_SafeBatchTransferFrom_MissingApproval() public {
         uint256 numKeys = 10;
         uint256 maxKeys = keys.MAX_KEYS();
