@@ -301,6 +301,9 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         uint256[] memory amounts,
         bytes memory data
     ) public override filterOperator(from) {
+        /// Checks: Ensure `ids` and `amounts` are equivalent in length.
+        if (ids.length != amounts.length) revert ArrayLengthMismatch();
+
         /// Checks: Ensure that `to` has a valid access type.
         IAccessRegistry.AccessType accessType = accessRegistry.accessType(to);
         if (accessType == IAccessRegistry.AccessType.BLOCKED) revert IAccessRegistry.InvalidAccessType();

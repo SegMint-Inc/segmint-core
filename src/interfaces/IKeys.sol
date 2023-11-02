@@ -77,6 +77,11 @@ interface IKeys {
      */
     error ZeroAddressInvalid();
 
+    /**
+     * Thrown when two arrays don't share the same length.
+     */
+    error ArrayLengthMismatch();
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           EVENTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
