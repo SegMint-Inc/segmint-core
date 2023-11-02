@@ -98,6 +98,13 @@ interface IAccessRegistry {
         address indexed admin, address indexed account, AccessType oldAccessType, AccessType newAccessType
     );
 
+    /**
+     * Emitted when the Signer Registry address is updated.
+     * @param oldSignerRegistry Old Signer Registry address.
+     * @param newSignerRegistry New Signer Registry address.
+     */
+    event SignerRegistryUpdated(ISignerRegistry indexed oldSignerRegistry, ISignerRegistry indexed newSignerRegistry);
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                         FUNCTIONS                          */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/

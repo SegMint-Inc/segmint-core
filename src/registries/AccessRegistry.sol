@@ -85,7 +85,11 @@ contract AccessRegistry is IAccessRegistry, OwnableRoles, EIP712 {
      */
     function setSignerRegistry(ISignerRegistry newSignerRegistry) external onlyRoles(ADMIN_ROLE) {
         if (address(newSignerRegistry) == address(0)) revert ZeroAddressInvalid();
+
+        ISignerRegistry oldSignerRegistry = signerRegistry;
         signerRegistry = newSignerRegistry;
+
+        emit SignerRegistryUpdated({ oldSignerRegistry: oldSignerRegistry, newSignerRegistry: newSignerRegistry });
     }
 
     /**

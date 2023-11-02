@@ -181,6 +181,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
     function registerVault(address vault) external onlyRoles(FACTORY_ROLE) {
         if (vault == address(0)) revert ZeroAddressInvalid();
         isRegistered[vault] = true;
+        emit VaultRegistered({ registeredVault: vault });
     }
 
     /**
@@ -188,7 +189,6 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
      */
     function freezeKeys(uint256 keyId) external onlyRoles(ADMIN_ROLE) {
         _keyConfig[keyId].isFrozen = true;
-
         emit IKeys.KeyFrozen({ admin: msg.sender, keyId: keyId });
     }
 
@@ -197,7 +197,6 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
      */
     function unfreezeKeys(uint256 keyId) external onlyRoles(ADMIN_ROLE) {
         _keyConfig[keyId].isFrozen = false;
-
         emit IKeys.KeyUnfrozen({ admin: msg.sender, keyId: keyId });
     }
 
@@ -225,11 +224,15 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
     }
 
     /**
-     * Function used to set the key exchange address.
+     * Function used to set the `keyExchange` address.
      */
     function setKeyExchange(address newKeyExchange) external onlyOwner {
         if (newKeyExchange == address(0)) revert ZeroAddressInvalid();
+
+        address oldKeyExchange = keyExchange;
         keyExchange = newKeyExchange;
+
+        emit KeyExchangeUpdated({ oldKeyExchange: oldKeyExchange, newKeyExchange: newKeyExchange });
     }
 
     /**
@@ -237,6 +240,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
      */
     function setURI(string calldata newURI) external onlyRoles(ADMIN_ROLE) {
         _setURI(newURI);
+        emit URIUpdated({ newURI: newURI });
     }
 
     /**

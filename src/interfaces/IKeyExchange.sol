@@ -164,18 +164,50 @@ interface IKeyExchange {
 
     /**
      * Emitted when a key buyout at the buy back price is executed.
+     * @param caller Account that executed the buy out.
+     * @param keyId Unique key idenitfier.
      */
-    event BuyOutExecuted(address indexed caller, uint256 keyId);
+    event BuyOutExecuted(address indexed caller, uint256 indexed keyId);
 
     /**
      * Emitted when a key buyout at the reserve price is executed.
+     * @param caller Account that executed the reserve purchase.
+     * @param keyId Unique key identifier.
      */
-    event ReserveBuyOut(address indexed caller, uint256 keyId);
+    event ReserveBuyOut(address indexed caller, uint256 indexed keyId);
 
     /**
      * Emitted when the protocol fee is updated.
+     * @param oldFee Old protocol fee.
+     * @param newFee New protocol fee.
      */
-    event ProtocolFeeUpdated(uint256 indexed oldFee, uint256 indexed newFee);
+    event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
+
+    /**
+     * Emitted when key terms are set.
+     * @param keyId Unique key identifier.
+     * @param keyTerms Final key terms.
+     */
+    event KeyTermsSet(uint256 indexed keyId, KeyTerms keyTerms);
+
+    /**
+     * Emitted when multi-key trading status is updated.
+     * @param newStatus Flag indicating if multi-key trading is enabled.
+     */
+    event MultiKeyTradingUpdated(bool newStatus);
+    
+    /**
+     * Emitted when restricted users access is updated.
+     * @param newStatus Flag indiciating is restricted users can access the Key Exchange.
+     */
+    event RestrictedUserAccessUpdated(bool newStatus);
+
+    /**
+     * Emitted when the fee receiver is updated.
+     * @param oldFeeReceiver Old protocol fee receiver.
+     * @param newFeeReceiver New protocol fee receiver.
+     */
+    event FeeReceiverUpdated(address oldFeeReceiver, address newFeeReceiver);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ENUMS                            */

@@ -99,8 +99,11 @@ contract MAVault is IMAVault, Ownable, Initializable {
         /// Checks: Ensure `receiver` is not zero address to prevent excess gas consumption.
         if (receiver == address(0)) revert ZeroAddressInvalid();
 
-        (bool success,) = receiver.call{ value: address(this).balance }("");
+        uint256 amount = address(this).balance;
+        (bool success,) = receiver.call{ value: amount }("");
         if (!success) revert NativeTokenUnlockFailed();
+
+        emit NativeTokenUnlocked({ receiver: receiver, amount: amount });
     }
 
     /**

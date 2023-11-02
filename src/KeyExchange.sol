@@ -358,6 +358,8 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
 
         /// Set the buy out terms in storage.
         _keyTerms[keyId] = finalTerms;
+
+        emit KeyTermsSet({ keyId: keyId, keyTerms: finalTerms });
     }
 
     /**
@@ -365,10 +367,12 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
      */
     function toggleMultiKeyTrading() external onlyRoles(ADMIN_ROLE) {
         multiKeysTradable = !multiKeysTradable;
+        emit MultiKeyTradingUpdated({ newStatus: multiKeysTradable });
     }
 
     function toggleAllowRestrictedUsers() external onlyRoles(ADMIN_ROLE) {
         allowRestrictedUsers = !allowRestrictedUsers;
+        emit RestrictedUserAccessUpdated({ newStatus: allowRestrictedUsers });
     }
 
     /**
@@ -386,7 +390,9 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
      */
     function setFeeReceiver(address newFeeReceiver) external onlyRoles(ADMIN_ROLE) {
         if (newFeeReceiver == address(0)) revert ZeroAddressInvalid();
+        address oldFeeReceiver = feeReceiver;
         feeReceiver = newFeeReceiver;
+        emit FeeReceiverUpdated({ oldFeeReceiver: oldFeeReceiver, newFeeReceiver: newFeeReceiver });
     }
 
     /**

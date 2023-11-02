@@ -85,14 +85,34 @@ interface IKeys {
      * @param admin Address of the admin that froze the keys.
      * @param keyId Key identifier that was frozen.
      */
-    event KeyFrozen(address indexed admin, uint256 keyId);
+    event KeyFrozen(address indexed admin, uint256 indexed keyId);
 
     /**
      * Emitted when a specific key identifier is unfrozen.
      * @param admin Address of the admin that unfroze the keys.
      * @param keyId Key ID that was unfrozen.
      */
-    event KeyUnfrozen(address indexed admin, uint256 keyId);
+    event KeyUnfrozen(address indexed admin, uint256 indexed keyId);
+
+    /**
+     * Emitted when a new vault is registered.
+     * @param registeredVault Address of the newly registered vault.
+     */
+    event VaultRegistered(address indexed registeredVault);
+
+    /**
+     * Emitted when the Key Exchange address is updated.
+     * @param oldKeyExchange Previous Key Exchange address.
+     * @param newKeyExchange New Key Exchange address.
+     */
+    event KeyExchangeUpdated(address indexed oldKeyExchange, address indexed newKeyExchange);
+
+    /**
+     * Emitted when the token URI is updated.
+     * @param newURI New token URI.
+     */
+    event URIUpdated(string newURI);
+    
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          STRUCTS                           */
