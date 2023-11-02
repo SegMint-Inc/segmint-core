@@ -6,6 +6,7 @@ import { ECDSA } from "solady/src/utils/ECDSA.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
 import { IERC20 } from "@openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import { ReentrancyGuard } from "@openzeppelin/security/ReentrancyGuard.sol";
 import { TypeHasher } from "./handlers/TypeHasher.sol";
 import { NonceManager } from "./managers/NonceManager.sol";
 import { IKeyExchange } from "./interfaces/IKeyExchange.sol";
@@ -19,7 +20,7 @@ import { VaultType, KeyConfig } from "./types/DataTypes.sol";
  * @notice Facilitates trading of Keys.
  */
 
-contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
+contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using ECDSA for bytes32;
 
@@ -74,7 +75,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
      * @inheritdoc IKeyExchange
      * @dev `msg.sender` in this context is a user wishing to fill an order, a buyer.
      */
-    function executeOrders(OrderParams[] calldata orders) external payable checkCaller {
+    function executeOrders(OrderParams[] calldata orders) external payable checkCaller nonReentrant {
         /// Checks: Ensure a non-zero amount of orders have been specified.
         if (orders.length == 0) revert ZeroLengthArray();
 
@@ -158,7 +159,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
      * @inheritdoc IKeyExchange
      * @dev `msg.sender` in this context is a user wishing to accept a bid, a seller.
      */
-    function executeBids(BidParams[] calldata bidParams) external checkCaller {
+    function executeBids(BidParams[] calldata bidParams) external checkCaller nonReentrant {
         /// Checks: Ensure a non zero amount of bids have been provided.
         if (bidParams.length == 0) revert ZeroLengthArray();
         
@@ -277,7 +278,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
     /**
      * @inheritdoc IKeyExchange
      */
-    function executeBuyBack(uint256 keyId, address[] calldata holders) external payable {
+    function executeBuyBack(uint256 keyId, address[] calldata holders) external payable nonReentrant {
         /// Cache key configuration in memory.
         KeyConfig memory keyConfig = keys.getKeyConfig(keyId);
 
@@ -308,7 +309,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
     /**
      * @inheritdoc IKeyExchange
      */
-    function buyAtReserve(uint256 keyId, address[] calldata holders) external payable checkCaller {
+    function buyAtReserve(uint256 keyId, address[] calldata holders) external payable checkCaller nonReentrant {
         /// Checks: Ensure a valid number of holders have been provided.
         if (holders.length == 0) revert ZeroLengthArray();
 

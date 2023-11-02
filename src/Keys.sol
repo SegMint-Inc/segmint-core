@@ -3,6 +3,7 @@ pragma solidity 0.8.19;
 
 import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
 import { ERC1155 } from "@openzeppelin/token/ERC1155/ERC1155.sol";
+import { ReentrancyGuard } from "@openzeppelin/security/ReentrancyGuard.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
 import { IAccessRegistry } from "./interfaces/IAccessRegistry.sol";
 import { OperatorFilter } from "./handlers/OperatorFilter.sol";
@@ -13,7 +14,7 @@ import { VaultType, KeyConfig } from "./types/DataTypes.sol";
  * @notice Protocol ERC1155 token that provides functionality for key lending.
  */
 
-contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
+contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter, ReentrancyGuard {
     /// `keccak256("ADMIN_ROLE");`
     uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
 
@@ -273,6 +274,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         public
         override
         filterOperator(from)
+        nonReentrant
     {
         /// Checks: Ensure that `to` has a valid access type.
         IAccessRegistry.AccessType accessType = accessRegistry.accessType(to);
@@ -300,7 +302,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         uint256[] memory ids,
         uint256[] memory amounts,
         bytes memory data
-    ) public override filterOperator(from) {
+    ) public override filterOperator(from) nonReentrant {
         /// Checks: Ensure `ids` and `amounts` are equivalent in length.
         if (ids.length != amounts.length) revert ArrayLengthMismatch();
 
