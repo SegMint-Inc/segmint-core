@@ -180,11 +180,11 @@ contract MAVaultTest is BaseTest {
         vault.unlockAssets({ assets: assets, receiver: address(0) });
     }
 
-    function testCannot_UnlockAssets_KeysBinded() public {
+    function testCannot_UnlockAssets_KeysBindedToVault() public {
         Asset[] memory assets = getAssets();
 
         hoax(users.alice.account);
-        vm.expectRevert(IMAVault.KeysBinded.selector);
+        vm.expectRevert(IMAVault.KeysBindedToVault.selector);
         vault.unlockAssets({ assets: assets, receiver: users.alice.account });
     }
 
@@ -236,9 +236,9 @@ contract MAVaultTest is BaseTest {
         vault.unlockNativeToken({ receiver: address(0) });
     }
 
-    function testCannot_UnlockNativeToken_KeysBinded() public {
+    function testCannot_UnlockNativeToken_KeysBindedToVault() public {
         hoax(users.alice.account);
-        vm.expectRevert(IMAVault.KeysBinded.selector);
+        vm.expectRevert(IMAVault.KeysBindedToVault.selector);
         vault.unlockNativeToken(users.alice.account);
     }
 
@@ -284,10 +284,10 @@ contract MAVaultTest is BaseTest {
         assertEq(keyConfig.supply, keySupply);
     }
 
-    function testCannot_ClaimOwnership_NoKeysBinded() public {
+    function testCannot_ClaimOwnership_NoKeysBindedToVault() public {
         startHoax(users.alice.account);
         vault.claimOwnership();
-        vm.expectRevert(IMAVault.NoKeysBinded.selector);
+        vm.expectRevert(IMAVault.NoKeysBindedToVault.selector);
         vault.claimOwnership();
     }
 

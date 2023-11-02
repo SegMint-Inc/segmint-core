@@ -472,7 +472,7 @@ contract KeysTest is BaseTest {
         keys.safeTransferFrom(users.alice.account, users.bob.account, id, 0, "");
     }
 
-    function testCannot_SafeTransferFrom_OverFreeKeyBalance_Fuzzed(uint256 lendAmount) public {
+    function testCannot_SafeTransferFrom_CannotTransferLendedKeys_Fuzzed(uint256 lendAmount) public {
         hoax(users.admin);
         /// For this test, grant Eve KYC access.
         accessRegistry.modifyAccessType(users.eve.account, IAccessRegistry.AccessType.UNRESTRICTED);
@@ -494,7 +494,7 @@ contract KeysTest is BaseTest {
         /// Ensure all keys owned by Bob are not transferrable.
         startHoax(users.bob.account);
         for (uint256 amount = 1; amount <= lendAmount; amount++) {
-            vm.expectRevert(IKeys.OverFreeKeyBalance.selector);
+            vm.expectRevert(IKeys.CannotTransferLendedKeys.selector);
             keys.safeTransferFrom(users.bob.account, users.eve.account, id, amount, "");
         }
         vm.stopPrank();
@@ -518,7 +518,7 @@ contract KeysTest is BaseTest {
         /// Ensure all keys owned by Bob are not transferrable.
         startHoax(users.bob.account);
         for (uint256 amount = 1; amount <= lendAmount; amount++) {
-            vm.expectRevert(IKeys.OverFreeKeyBalance.selector);
+            vm.expectRevert(IKeys.CannotTransferLendedKeys.selector);
             keys.safeTransferFrom(users.bob.account, users.eve.account, id, amount, "");
         }
         vm.stopPrank();
