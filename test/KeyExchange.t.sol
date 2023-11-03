@@ -52,7 +52,6 @@ contract KeyExchangeTest is BaseTest {
         /// For ease of testing, allow restricted users to trade.
         startHoax(users.admin);
         keyExchange.toggleAllowRestrictedUsers();
-        keys.updateOperatorStatus({ operator: address(keyExchange), isAllowed: true });
         vm.stopPrank();
     }
 
