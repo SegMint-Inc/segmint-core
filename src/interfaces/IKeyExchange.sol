@@ -195,7 +195,7 @@ interface IKeyExchange {
      * @param newStatus Flag indicating if multi-key trading is enabled.
      */
     event MultiKeyTradingUpdated(bool newStatus);
-    
+
     /**
      * Emitted when restricted users access is updated.
      * @param newStatus Flag indiciating is restricted users can access the Key Exchange.

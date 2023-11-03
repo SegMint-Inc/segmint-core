@@ -125,7 +125,6 @@ interface IKeys {
      * @param newURI New token URI.
      */
     event URIUpdated(string newURI);
-    
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          STRUCTS                           */

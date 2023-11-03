@@ -162,7 +162,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
     function executeBids(BidParams[] calldata bidParams) external checkCaller nonReentrant {
         /// Checks: Ensure a non zero amount of bids have been provided.
         if (bidParams.length == 0) revert ZeroLengthArray();
-        
+
         unchecked {
             for (uint256 i = 0; i < bidParams.length; ++i) {
                 /// Cache respective bid parameters.
@@ -240,7 +240,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
 
                 /// Emit event for order cancellation.
                 emit OrderCancelled(orderHash);
-            }   
+            }
         }
     }
 
@@ -508,7 +508,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
                         (bool success,) = lendingTerms.lender.call{ value: earnings }("");
                         if (!success) revert NativeTransferFailed();
 
-                    /// Otherwise, distribute earnings to both the lender and holder.
+                        /// Otherwise, distribute earnings to both the lender and holder.
                     } else {
                         uint256 holderEarnings = keyPrice * (keyBalance - lendingTerms.amount);
 
