@@ -55,7 +55,7 @@ abstract contract Events {
 
     /// {OperatorFilter} Events.
     event OperatorStatusUpdated(address operator, bool status);
-    
+
     /// {IMAVault} Events.
     event NativeTokenUnlocked(address indexed receiver, uint256 amount);
 }

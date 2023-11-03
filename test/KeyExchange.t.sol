@@ -985,11 +985,8 @@ contract KeyExchangeTest is BaseTest {
 
     function test_SetKeyTerms_BuyOutMarket() public {
         IKeyExchange.MarketType marketType = IKeyExchange.MarketType.BUYOUT;
-        IKeyExchange.KeyTerms memory keyTerms = IKeyExchange.KeyTerms(
-            marketType,
-            defaultBuyBackPrice,
-            defaultReservePrice
-        );
+        IKeyExchange.KeyTerms memory keyTerms =
+            IKeyExchange.KeyTerms(marketType, defaultBuyBackPrice, defaultReservePrice);
 
         hoax(users.alice.account);
         vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });

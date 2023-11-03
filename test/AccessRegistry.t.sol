@@ -132,7 +132,6 @@ contract AccessRegistryTest is BaseTest {
         hoax(users.alice.account);
         vm.expectRevert(IAccessRegistry.NonceUsed.selector);
         accessRegistry.initAccessType(accessParams, signature);
-        
     }
 
     function testCannot_InitAccessType_SignerMismatch() public {
@@ -144,7 +143,6 @@ contract AccessRegistryTest is BaseTest {
         });
         bytes memory signature = getAccessSignature(accessParams);
         accessParams.accessType = IAccessRegistry.AccessType.UNRESTRICTED;
-
 
         hoax(users.alice.account);
         vm.expectRevert(ISignerRegistry.SignerMismatch.selector);

@@ -381,7 +381,7 @@ contract KeysTest is BaseTest {
     function testCannot_SetAccessRegistry_ZeroAddressInvalid() public {
         hoax(users.admin);
         vm.expectRevert(IAccessRegistry.ZeroAddressInvalid.selector);
-        keys.setAccessRegistry({ newAccessRegistry: IAccessRegistry(address(0) )});
+        keys.setAccessRegistry({ newAccessRegistry: IAccessRegistry(address(0)) });
     }
 
     function test_SetKeyExchange_Fuzzed(address newKeyExchange) public {
