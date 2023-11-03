@@ -1109,6 +1109,7 @@ contract KeyExchangeTest is BaseTest {
     }
 
     function test_SetFeeReceiver_Fuzzed(address newFeeReceiver) public {
+        vm.assume(newFeeReceiver != address(0));
         address oldFeeReceiver = keyExchange.feeReceiver();
 
         hoax(users.admin);
