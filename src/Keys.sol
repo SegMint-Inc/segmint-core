@@ -245,6 +245,10 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter, ReentrancyGuard {
         address oldKeyExchange = keyExchange;
         keyExchange = newKeyExchange;
 
+        /// Authorize the Key Exchange as whitelisted operator, this operation does NOT clear
+        /// the previous Key Exchange's operator status.
+        _updateOperatorStatus({ operator: newKeyExchange, isAllowed: true });
+
         emit KeyExchangeUpdated({ oldKeyExchange: oldKeyExchange, newKeyExchange: newKeyExchange });
     }
 

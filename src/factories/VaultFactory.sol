@@ -4,6 +4,7 @@ pragma solidity 0.8.19;
 import { OwnableRoles } from "@solady/src/auth/OwnableRoles.sol";
 import { ECDSA } from "@solady/src/utils/ECDSA.sol";
 import { LibClone } from "@solady/src/utils/LibClone.sol";
+import { EIP712 } from "@solady/src/utils/EIP712.sol";
 import { Initializable } from "@openzeppelin/proxy/utils/Initializable.sol";
 import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
@@ -20,7 +21,7 @@ import { Asset, AssetClass, VaultType } from "../types/DataTypes.sol";
  * @title VaultFactory
  * @notice Factory contract that creates multi-asset and single-asset vaults.
  */
-contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHandler {
+contract VaultFactory is IVaultFactory, OwnableRoles, EIP712, Initializable, UpgradeHandler {
     using LibClone for address;
     using ECDSA for bytes32;
 
@@ -202,8 +203,7 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
      * @inheritdoc IVaultFactory
      */
     function nameAndVersion() external pure virtual returns (string memory name, string memory version) {
-        name = "Vault Factory";
-        version = "1.0";
+        (name, version) = _domainNameAndVersion();
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -231,4 +231,12 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
      * Overriden to ensure that only callers with the correct role can perform an upgrade.
      */
     function _authorizeUpgrade(address newImplementation) internal override onlyRoles(ADMIN_ROLE) { }
+
+    /**
+     * Overriden as required in Solady EIP712 documentation.
+     */
+    function _domainNameAndVersion() internal pure override returns (string memory name, string memory version) {
+        name = "Vault Factory";
+        version = "1.0";
+    }
 }

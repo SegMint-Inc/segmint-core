@@ -378,6 +378,9 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
         emit MultiKeyTradingUpdated({ newStatus: multiKeysTradable });
     }
 
+    /**
+     * @inheritdoc IKeyExchange
+     */
     function toggleAllowRestrictedUsers() external onlyRoles(ADMIN_ROLE) {
         allowRestrictedUsers = !allowRestrictedUsers;
         emit RestrictedUserAccessUpdated({ newStatus: allowRestrictedUsers });

@@ -373,6 +373,11 @@ interface IKeyExchange {
     function toggleMultiKeyTrading() external;
 
     /**
+     * Function used to toggle access to the Key Exchange for restricted users.
+     */
+    function toggleAllowRestrictedUsers() external;
+
+    /**
      * Function used to adjust the currently defined protocol fee percentage.
      * @param newProtocolFee New protocol fee value.
      */
