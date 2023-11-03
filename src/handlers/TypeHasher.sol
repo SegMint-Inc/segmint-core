@@ -12,8 +12,8 @@ abstract contract TypeHasher is EIP712 {
     /// Order(uint256 price,address maker,address taker,uint256 keyId,uint256 amount,uint256 nonce,uint256 startTime,uint256 endTime)
     bytes32 private constant _ORDER_TYPEHASH = 0x9a3b6761b926f38baa0938ef9c869311aed6761ec5857a410ad87bd983171278;
 
-    /// Bid(address maker,uint256 price,uint256 keyId,uint256 amount,uint256 startTime,uint256 endTime)
-    bytes32 private constant _BID_TYPEHASH = 0xdf9d101dd2b60a9a7812e3b3efb62d0f6bbe4d5dbcc3c96268ee8c3f393dd534;
+    /// Bid(address maker,uint256 price,uint256 keyId,uint256 amount,uint256 nonce,uint256 startTime,uint256 endTime)
+    bytes32 private constant _BID_TYPEHASH = 0xb69b3ab835bfc035f012e000cfad373eef5aac883f78fd75ceb85dcfb109f3c7;
 
     /**
      * Function used to return the EIP712 hash of a order.
