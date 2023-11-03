@@ -187,7 +187,7 @@ An example flow of Key Trading via the free market is as follows:
 
 1. Alice creates a single asset vault with 10 keys.
 2. Alice defines the Key Terms related to the key ID associated with her vault via the Key Exchange contract.
-   1. She chooses the free market, which means her buyout price and reserve price per keys are 0. This is enforced at the protocol level.
+   1. She chooses the free market, which means her buyout price and reserve price per keys are 0 ether. These values are enforced at the protocol level.
 3. Alice then signs an EIP712 order off-chain to sell 5 of her keys for 0.2 total.
 4. Bob executes this order on-chain and pays 0.2 ether for 5 keys.
 5. The original order that Alice signed is now void and cannot be executed again.
