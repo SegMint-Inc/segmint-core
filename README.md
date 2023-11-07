@@ -39,7 +39,7 @@ See `./SPECIFICATION.md` for further details.
 | --- | --- |
 | `OperatorFilter.sol` | Whitelists contracts that are able to move Keys on behalf of users. |
 | `UpgradeHandler.sol` | Used for managing upgrades to the Vault Factory contract using a timelock. |
-| `ExchangeHasher.sol` | Returns the EIP712 equivalent hashes of an Order and Bid.
+| `TypeHasher.sol` | Returns the EIP712 equivalent hashes of an Order and Bid.
 
 ### Managers
 
