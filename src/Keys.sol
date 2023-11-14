@@ -138,6 +138,10 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter, ReentrancyGuard {
         /// Checks: Ensure a valid lend duration has been provided.
         if (lendDuration < MIN_LEND_DURATION || lendDuration > MAX_LEND_DURATION) revert InvalidLendDuration();
 
+        /// Checks: Ensure the keys being lended are not lended themselves.
+        uint256 ownedKeys = balanceOf(msg.sender, keyId) - _activeLends[msg.sender][keyId].amount;
+        if (lendAmount > ownedKeys) revert CannotLendOutLendedKeys();
+
         uint40 lendExpiryTime = uint40(block.timestamp + lendDuration);
 
         /// Define the lending terms.

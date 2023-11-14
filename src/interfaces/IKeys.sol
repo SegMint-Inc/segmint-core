@@ -82,6 +82,11 @@ interface IKeys {
      */
     error ArrayLengthMismatch();
 
+    /**
+     * Thrown when trying to lend out lended keys.
+     */
+    error CannotLendOutLendedKeys();
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           EVENTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
