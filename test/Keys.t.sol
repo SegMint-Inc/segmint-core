@@ -206,6 +206,40 @@ contract KeysTest is BaseTest {
         keys.lendKeys({ lendee: users.bob.account, keyId: id, lendAmount: keyAmount, lendDuration: maxDuration });
     }
 
+    function testCannot_LendKeys_CannotLendOutLendedKeys() public {
+        uint256 keyAmount = 5;
+        uint256 lendDuration = 1 days;
+
+        startHoax(users.alice.account);
+        uint256 id = keys.createKeys({ amount: keyAmount, receiver: users.alice.account, vaultType: VaultType.SINGLE });
+
+        // Lend out 2 keys to Bob but transfer 1 to him.
+        keys.lendKeys({ lendee: users.bob.account, keyId: id, lendAmount: 2, lendDuration: lendDuration });
+        keys.safeTransferFrom({ from: users.alice.account, to: users.bob.account, id: id, value: 1, data: "" });
+        assertEq(keys.balanceOf(users.bob.account, id), 3);
+
+        IKeys.LendingTerms memory lendingTerms = keys.activeLends({ lendee: users.bob.account, keyId: id });
+        assertEq(lendingTerms.lender, users.alice.account);
+        assertEq(lendingTerms.amount, 2);
+        assertEq(lendingTerms.expiryTime, block.timestamp + lendDuration);
+
+        // If Bob tries to lend out 2 or 3 keys, lendKeys should revert as he only owns 1 key whilst having
+        // a 3 key balance.
+        changePrank(users.bob.account);
+        vm.expectRevert(IKeys.CannotLendOutLendedKeys.selector);
+        keys.lendKeys({ lendee: users.alice.account, keyId: id, lendAmount: 2, lendDuration: lendDuration });
+        vm.expectRevert(IKeys.CannotLendOutLendedKeys.selector);
+        keys.lendKeys({ lendee: users.alice.account, keyId: id, lendAmount: 3, lendDuration: lendDuration });
+
+        // If Bob lends out 1 key, that he owns due to the previous transfer, it should work.
+        keys.lendKeys({ lendee: users.alice.account, keyId: id, lendAmount: 1, lendDuration: lendDuration });
+
+        lendingTerms = keys.activeLends({ lendee: users.alice.account, keyId: id });
+        assertEq(lendingTerms.lender, users.bob.account);
+        assertEq(lendingTerms.amount, 1);
+        assertEq(lendingTerms.expiryTime, block.timestamp + lendDuration);
+    }
+
     function testCannot_LendKeys_NonExistentKeyId_Fuzzed(uint256 id, uint256 amount) public {
         amount = bound(amount, 1, type(uint256).max);
 
