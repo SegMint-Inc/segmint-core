@@ -125,9 +125,14 @@ interface IKeyExchange {
     error Restricted();
 
     /**
-     * Thrown when an asset withdraw occurs in the same block as a sale for a multi-asset vault.
+     * Thrown when a holder has no keys.
      */
-    error AssetMovementInSaleBlock();
+    error NoKeysHeld();
+
+    /**
+     * Thrown when the zero address is provided.
+     */
+    error ZeroAddressInvalid();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           EVENTS                           */
@@ -159,13 +164,50 @@ interface IKeyExchange {
 
     /**
      * Emitted when a key buyout at the buy back price is executed.
+     * @param caller Account that executed the buy out.
+     * @param keyId Unique key idenitfier.
      */
-    event BuyOutExecuted(address indexed caller, uint256 keyId);
+    event BuyOutExecuted(address indexed caller, uint256 indexed keyId);
 
     /**
      * Emitted when a key buyout at the reserve price is executed.
+     * @param caller Account that executed the reserve purchase.
+     * @param keyId Unique key identifier.
      */
-    event ReserveBuyOut(address indexed caller, uint256 keyId);
+    event ReserveBuyOut(address indexed caller, uint256 indexed keyId);
+
+    /**
+     * Emitted when the protocol fee is updated.
+     * @param oldFee Old protocol fee.
+     * @param newFee New protocol fee.
+     */
+    event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
+
+    /**
+     * Emitted when key terms are set.
+     * @param keyId Unique key identifier.
+     * @param keyTerms Final key terms.
+     */
+    event KeyTermsSet(uint256 indexed keyId, KeyTerms keyTerms);
+
+    /**
+     * Emitted when multi-key trading status is updated.
+     * @param newStatus Flag indicating if multi-key trading is enabled.
+     */
+    event MultiKeyTradingUpdated(bool newStatus);
+
+    /**
+     * Emitted when restricted users access is updated.
+     * @param newStatus Flag indiciating is restricted users can access the Key Exchange.
+     */
+    event RestrictedUserAccessUpdated(bool newStatus);
+
+    /**
+     * Emitted when the fee receiver is updated.
+     * @param oldFeeReceiver Old protocol fee receiver.
+     * @param newFeeReceiver New protocol fee receiver.
+     */
+    event FeeReceiverUpdated(address oldFeeReceiver, address newFeeReceiver);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           ENUMS                            */
@@ -220,6 +262,7 @@ interface IKeyExchange {
      * @param nonce Nonce of the maker at the time this order was created.
      * @param startTime Timestamp that this order was created.
      * @param endTime Timestamp that this order will become invalid.
+     * @param protocolFee Protocol fee at the time the order was created.
      */
     struct Order {
         uint256 price;
@@ -230,6 +273,7 @@ interface IKeyExchange {
         uint256 nonce;
         uint256 startTime;
         uint256 endTime;
+        uint256 protocolFee;
     }
 
     /**
@@ -241,6 +285,7 @@ interface IKeyExchange {
      * @param nonce Nonce of the bidder at the time this order was created.
      * @param startTime Timestamp that this bid was created.
      * @param endTime Timestamp that this bid will become invalid.
+     * @param protocolFee Protocol fee at the time the order was created.
      */
     struct Bid {
         address maker;
@@ -250,6 +295,7 @@ interface IKeyExchange {
         uint256 nonce;
         uint256 startTime;
         uint256 endTime;
+        uint256 protocolFee;
     }
 
     /**
@@ -304,17 +350,15 @@ interface IKeyExchange {
      * Function used to execute a buy back of all keys from existing holders.
      * @param keyId Unique key idenitifier.
      * @param holders Array of holders to purchase the keys from.
-     * @param amounts Array of amounts to purchase from each holder.
      */
-    function executeBuyBack(uint256 keyId, address[] calldata holders, uint256[] calldata amounts) external payable;
+    function executeBuyBack(uint256 keyId, address[] calldata holders) external payable;
 
     /**
      * Function used to purchase keys at the reserve price from existing holders.
      * @param keyId Unique key idenitifier.
      * @param holders Array of holders to purchase the keys from.
-     * @param amounts Array of amounts to purchase from each holder.
      */
-    function buyAtReserve(uint256 keyId, address[] calldata holders, uint256[] calldata amounts) external payable;
+    function buyAtReserve(uint256 keyId, address[] calldata holders) external payable;
 
     /**
      * Function used to set the key terms associated with a key idenitifier.
@@ -327,6 +371,11 @@ interface IKeyExchange {
      * Function used to toggle trading of multi-asset vault keys.
      */
     function toggleMultiKeyTrading() external;
+
+    /**
+     * Function used to toggle access to the Key Exchange for restricted users.
+     */
+    function toggleAllowRestrictedUsers() external;
 
     /**
      * Function used to adjust the currently defined protocol fee percentage.

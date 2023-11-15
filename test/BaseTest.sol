@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import "forge-std/console2.sol";
 import "./Base.sol";
 
-import { ECDSA } from "solady/src/utils/ECDSA.sol";
+import { ECDSA } from "@solady/src/utils/ECDSA.sol";
 import { IERC20 } from "@openzeppelin/token/ERC20/IERC20.sol";
 import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
@@ -157,6 +157,17 @@ abstract contract BaseTest is Base, Assertions, Events {
         returns (bytes memory)
     {
         bytes32 digest = keccak256(abi.encodePacked(account, deadline, accessType)).toEthSignedMessageHash();
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign({ privateKey: users.signer.privateKey, digest: digest });
+        return abi.encodePacked(r, s, v);
+    }
+
+    /// Used for {KYCRegistry.initAccessType}.
+    function getAccessSignature(IAccessRegistry.AccessParams memory accessParams)
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes32 digest = accessRegistry.hashAccessParams(accessParams);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign({ privateKey: users.signer.privateKey, digest: digest });
         return abi.encodePacked(r, s, v);
     }

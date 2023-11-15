@@ -50,8 +50,64 @@ contract KeyExchangeTest is BaseTest {
         keyId = keys.createKeys(keySupply, users.alice.account, VaultType.SINGLE);
 
         /// For ease of testing, allow restricted users to trade.
-        hoax(users.admin);
+        startHoax(users.admin);
         keyExchange.toggleAllowRestrictedUsers();
+        vm.stopPrank();
+    }
+
+    function testCannotDeploy_Admin_ZeroAddressInvalid() public {
+        vm.expectRevert(IKeyExchange.ZeroAddressInvalid.selector);
+        new KeyExchange({
+            admin_: address(0),
+            feeReceiver_: FEE_RECEIVER,
+            weth_: address(mockWETH),
+            keys_: keys,
+            accessRegistry_: accessRegistry
+        });
+    }
+
+    function testCannotDeploy_FeeReceiver_ZeroAddressInvalid() public {
+        vm.expectRevert(IKeyExchange.ZeroAddressInvalid.selector);
+        new KeyExchange({
+            admin_: users.admin,
+            feeReceiver_: address(0),
+            weth_: address(mockWETH),
+            keys_: keys,
+            accessRegistry_: accessRegistry
+        });
+    }
+
+    function testCannotDeploy_WETH_ZeroAddressInvalid() public {
+        vm.expectRevert(IKeyExchange.ZeroAddressInvalid.selector);
+        new KeyExchange({
+            admin_: users.admin,
+            feeReceiver_: FEE_RECEIVER,
+            weth_: address(0),
+            keys_: keys,
+            accessRegistry_: accessRegistry
+        });
+    }
+
+    function testCannotDeploy_Keys_ZeroAddressInvalid() public {
+        vm.expectRevert(IKeyExchange.ZeroAddressInvalid.selector);
+        new KeyExchange({
+            admin_: users.admin,
+            feeReceiver_: FEE_RECEIVER,
+            weth_: address(mockWETH),
+            keys_: IKeys(address(0)),
+            accessRegistry_: accessRegistry
+        });
+    }
+
+    function testCannotDeploy_AccessRegistry_ZeroAddressInvalid() public {
+        vm.expectRevert(IKeyExchange.ZeroAddressInvalid.selector);
+        new KeyExchange({
+            admin_: users.admin,
+            feeReceiver_: FEE_RECEIVER,
+            weth_: address(mockWETH),
+            keys_: keys,
+            accessRegistry_: IAccessRegistry(address(0))
+        });
     }
 
     function test_ExecuteOrders_Single() public setKeyTerms(IKeyExchange.MarketType.FREE) {
@@ -77,7 +133,7 @@ contract KeyExchangeTest is BaseTest {
         assertEq(keys.balanceOf(users.alice.account, order.keyId), keySupply - order.amount);
         assertEq(keys.balanceOf(users.bob.account, order.keyId), order.amount);
 
-        uint256 expectedFee = order.price * keyExchange.protocolFee() / 10_000;
+        uint256 expectedFee = order.price * order.protocolFee / 10_000;
         uint256 expectedEarnings = order.price - expectedFee;
 
         assertEq(users.alice.account.balance, initialMakerBalance + expectedEarnings);
@@ -110,11 +166,46 @@ contract KeyExchangeTest is BaseTest {
         assertEq(keys.balanceOf(users.alice.account, order.keyId), keySupply - order.amount);
         assertEq(keys.balanceOf(users.bob.account, order.keyId), order.amount);
 
-        uint256 expectedFee = order.price * keyExchange.protocolFee() / 10_000;
+        uint256 expectedFee = order.price * order.protocolFee / 10_000;
         uint256 expectedEarnings = order.price - expectedFee;
 
         assertEq(users.alice.account.balance, initialMakerBalance + expectedEarnings);
         assertEq(users.bob.account.balance, excess);
+        assertEq(keyExchange.feeReceiver().balance, initialFeeBalance + expectedFee);
+    }
+
+    function test_ExecuteOrders_AfterFeeChange() public setKeyTerms(IKeyExchange.MarketType.FREE) {
+        IKeyExchange.Order memory order = getGenericOrder(users.alice.account);
+        bytes32 orderHash = keyExchange.hashOrder(order);
+
+        IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](1);
+        orders[0] = signOrder(order, users.alice.privateKey);
+
+        assertEq(keyExchange.orderStatus(orderHash), IKeyExchange.Status.OPEN);
+        assertEq(keys.balanceOf(users.alice.account, order.keyId), keySupply);
+        assertEq(keys.balanceOf(users.bob.account, order.keyId), 0);
+
+        uint256 initialMakerBalance = users.alice.account.balance;
+        uint256 initialFeeBalance = keyExchange.feeReceiver().balance;
+
+        /// Change protocol fee after the order has been signed.
+        hoax(users.admin);
+        keyExchange.setProtocolFee({ newProtocolFee: 1_000 }); // 10.00%
+
+        hoax(users.bob.account, order.price);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
+        emit OrderFilled({ orderHash: orderHash });
+        keyExchange.executeOrders{ value: order.price }(orders);
+
+        assertEq(keyExchange.orderStatus(orderHash), IKeyExchange.Status.FILLED);
+        assertEq(keys.balanceOf(users.alice.account, order.keyId), keySupply - order.amount);
+        assertEq(keys.balanceOf(users.bob.account, order.keyId), order.amount);
+
+        uint256 expectedFee = order.price * order.protocolFee / 10_000;
+        uint256 expectedEarnings = order.price - expectedFee;
+
+        assertEq(users.alice.account.balance, initialMakerBalance + expectedEarnings);
+        assertEq(users.bob.account.balance, 0);
         assertEq(keyExchange.feeReceiver().balance, initialFeeBalance + expectedFee);
     }
 
@@ -201,7 +292,7 @@ contract KeyExchangeTest is BaseTest {
         IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](1);
         orders[0] = signOrder(order, users.alice.privateKey);
 
-        uint256 expectedFee = order.price * keyExchange.protocolFee() / 10_000;
+        uint256 expectedFee = order.price * order.protocolFee / 10_000;
         uint256 expectedEarnings = order.price - expectedFee;
 
         bytes memory callData = abi.encodeWithSelector(mockWETH.transfer.selector, order.maker, expectedEarnings);
@@ -294,7 +385,7 @@ contract KeyExchangeTest is BaseTest {
         assertEq(keys.balanceOf(users.alice.account, bid.keyId), keySupply - bid.amount);
         assertEq(keys.balanceOf(users.bob.account, bid.keyId), bid.amount);
 
-        uint256 expectedFee = bid.price * keyExchange.protocolFee() / 10_000;
+        uint256 expectedFee = bid.price * bid.protocolFee / 10_000;
         uint256 expectedEarnings = bid.price - expectedFee;
 
         assertEq(mockWETH.balanceOf(users.alice.account), expectedEarnings);
@@ -378,7 +469,7 @@ contract KeyExchangeTest is BaseTest {
         vm.mockCall({ callee: address(mockWETH), data: "", returnData: abi.encode(false) });
 
         hoax(users.alice.account);
-        vm.expectRevert(IKeyExchange.NativeTransferFailed.selector);
+        vm.expectRevert("SafeERC20: ERC20 operation did not succeed");
         keyExchange.executeBids(bids);
     }
 
@@ -397,7 +488,7 @@ contract KeyExchangeTest is BaseTest {
         hoax(users.bob.account);
         mockWETH.approve(address(keyExchange), type(uint256).max);
 
-        uint256 calculatedFee = bid.price * keyExchange.protocolFee() / 10_000;
+        uint256 calculatedFee = bid.price * bid.protocolFee / 10_000;
         uint256 takerEarnings = bid.price - calculatedFee;
 
         /// Ensure the WETH transfer of earnings to Alice fails and returns false.
@@ -406,7 +497,7 @@ contract KeyExchangeTest is BaseTest {
         vm.mockCall({ callee: address(mockWETH), data: data, returnData: abi.encode(false) });
 
         hoax(users.alice.account);
-        vm.expectRevert(IKeyExchange.NativeTransferFailed.selector);
+        vm.expectRevert("SafeERC20: ERC20 operation did not succeed");
         keyExchange.executeBids(bids);
     }
 
@@ -499,7 +590,6 @@ contract KeyExchangeTest is BaseTest {
 
     function test_ExecuteBuyBack() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
         address[] memory holders = getHolders(keySupply);
-        uint256[] memory amounts = getAmounts(keySupply);
 
         /// Transfer 1 key to each of the holders.
         for (uint256 i = 0; i < holders.length; i++) {
@@ -515,19 +605,31 @@ contract KeyExchangeTest is BaseTest {
 
         assertEq(keys.balanceOf(users.alice.account, keyId), 0);
 
+        /// As the last holder, lend a key to the first holder.
+        hoax(holders[99], 0 ether);
+        keys.lendKeys({ lendee: holders[0], keyId: keyId, lendAmount: 1, lendDuration: 1 days });
+        assertEq(keys.balanceOf({ account: holders[0], id: keyId }), 2);
+
         uint256 buyBackCost = keyExchange.keyTerms(keyId).buyBack;
         uint256 totalCost = keySupply * buyBackCost;
+
+        /// Modify holders array to not include the last holder.
+        address[] memory newHolders = new address[](99);
+        for (uint256 i = 0; i < newHolders.length; i++) {
+            newHolders[i] = holders[i];
+        }
 
         hoax(users.alice.account);
         vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
         emit BuyOutExecuted({ caller: users.alice.account, keyId: keyId });
-        keyExchange.executeBuyBack{ value: totalCost }(keyId, holders, amounts);
+        keyExchange.executeBuyBack{ value: totalCost }(keyId, newHolders);
 
         assertEq(keys.balanceOf(users.alice.account, keyId), keySupply);
 
+        /// Iterate through each of the original holders, ensuring the last holder has been paid the
+        /// correct amount of earnings.
         for (uint256 i = 0; i < holders.length; i++) {
             address holder = holders[i];
-
             assertEq(keys.balanceOf(holder, keyId), 0);
             assertEq(holder.balance, buyBackCost);
         }
@@ -541,7 +643,6 @@ contract KeyExchangeTest is BaseTest {
     function test_ExecuteBuyBack_RefundsExcess() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
         uint256 excessFunds = 69 wei;
         address[] memory holders = getHolders(keySupply);
-        uint256[] memory amounts = getAmounts(keySupply);
 
         /// Transfer 1 key to each of the holders.
         for (uint256 i = 0; i < holders.length; i++) {
@@ -561,7 +662,7 @@ contract KeyExchangeTest is BaseTest {
         uint256 totalCost = keySupply * buyBackCost;
 
         hoax(users.alice.account, totalCost + excessFunds);
-        keyExchange.executeBuyBack{ value: totalCost }(keyId, holders, amounts);
+        keyExchange.executeBuyBack{ value: totalCost }(keyId, holders);
         assertEq(keys.balanceOf(users.alice.account, keyId), keySupply);
 
         for (uint256 i = 0; i < holders.length; i++) {
@@ -576,49 +677,32 @@ contract KeyExchangeTest is BaseTest {
 
     function testCannot_ExecuteBuyBack_CallerNotKeyCreator() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
         address[] memory holders = getHolders(keySupply);
-        uint256[] memory amounts = getAmounts(keySupply);
-
         uint256 buyBackCost = keyExchange.keyTerms(keyId).buyBack;
         uint256 totalCost = keySupply * buyBackCost;
 
         hoax(users.eve.account);
         vm.expectRevert(IKeyExchange.CallerNotKeyCreator.selector);
-        keyExchange.executeBuyBack{ value: totalCost }(keyId, holders, amounts);
+        keyExchange.executeBuyBack{ value: totalCost }(keyId, holders);
     }
 
     function testCannot_ExecuteBuyBack_ZeroLengthArray() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
-        address[] memory holders = getHolders(0);
-        uint256[] memory amounts = getAmounts(0);
-
         hoax(users.alice.account);
         vm.expectRevert(IKeyExchange.ZeroLengthArray.selector);
-        keyExchange.executeBuyBack(keyId, holders, amounts);
-    }
-
-    function testCannot_ExecuteBuyBack_ArrayLengthMismatch() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
-        address[] memory holders = getHolders(1);
-        uint256[] memory amounts = getAmounts(2);
-
-        hoax(users.alice.account);
-        vm.expectRevert(IKeyExchange.ArrayLengthMismatch.selector);
-        keyExchange.executeBuyBack(keyId, holders, amounts);
+        keyExchange.executeBuyBack(keyId, getHolders(0));
     }
 
     function testCannot_ExecuteBuyBack_KeyNotBuyOutMarket() public setKeyTerms(IKeyExchange.MarketType.FREE) {
         address[] memory holders = getHolders(keySupply);
-        uint256[] memory amounts = getAmounts(keySupply);
-
         uint256 buyBackCost = keyExchange.keyTerms(keyId).buyBack;
         uint256 totalCost = keySupply * buyBackCost;
 
         hoax(users.alice.account);
         vm.expectRevert(IKeyExchange.KeyNotBuyOutMarket.selector);
-        keyExchange.executeBuyBack{ value: totalCost }(keyId, holders, amounts);
+        keyExchange.executeBuyBack{ value: totalCost }(keyId, holders);
     }
 
     function testCannot_ExecuteBuyBack_InvalidNativeTokenAmount() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
         address[] memory holders = getHolders(keySupply);
-        uint256[] memory amounts = getAmounts(keySupply);
 
         /// Transfer 1 key to each of the holders.
         for (uint256 i = 0; i < holders.length; i++) {
@@ -637,12 +721,11 @@ contract KeyExchangeTest is BaseTest {
 
         hoax(users.alice.account);
         vm.expectRevert(IKeyExchange.InvalidNativeTokenAmount.selector);
-        keyExchange.executeBuyBack{ value: totalCost - 1 wei }(keyId, holders, amounts);
+        keyExchange.executeBuyBack{ value: totalCost - 1 wei }(keyId, holders);
     }
 
     function testCannot_ExecuteBuyBack_NativeTransferFailed() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
         address[] memory holders = getHolders(keySupply);
-        uint256[] memory amounts = getAmounts(keySupply);
 
         /// Transfer 1 key to each of the holders.
         for (uint256 i = 0; i < holders.length; i++) {
@@ -664,12 +747,11 @@ contract KeyExchangeTest is BaseTest {
 
         hoax(users.alice.account);
         vm.expectRevert(IKeyExchange.NativeTransferFailed.selector);
-        keyExchange.executeBuyBack{ value: totalCost }(keyId, holders, amounts);
+        keyExchange.executeBuyBack{ value: totalCost }(keyId, holders);
     }
 
     function testCannot_ExecuteBuyBack_BuyBackFailed() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
         address[] memory holders = getHolders(keySupply);
-        uint256[] memory amounts = getAmounts(keySupply);
 
         /// Transfer 1 key to each of the holders.
         for (uint256 i = 0; i < holders.length; i++) {
@@ -684,20 +766,18 @@ contract KeyExchangeTest is BaseTest {
         }
 
         holders = getHolders(99);
-        amounts = getAmounts(99);
 
         uint256 buyBackCost = keyExchange.keyTerms(keyId).buyBack;
         uint256 totalCost = keySupply * buyBackCost - buyBackCost;
 
         hoax(users.alice.account);
         vm.expectRevert(IKeyExchange.BuyBackFailed.selector);
-        keyExchange.executeBuyBack{ value: totalCost }(keyId, holders, amounts);
+        keyExchange.executeBuyBack{ value: totalCost }(keyId, holders);
     }
 
     function test_BuyAtReserve() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
         uint256 holderCount = 100;
         address[] memory holders = getHolders(holderCount);
-        uint256[] memory amounts = getAmounts(holderCount);
 
         /// KYC holders and transfer a single key to each of them.
         for (uint256 i = 0; i < holders.length; i++) {
@@ -712,15 +792,26 @@ contract KeyExchangeTest is BaseTest {
             assertEq(holder.balance, 0 ether);
         }
 
+        /// As the last holder, lend a key to the first holder.
+        hoax(holders[99], 0 ether);
+        keys.lendKeys({ lendee: holders[0], keyId: keyId, lendAmount: 1, lendDuration: 1 days });
+        assertEq(keys.balanceOf({ account: holders[0], id: keyId }), 2);
+
+        /// Modify holders array to not include the last holder.
+        address[] memory newHolders = new address[](99);
+        for (uint256 i = 0; i < newHolders.length; i++) {
+            newHolders[i] = holders[i];
+        }
+
         /// Calculate the expected cost of the action in native token.
         uint256 reservePrice = keyExchange.keyTerms(keyId).reserve;
         uint256 expectedTotal = reservePrice * holderCount;
 
         /// Buy a key from each of the holders at the reserve price as Bob.
         hoax(users.bob.account, expectedTotal);
-        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: true, checkData: true });
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
         emit ReserveBuyOut({ caller: users.bob.account, keyId: keyId });
-        keyExchange.buyAtReserve{ value: expectedTotal }(keyId, holders, amounts);
+        keyExchange.buyAtReserve{ value: expectedTotal }(keyId, newHolders);
 
         /// Ensure the transfer of key and ETH was as expected.
         for (uint256 i = 0; i < holders.length; i++) {
@@ -729,7 +820,7 @@ contract KeyExchangeTest is BaseTest {
             assertEq(keys.balanceOf(holder, keyId), 0);
             assertEq(holder.balance, reservePrice);
         }
-        
+
         assertEq(keys.balanceOf(users.bob.account, keyId), holderCount);
         assertEq(users.bob.account.balance, 0 ether);
 
@@ -743,7 +834,6 @@ contract KeyExchangeTest is BaseTest {
         uint256 excessFunds = 69 wei;
         uint256 holderCount = 100;
         address[] memory holders = getHolders(holderCount);
-        uint256[] memory amounts = getAmounts(holderCount);
 
         /// KYC holders and transfer a single key to each of them.
         for (uint256 i = 0; i < holders.length; i++) {
@@ -766,7 +856,7 @@ contract KeyExchangeTest is BaseTest {
         hoax(users.bob.account, expectedTotal + excessFunds);
         vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: true, checkData: true });
         emit ReserveBuyOut({ caller: users.bob.account, keyId: keyId });
-        keyExchange.buyAtReserve{ value: expectedTotal }(keyId, holders, amounts);
+        keyExchange.buyAtReserve{ value: expectedTotal }(keyId, holders);
 
         /// Ensure the transfer of key and ETH was as expected.
         for (uint256 i = 0; i < holders.length; i++) {
@@ -781,35 +871,19 @@ contract KeyExchangeTest is BaseTest {
     }
 
     function testCannot_BuyAtReserve_ZeroLengthArray() public {
-        address[] memory holders = getHolders(0);
-        uint256[] memory amounts = getAmounts(0);
-
         hoax(users.bob.account);
         vm.expectRevert(IKeyExchange.ZeroLengthArray.selector);
-        keyExchange.buyAtReserve(keyId, holders, amounts);
-    }
-
-    function testCannot_BuyAtReserve_ArrayLengthMismatch() public {
-        address[] memory holders = getHolders(1);
-        uint256[] memory amounts = getAmounts(2);
-
-        hoax(users.bob.account);
-        vm.expectRevert(IKeyExchange.ArrayLengthMismatch.selector);
-        keyExchange.buyAtReserve(keyId, holders, amounts);
+        keyExchange.buyAtReserve(keyId, getHolders(0));
     }
 
     function testCannot_BuyAtReserve_KeyNotBuyOutMarket() public setKeyTerms(IKeyExchange.MarketType.FREE) {
-        address[] memory holders = getHolders(1);
-        uint256[] memory amounts = getAmounts(1);
-
         hoax(users.bob.account);
         vm.expectRevert(IKeyExchange.KeyNotBuyOutMarket.selector);
-        keyExchange.buyAtReserve(keyId, holders, amounts);
+        keyExchange.buyAtReserve(keyId, getHolders(1));
     }
 
     function testCannot_BuyAtReserve_NativeTransferFailed() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
         address[] memory holders = getHolders(keySupply);
-        uint256[] memory amounts = getAmounts(keySupply);
 
         /// KYC holders and transfer a single key to each of them.
         for (uint256 i = 0; i < holders.length; i++) {
@@ -834,12 +908,11 @@ contract KeyExchangeTest is BaseTest {
         /// Buy a key from each of the holders at the reserve price as Bob.
         hoax(users.bob.account, expectedTotal);
         vm.expectRevert(IKeyExchange.NativeTransferFailed.selector);
-        keyExchange.buyAtReserve{ value: expectedTotal }(keyId, holders, amounts);
+        keyExchange.buyAtReserve{ value: expectedTotal }(keyId, holders);
     }
 
     function testCannot_BuyAtReserve_InvalidNativeTokenAmount() public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
         address[] memory holders = getHolders(keySupply);
-        uint256[] memory amounts = getAmounts(keySupply);
 
         /// KYC holders and transfer a single key to each of them.
         for (uint256 i = 0; i < holders.length; i++) {
@@ -862,13 +935,15 @@ contract KeyExchangeTest is BaseTest {
 
         /// Reverts during iteration before logic attempts to subtract a value greater than itself.
         vm.expectRevert(IKeyExchange.InvalidNativeTokenAmount.selector);
-        keyExchange.buyAtReserve{ value: badMinAmount }(keyId, holders, amounts);
+        keyExchange.buyAtReserve{ value: badMinAmount }(keyId, holders);
     }
 
-    function testCannot_BuyAtReserve_BuyBackFailed_Fuzzed(uint256 holderCount) public setKeyTerms(IKeyExchange.MarketType.BUYOUT) {
+    function testCannot_BuyAtReserve_BuyBackFailed_Fuzzed(uint256 holderCount)
+        public
+        setKeyTerms(IKeyExchange.MarketType.BUYOUT)
+    {
         holderCount = bound(holderCount, 1, keySupply - 1);
         address[] memory holders = getHolders(holderCount);
-        uint256[] memory amounts = getAmounts(holderCount);
 
         /// KYC holders and transfer a single key to each of them.
         for (uint256 i = 0; i < holders.length; i++) {
@@ -890,14 +965,17 @@ contract KeyExchangeTest is BaseTest {
         /// Buy a key from each of the holders at the reserve price as Bob.
         hoax(users.bob.account, expectedTotal);
         vm.expectRevert(IKeyExchange.BuyBackFailed.selector);
-        keyExchange.buyAtReserve{ value: expectedTotal }(keyId, holders, amounts);
-    } 
+        keyExchange.buyAtReserve{ value: expectedTotal }(keyId, holders);
+    }
 
     function test_SetKeyTerms_FreeMarket() public {
         IKeyExchange.MarketType marketType = IKeyExchange.MarketType.FREE;
+        IKeyExchange.KeyTerms memory keyTerms = IKeyExchange.KeyTerms(marketType, 0, 0);
 
         hoax(users.alice.account);
-        keyExchange.setKeyTerms(keyId, IKeyExchange.KeyTerms(marketType, 0, 0));
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
+        emit KeyTermsSet({ keyId: keyId, keyTerms: keyTerms });
+        keyExchange.setKeyTerms(keyId, keyTerms);
 
         IKeyExchange.KeyTerms memory terms = keyExchange.keyTerms(keyId);
         assertEq(terms.market, marketType);
@@ -907,9 +985,13 @@ contract KeyExchangeTest is BaseTest {
 
     function test_SetKeyTerms_BuyOutMarket() public {
         IKeyExchange.MarketType marketType = IKeyExchange.MarketType.BUYOUT;
+        IKeyExchange.KeyTerms memory keyTerms =
+            IKeyExchange.KeyTerms(marketType, defaultBuyBackPrice, defaultReservePrice);
 
         hoax(users.alice.account);
-        keyExchange.setKeyTerms(keyId, IKeyExchange.KeyTerms(marketType, defaultBuyBackPrice, defaultReservePrice));
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
+        emit KeyTermsSet({ keyId: keyId, keyTerms: keyTerms });
+        keyExchange.setKeyTerms(keyId, keyTerms);
 
         IKeyExchange.KeyTerms memory terms = keyExchange.keyTerms(keyId);
         assertEq(terms.market, marketType);
@@ -961,6 +1043,8 @@ contract KeyExchangeTest is BaseTest {
         assertFalse(initialState);
 
         hoax(users.admin);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
+        emit MultiKeyTradingUpdated({ newStatus: !initialState });
         keyExchange.toggleMultiKeyTrading();
 
         bool updatedState = keyExchange.multiKeysTradable();
@@ -982,6 +1066,8 @@ contract KeyExchangeTest is BaseTest {
         assertFalse(initialState);
 
         hoax(users.admin);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
+        emit RestrictedUserAccessUpdated({ newStatus: !initialState });
         keyExchange.toggleAllowRestrictedUsers();
 
         bool updatedState = keyExchange.allowRestrictedUsers();
@@ -998,8 +1084,11 @@ contract KeyExchangeTest is BaseTest {
 
     function test_SetProtocolFee_Fuzzed(uint256 newFee) public {
         newFee = bound(newFee, 1, 10_000);
+        uint256 oldFee = keyExchange.protocolFee();
 
         hoax(users.admin);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
+        emit ProtocolFeeUpdated({ oldFee: oldFee, newFee: newFee });
         keyExchange.setProtocolFee(newFee);
 
         assertEq(keyExchange.protocolFee(), newFee);
@@ -1020,8 +1109,14 @@ contract KeyExchangeTest is BaseTest {
     }
 
     function test_SetFeeReceiver_Fuzzed(address newFeeReceiver) public {
+        vm.assume(newFeeReceiver != address(0));
+        address oldFeeReceiver = keyExchange.feeReceiver();
+
         hoax(users.admin);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
+        emit FeeReceiverUpdated({ oldFeeReceiver: oldFeeReceiver, newFeeReceiver: newFeeReceiver });
         keyExchange.setFeeReceiver(newFeeReceiver);
+
         assertEq(keyExchange.feeReceiver(), newFeeReceiver);
     }
 
@@ -1029,6 +1124,12 @@ contract KeyExchangeTest is BaseTest {
         hoax(users.eve.account);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
         keyExchange.setFeeReceiver(users.eve.account);
+    }
+
+    function testCannot_SetFeeReceiver_ZeroAddressInvalid() public {
+        hoax(users.admin);
+        vm.expectRevert(IKeyExchange.ZeroAddressInvalid.selector);
+        keyExchange.setFeeReceiver({ newFeeReceiver: address(0) });
     }
 
     function test_IncrementNonce_Fuzzed(address account) public {
@@ -1062,7 +1163,8 @@ contract KeyExchangeTest is BaseTest {
             amount: defaultOrderAmount,
             nonce: 0,
             startTime: block.timestamp,
-            endTime: block.timestamp + 7 days
+            endTime: block.timestamp + 7 days,
+            protocolFee: keyExchange.protocolFee()
         });
     }
 
@@ -1074,7 +1176,8 @@ contract KeyExchangeTest is BaseTest {
             amount: defaultBidAmount,
             nonce: 0,
             startTime: block.timestamp,
-            endTime: block.timestamp + 7 days
+            endTime: block.timestamp + 7 days,
+            protocolFee: keyExchange.protocolFee()
         });
     }
 

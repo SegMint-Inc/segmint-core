@@ -4,13 +4,15 @@ pragma solidity 0.8.19;
 import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
 import { ECDSA } from "solady/src/utils/ECDSA.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
+import { IERC20 } from "@openzeppelin/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import { ReentrancyGuard } from "@openzeppelin/security/ReentrancyGuard.sol";
 import { TypeHasher } from "./handlers/TypeHasher.sol";
 import { NonceManager } from "./managers/NonceManager.sol";
 import { IKeyExchange } from "./interfaces/IKeyExchange.sol";
 import { IAccessRegistry } from "./interfaces/IAccessRegistry.sol";
 import { IMAVault } from "./interfaces/IMAVault.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
-import { IWETH } from "./interfaces/IWETH.sol";
 import { VaultType, KeyConfig } from "./types/DataTypes.sol";
 
 /**
@@ -18,7 +20,8 @@ import { VaultType, KeyConfig } from "./types/DataTypes.sol";
  * @notice Facilitates trading of Keys.
  */
 
-contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
+contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, ReentrancyGuard {
+    using SafeERC20 for IERC20;
     using ECDSA for bytes32;
 
     /// @dev Total basis points used for fee calculation.
@@ -28,10 +31,9 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
     uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
 
     /// @dev Wrapped native token contract.
-    IWETH public immutable WETH;
-
-    IKeys public keys;
-    IAccessRegistry public accessRegistry;
+    IERC20 public immutable WETH;
+    IKeys public immutable keys;
+    IAccessRegistry public immutable accessRegistry;
 
     /// Default protocol fee to 05.00%
     uint256 public protocolFee = 500;
@@ -48,10 +50,16 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
     mapping(uint256 keyId => KeyTerms keyTerms) private _keyTerms;
 
     constructor(address admin_, address feeReceiver_, address weth_, IKeys keys_, IAccessRegistry accessRegistry_) {
+        if (admin_ == address(0)) revert ZeroAddressInvalid();
+        if (feeReceiver_ == address(0)) revert ZeroAddressInvalid();
+        if (weth_ == address(0)) revert ZeroAddressInvalid();
+        if (address(keys_) == address(0)) revert ZeroAddressInvalid();
+        if (address(accessRegistry_) == address(0)) revert ZeroAddressInvalid();
+
         _initializeOwner(msg.sender);
         _grantRoles(admin_, ADMIN_ROLE);
 
-        WETH = IWETH(weth_);
+        WETH = IERC20(weth_);
         feeReceiver = feeReceiver_;
 
         keys = keys_;
@@ -67,7 +75,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
      * @inheritdoc IKeyExchange
      * @dev `msg.sender` in this context is a user wishing to fill an order, a buyer.
      */
-    function executeOrders(OrderParams[] calldata orders) external payable checkCaller {
+    function executeOrders(OrderParams[] calldata orders) external payable checkCaller nonReentrant {
         /// Checks: Ensure a non-zero amount of orders have been specified.
         if (orders.length == 0) revert ZeroLengthArray();
 
@@ -77,7 +85,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
         /// Tracks the total fees to be paid for all orders.
         uint256 totalFees = 0;
 
-        for (uint256 i = 0; i < orders.length; i++) {
+        for (uint256 i = 0; i < orders.length;) {
             /// Cache respective order parameters.
             Order calldata order = orders[i].order;
             bytes calldata signature = orders[i].signature;
@@ -114,7 +122,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
             IERC1155(address(keys)).safeTransferFrom(order.maker, msg.sender, order.keyId, order.amount, "");
 
             /// Calculate the protocol fee and subtract from the order price.
-            uint256 calculatedFee = order.price * protocolFee / _BASIS_POINTS;
+            uint256 calculatedFee = order.price * order.protocolFee / _BASIS_POINTS;
             uint256 makerEarnings = order.price - calculatedFee;
 
             /// Update the total amount of native token to pay the protocol.
@@ -130,6 +138,8 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
 
             /// Emit event after the order has been completely filled.
             emit OrderFilled(orderHash);
+
+            unchecked { i++; }
         }
 
         /// Pay the total fee amount to the fee receiver.
@@ -149,11 +159,11 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
      * @inheritdoc IKeyExchange
      * @dev `msg.sender` in this context is a user wishing to accept a bid, a seller.
      */
-    function executeBids(BidParams[] calldata bidParams) external checkCaller {
+    function executeBids(BidParams[] calldata bidParams) external checkCaller nonReentrant {
         /// Checks: Ensure a non zero amount of bids have been provided.
         if (bidParams.length == 0) revert ZeroLengthArray();
 
-        for (uint256 i = 0; i < bidParams.length; i++) {
+        for (uint256 i = 0; i < bidParams.length;) {
             /// Cache respective bid parameters.
             Bid calldata bid = bidParams[i].bid;
             bytes calldata signature = bidParams[i].signature;
@@ -187,19 +197,19 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
             IERC1155(address(keys)).safeTransferFrom(msg.sender, bid.maker, bid.keyId, bid.amount, "");
 
             /// Calculate protocol fee.
-            uint256 calculatedFee = bid.price * protocolFee / _BASIS_POINTS;
+            uint256 calculatedFee = bid.price * bid.protocolFee / _BASIS_POINTS;
             uint256 takerEarnings = bid.price - calculatedFee;
 
             /// Pay protocol fee.
-            bool success = WETH.transferFrom(bid.maker, feeReceiver, calculatedFee);
-            if (!success) revert NativeTransferFailed();
+            WETH.safeTransferFrom(bid.maker, feeReceiver, calculatedFee);
 
             /// Pay bid maker.
-            success = WETH.transferFrom(bid.maker, msg.sender, takerEarnings);
-            if (!success) revert NativeTransferFailed();
+            WETH.safeTransferFrom(bid.maker, msg.sender, takerEarnings);
 
             /// Emit event to acknowledge the bid has been filled.
             emit BidFilled(bidHash);
+
+            unchecked { i++; }
         }
     }
 
@@ -211,7 +221,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
         if (orders.length == 0) revert ZeroLengthArray();
 
         /// Iterate through each order.
-        for (uint256 i = 0; i < orders.length; i++) {
+        for (uint256 i = 0; i < orders.length;) {
             /// Cache order parameter.
             Order calldata order = orders[i];
 
@@ -229,6 +239,8 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
 
             /// Emit event for order cancellation.
             emit OrderCancelled(orderHash);
+
+            unchecked { i++; }
         }
     }
 
@@ -240,7 +252,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
         if (bids.length == 0) revert ZeroLengthArray();
 
         /// Iterate through each bid.
-        for (uint256 i = 0; i < bids.length; i++) {
+        for (uint256 i = 0; i < bids.length;) {
             /// Cache bid parameter.
             Bid calldata bid = bids[i];
 
@@ -258,13 +270,15 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
 
             /// Emit event for bid cancellation.
             emit BidCancelled(bidHash);
+
+            unchecked { i++; }
         }
     }
 
     /**
      * @inheritdoc IKeyExchange
      */
-    function executeBuyBack(uint256 keyId, address[] calldata holders, uint256[] calldata amounts) external payable {
+    function executeBuyBack(uint256 keyId, address[] calldata holders) external payable nonReentrant {
         /// Cache key configuration in memory.
         KeyConfig memory keyConfig = keys.getKeyConfig(keyId);
 
@@ -272,10 +286,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
         if (msg.sender != keyConfig.creator) revert CallerNotKeyCreator();
 
         /// Checks: Ensure a valid number of holders or amounts have been provided.
-        if (holders.length == 0 || amounts.length == 0) revert ZeroLengthArray();
-
-        /// Checks: Ensure the holders array length matches the amounts array length.
-        if (holders.length != amounts.length) revert ArrayLengthMismatch();
+        if (holders.length == 0) revert ZeroLengthArray();
 
         /// Copy key terms in to memory.
         KeyTerms memory terms = _keyTerms[keyId];
@@ -283,33 +294,8 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
         /// Checks: Ensure buy out terms have been set.
         if (terms.market != MarketType.BUYOUT) revert KeyNotBuyOutMarket();
 
-        /// Push original `msg.value` on to the stack.
-        uint256 msgValue = msg.value;
-
-        for (uint256 i = 0; i < holders.length; i++) {
-            address holder = holders[i];
-            uint256 amount = amounts[i];
-
-            /// Calculate the amount of native token owed to the holder.
-            uint256 earnings = terms.buyBack * amount;
-
-            /// Deduct owed amount from `msgValue`.
-            if (earnings > msgValue) revert InvalidNativeTokenAmount();
-            msgValue -= earnings;
-
-            /// Transfer the keys from the holder to the caller.
-            IERC1155(address(keys)).safeTransferFrom(holder, msg.sender, keyId, amount, "");
-
-            /// Transfer the owed amount of funds to the holder.
-            (bool success,) = holder.call{ value: earnings }("");
-            if (!success) revert NativeTransferFailed();
-        }
-
-        /// Refund any remaining native token to the caller.
-        if (msgValue > 0) {
-            (bool success,) = msg.sender.call{ value: msgValue }("");
-            if (!success) revert NativeTransferFailed();
-        }
+        /// Reclaim all the keys from the provided holders.
+        _reclaimKeys({ keyId: keyId, keyPrice: terms.buyBack, holders: holders });
 
         /// Checks: Ensure all keys were successfully transferred to the holder.
         if (IERC1155(address(keys)).balanceOf(msg.sender, keyId) != keyConfig.supply) revert BuyBackFailed();
@@ -323,16 +309,9 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
     /**
      * @inheritdoc IKeyExchange
      */
-    function buyAtReserve(uint256 keyId, address[] calldata holders, uint256[] calldata amounts)
-        external
-        payable
-        checkCaller
-    {
+    function buyAtReserve(uint256 keyId, address[] calldata holders) external payable checkCaller nonReentrant {
         /// Checks: Ensure a valid number of holders have been provided.
         if (holders.length == 0) revert ZeroLengthArray();
-
-        /// Checks: Ensure the holders array length matches the amounts array length.
-        if (holders.length != amounts.length) revert ArrayLengthMismatch();
 
         /// Copy key terms in to memory.
         KeyTerms memory terms = _keyTerms[keyId];
@@ -340,33 +319,8 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
         /// Checks: Ensure buy out terms have been set.
         if (terms.market != MarketType.BUYOUT) revert KeyNotBuyOutMarket();
 
-        /// Push original `msg.value` on to the stack.
-        uint256 msgValue = msg.value;
-
-        for (uint256 i = 0; i < holders.length; i++) {
-            address holder = holders[i];
-            uint256 amount = amounts[i];
-
-            /// Calculate the amount of native token owed to the holder.
-            uint256 owedAmount = terms.reserve * amount;
-
-            /// Deduct owed amount from `msgValue`.
-            if (owedAmount > msgValue) revert InvalidNativeTokenAmount();
-            msgValue -= owedAmount;
-
-            /// Transfer the keys from the holder to the caller.
-            IERC1155(address(keys)).safeTransferFrom(holder, msg.sender, keyId, amount, "");
-
-            /// Transfer the owed amount of funds to the holder.
-            (bool success,) = holder.call{ value: owedAmount }("");
-            if (!success) revert NativeTransferFailed();
-        }
-
-        /// Refund any remaining native token to the caller.
-        if (msgValue > 0) {
-            (bool success,) = msg.sender.call{ value: msgValue }("");
-            if (!success) revert NativeTransferFailed();
-        }
+        /// Reclaim all the keys from the provided holders.
+        _reclaimKeys({ keyId: keyId, keyPrice: terms.reserve, holders: holders });
 
         /// Checks: Ensure all keys were successfully transferred to the holder.
         uint256 maxSupply = keys.getKeyConfig(keyId).supply;
@@ -392,7 +346,9 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
         if (msg.sender != keyConfig.creator) revert CallerNotKeyCreator();
 
         /// Checks: Ensure that a valid market type has been provided.
-        if (finalTerms.market == MarketType.UNDEFINED || finalTerms.market == MarketType.INACTIVE) revert InvalidMarketType();
+        if (finalTerms.market == MarketType.UNDEFINED || finalTerms.market == MarketType.INACTIVE) {
+            revert InvalidMarketType();
+        }
 
         /// Checks: Ensure key terms have not already been set.
         if (_keyTerms[keyId].market != MarketType.UNDEFINED) revert KeyTermsDefined();
@@ -410,6 +366,8 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
 
         /// Set the buy out terms in storage.
         _keyTerms[keyId] = finalTerms;
+
+        emit KeyTermsSet({ keyId: keyId, keyTerms: finalTerms });
     }
 
     /**
@@ -417,10 +375,15 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
      */
     function toggleMultiKeyTrading() external onlyRoles(ADMIN_ROLE) {
         multiKeysTradable = !multiKeysTradable;
+        emit MultiKeyTradingUpdated({ newStatus: multiKeysTradable });
     }
 
+    /**
+     * @inheritdoc IKeyExchange
+     */
     function toggleAllowRestrictedUsers() external onlyRoles(ADMIN_ROLE) {
         allowRestrictedUsers = !allowRestrictedUsers;
+        emit RestrictedUserAccessUpdated({ newStatus: allowRestrictedUsers });
     }
 
     /**
@@ -428,14 +391,19 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
      */
     function setProtocolFee(uint256 newProtocolFee) external onlyRoles(ADMIN_ROLE) {
         if (newProtocolFee > _BASIS_POINTS) revert FeeExceedsBps();
+        uint256 oldProtocolFee = protocolFee;
         protocolFee = newProtocolFee;
+        emit ProtocolFeeUpdated({ oldFee: oldProtocolFee, newFee: newProtocolFee });
     }
 
     /**
      * @inheritdoc IKeyExchange
      */
     function setFeeReceiver(address newFeeReceiver) external onlyRoles(ADMIN_ROLE) {
+        if (newFeeReceiver == address(0)) revert ZeroAddressInvalid();
+        address oldFeeReceiver = feeReceiver;
         feeReceiver = newFeeReceiver;
+        emit FeeReceiverUpdated({ oldFeeReceiver: oldFeeReceiver, newFeeReceiver: newFeeReceiver });
     }
 
     /**
@@ -504,5 +472,63 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher {
     function _checkAccess(address account) internal view {
         IAccessRegistry.AccessType accessType = accessRegistry.accessType(account);
         if (accessType == IAccessRegistry.AccessType.RESTRICTED && !allowRestrictedUsers) revert Restricted();
+    }
+
+    /**
+     * Function used to reclaim keys from the provided holders and distribute the calculated amount of earnings.
+     */
+    function _reclaimKeys(uint256 keyId, uint256 keyPrice, address[] calldata holders) internal {
+        /// Push original `msg.value` on to the stack.
+        uint256 msgValue = msg.value;
+
+        for (uint256 i = 0; i < holders.length;) {
+            address holder = holders[i];
+            uint256 keyBalance = IERC1155(address(keys)).balanceOf(holder, keyId);
+            if (keyBalance == 0) revert NoKeysHeld();
+
+            /// Calculate the earnings to be distributed.
+            uint256 earnings = keyPrice * keyBalance;
+            if (earnings > msgValue) revert InvalidNativeTokenAmount();
+            msgValue -= earnings;
+
+            /// Check if the keys held by the holder are lended and distribute earnings accordingly.
+            IKeys.LendingTerms memory lendingTerms = keys.activeLends(holder, keyId);
+
+            if (lendingTerms.amount == 0) {
+                (bool success,) = holder.call{ value: earnings }("");
+                if (!success) revert NativeTransferFailed();
+            } else {
+                /// Clear the associated lend to allow for key transfers after earnings distribution. Doing so
+                /// avoids the transaction reverting with `CannotTransferLendedKeys`.
+                keys.clearLendingTerms({ lendee: holder, keyId: keyId });
+
+                /// If all keys held by the holder are lended, distribute the earnings to the original lender.
+                if (lendingTerms.amount == keyBalance) {
+                    (bool success,) = lendingTerms.lender.call{ value: earnings }("");
+                    if (!success) revert NativeTransferFailed();
+
+                    /// Otherwise, distribute earnings to both the lender and holder.
+                } else {
+                    uint256 holderEarnings = keyPrice * (keyBalance - lendingTerms.amount);
+
+                    (bool success,) = holder.call{ value: holderEarnings }("");
+                    if (!success) revert NativeTransferFailed();
+
+                    (success,) = lendingTerms.lender.call{ value: earnings - holderEarnings }("");
+                    if (!success) revert NativeTransferFailed();
+                }
+            }
+
+            /// Transfer keys to the caller.
+            IERC1155(address(keys)).safeTransferFrom(holder, msg.sender, keyId, keyBalance, "");
+
+            unchecked { i++; }
+        }
+
+        /// Refund any remaining native token to the caller.
+        if (msgValue > 0) {
+            (bool success,) = msg.sender.call{ value: msgValue }("");
+            if (!success) revert NativeTransferFailed();
+        }
     }
 }

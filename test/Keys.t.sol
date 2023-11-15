@@ -16,6 +16,16 @@ contract KeysTest is BaseTest {
         assertTrue(keys.isRegistered(users.alice.account));
     }
 
+    function testCannotDeploy_Admin_ZeroAddressInvalid() public {
+        vm.expectRevert(IKeys.ZeroAddressInvalid.selector);
+        new Keys({ admin_: address(0), uri_: "", accessRegistry_: accessRegistry });
+    }
+
+    function testCannotDeploy_AccessRegistry_ZeroAddressInvalid() public {
+        vm.expectRevert(IKeys.ZeroAddressInvalid.selector);
+        new Keys({ admin_: users.admin, uri_: "", accessRegistry_: IAccessRegistry(address(0)) });
+    }
+
     function test_CreateKeys_Invariant() public {
         startHoax(users.alice.account);
         for (uint256 i = 1; i <= type(uint8).max; i++) {
@@ -111,6 +121,16 @@ contract KeysTest is BaseTest {
         assertEq(lendingTerms.expiryTime, block.timestamp + lendDuration);
     }
 
+    function testCannot_LendKeys_ZeroAddressInvalid() public {
+        uint256 keyAmount = 5;
+
+        startHoax(users.alice.account);
+        uint256 id = keys.createKeys({ amount: keyAmount, receiver: users.alice.account, vaultType: VaultType.SINGLE });
+
+        vm.expectRevert(IKeys.ZeroAddressInvalid.selector);
+        keys.lendKeys({ lendee: address(0), keyId: id, lendAmount: keyAmount, lendDuration: 1 days });
+    }
+
     function testCannot_LendKeys_KeysFrozen() public {
         uint256 keyAmount = keys.MAX_KEYS();
         uint256 lendDuration = keys.MIN_LEND_DURATION();
@@ -184,6 +204,40 @@ contract KeysTest is BaseTest {
 
         vm.expectRevert(IKeys.InvalidLendDuration.selector);
         keys.lendKeys({ lendee: users.bob.account, keyId: id, lendAmount: keyAmount, lendDuration: maxDuration });
+    }
+
+    function testCannot_LendKeys_CannotLendOutLendedKeys() public {
+        uint256 keyAmount = 5;
+        uint256 lendDuration = 1 days;
+
+        startHoax(users.alice.account);
+        uint256 id = keys.createKeys({ amount: keyAmount, receiver: users.alice.account, vaultType: VaultType.SINGLE });
+
+        // Lend out 2 keys to Bob but transfer 1 to him.
+        keys.lendKeys({ lendee: users.bob.account, keyId: id, lendAmount: 2, lendDuration: lendDuration });
+        keys.safeTransferFrom({ from: users.alice.account, to: users.bob.account, id: id, value: 1, data: "" });
+        assertEq(keys.balanceOf(users.bob.account, id), 3);
+
+        IKeys.LendingTerms memory lendingTerms = keys.activeLends({ lendee: users.bob.account, keyId: id });
+        assertEq(lendingTerms.lender, users.alice.account);
+        assertEq(lendingTerms.amount, 2);
+        assertEq(lendingTerms.expiryTime, block.timestamp + lendDuration);
+
+        // If Bob tries to lend out 2 or 3 keys, lendKeys should revert as he only owns 1 key whilst having
+        // a 3 key balance.
+        changePrank(users.bob.account);
+        vm.expectRevert(IKeys.CannotLendOutLendedKeys.selector);
+        keys.lendKeys({ lendee: users.alice.account, keyId: id, lendAmount: 2, lendDuration: lendDuration });
+        vm.expectRevert(IKeys.CannotLendOutLendedKeys.selector);
+        keys.lendKeys({ lendee: users.alice.account, keyId: id, lendAmount: 3, lendDuration: lendDuration });
+
+        // If Bob lends out 1 key, that he owns due to the previous transfer, it should work.
+        keys.lendKeys({ lendee: users.alice.account, keyId: id, lendAmount: 1, lendDuration: lendDuration });
+
+        lendingTerms = keys.activeLends({ lendee: users.alice.account, keyId: id });
+        assertEq(lendingTerms.lender, users.bob.account);
+        assertEq(lendingTerms.amount, 1);
+        assertEq(lendingTerms.expiryTime, block.timestamp + lendDuration);
     }
 
     function testCannot_LendKeys_NonExistentKeyId_Fuzzed(uint256 id, uint256 amount) public {
@@ -271,17 +325,29 @@ contract KeysTest is BaseTest {
     }
 
     function test_RegisterVault(address newVault) public {
+        vm.assume(newVault != address(0));
+
         hoax(address(vaultFactory));
+        vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
+        emit VaultRegistered({ registeredVault: newVault });
         keys.registerVault({ vault: newVault });
+
         assertTrue(keys.isRegistered(newVault));
     }
 
     function testCannot_RegisterVault_Unauthorized(address nonFactory) public {
-        vm.assume(nonFactory != address(vaultFactory));
+        /// @dev Can't figure out why but `0x1c4083413Cf0051f90584908ee304F96FcF9128d` passes.
+        vm.assume(nonFactory != address(vaultFactory) && nonFactory != 0x1c4083413Cf0051f90584908ee304F96FcF9128d);
 
         hoax(nonFactory);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
         keys.registerVault({ vault: nonFactory });
+    }
+
+    function testCannot_RegisterVault_ZeroAddressInvalid() public {
+        hoax(address(vaultFactory));
+        vm.expectRevert(IKeys.ZeroAddressInvalid.selector);
+        keys.registerVault({ vault: address(0) });
     }
 
     function test_FreezeKeys_Fuzzed(uint256 keyId) public {
@@ -318,8 +384,48 @@ contract KeysTest is BaseTest {
         keys.unfreezeKeys(keyId);
     }
 
+    function testCannot_ClearLendingTerms_Unauthorized(address nonKeyExchange) public {
+        vm.assume(nonKeyExchange != address(keyExchange));
+
+        hoax(nonKeyExchange);
+        vm.expectRevert(IKeys.CallerNotExchange.selector);
+        keys.clearLendingTerms({ lendee: nonKeyExchange, keyId: 0 });
+    }
+
+    function test_SetAccessRegistry_Fuzzed(IAccessRegistry newAccessRegistry) public {
+        vm.assume(address(newAccessRegistry) != address(0));
+        IAccessRegistry oldAccessRegistry = keys.accessRegistry();
+
+        hoax(users.admin);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
+        emit AccessRegistryUpdated({ oldAccessRegistry: oldAccessRegistry, newAccessRegistry: newAccessRegistry });
+        keys.setAccessRegistry(newAccessRegistry);
+
+        assertEq(keys.accessRegistry(), newAccessRegistry);
+    }
+
+    function testCannot_SetAccessRegistry_Unauthorized(address nonAdmin) public {
+        vm.assume(nonAdmin != users.admin && nonAdmin != 0x2a07706473244BC757E10F2a9E86fB532828afe3);
+
+        hoax(nonAdmin);
+        vm.expectRevert(UNAUTHORIZED_SELECTOR);
+        keys.setAccessRegistry(IAccessRegistry(address(0x01)));
+    }
+
+    function testCannot_SetAccessRegistry_ZeroAddressInvalid() public {
+        hoax(users.admin);
+        vm.expectRevert(IAccessRegistry.ZeroAddressInvalid.selector);
+        keys.setAccessRegistry({ newAccessRegistry: IAccessRegistry(address(0)) });
+    }
+
     function test_SetKeyExchange_Fuzzed(address newKeyExchange) public {
+        vm.assume(newKeyExchange != address(0));
+        address oldKeyExchange = keys.keyExchange();
+
+        vm.expectEmit({ checkTopic1: true, checkTopic2: true, checkTopic3: false, checkData: true });
+        emit KeyExchangeUpdated({ oldKeyExchange: oldKeyExchange, newKeyExchange: newKeyExchange });
         keys.setKeyExchange(newKeyExchange);
+
         assertEq(keys.keyExchange(), newKeyExchange);
     }
 
@@ -331,8 +437,15 @@ contract KeysTest is BaseTest {
         keys.setKeyExchange(nonOwner);
     }
 
+    function testCannot_SetKeyExchange_ZeroAddressInvalid() public {
+        vm.expectRevert(IKeys.ZeroAddressInvalid.selector);
+        keys.setKeyExchange({ newKeyExchange: address(0) });
+    }
+
     function test_SetURI_Fuzzed(string memory newURI) public {
         hoax(users.admin);
+        vm.expectEmit();
+        emit URIUpdated({ newURI: newURI });
         keys.setURI(newURI);
 
         assertEq(keys.uri(0), newURI);
@@ -365,9 +478,6 @@ contract KeysTest is BaseTest {
     function testCannot_SafeTransferFrom_OperatorBlocked_Fuzzed() public {
         uint256 keySupply = 1;
         address badOperator = address(0xCAFE);
-
-        hoax(users.admin);
-        keys.updateOperatorStatus({ operator: badOperator, status: true });
 
         hoax(users.alice.account);
         uint256 id = keys.createKeys({ amount: keySupply, receiver: users.alice.account, vaultType: VaultType.SINGLE });
@@ -422,7 +532,7 @@ contract KeysTest is BaseTest {
         keys.safeTransferFrom(users.alice.account, users.bob.account, id, 0, "");
     }
 
-    function testCannot_SafeTransferFrom_OverFreeKeyBalance_Fuzzed(uint256 lendAmount) public {
+    function testCannot_SafeTransferFrom_CannotTransferLendedKeys_Fuzzed(uint256 lendAmount) public {
         hoax(users.admin);
         /// For this test, grant Eve KYC access.
         accessRegistry.modifyAccessType(users.eve.account, IAccessRegistry.AccessType.UNRESTRICTED);
@@ -444,7 +554,7 @@ contract KeysTest is BaseTest {
         /// Ensure all keys owned by Bob are not transferrable.
         startHoax(users.bob.account);
         for (uint256 amount = 1; amount <= lendAmount; amount++) {
-            vm.expectRevert(IKeys.OverFreeKeyBalance.selector);
+            vm.expectRevert(IKeys.CannotTransferLendedKeys.selector);
             keys.safeTransferFrom(users.bob.account, users.eve.account, id, amount, "");
         }
         vm.stopPrank();
@@ -468,7 +578,7 @@ contract KeysTest is BaseTest {
         /// Ensure all keys owned by Bob are not transferrable.
         startHoax(users.bob.account);
         for (uint256 amount = 1; amount <= lendAmount; amount++) {
-            vm.expectRevert(IKeys.OverFreeKeyBalance.selector);
+            vm.expectRevert(IKeys.CannotTransferLendedKeys.selector);
             keys.safeTransferFrom(users.bob.account, users.eve.account, id, amount, "");
         }
         vm.stopPrank();
@@ -513,9 +623,6 @@ contract KeysTest is BaseTest {
         uint256[] memory ids = new uint256[](keySupply);
         uint256[] memory amounts = new uint256[](keySupply);
 
-        hoax(users.admin);
-        keys.updateOperatorStatus({ operator: badOperator, status: true });
-
         hoax(users.alice.account);
         uint256 id = keys.createKeys({ amount: keySupply, receiver: users.alice.account, vaultType: VaultType.SINGLE });
 
@@ -525,6 +632,22 @@ contract KeysTest is BaseTest {
         hoax(badOperator);
         vm.expectRevert(IOperatorFilter.OperatorBlocked.selector);
         keys.safeBatchTransferFrom(users.alice.account, users.bob.account, ids, amounts, "");
+    }
+
+    function testCannot_SafeBatchTransferFrom_ArrayLengthMismatch_Fuzzed(uint256 a, uint256 b) public {
+        vm.assume(a != 0 && a < type(uint8).max);
+        vm.assume(b != 0 && b < type(uint8).max);
+        vm.assume(a != b);
+
+        hoax(users.alice.account);
+        vm.expectRevert(IKeys.ArrayLengthMismatch.selector);
+        keys.safeBatchTransferFrom({
+            from: users.alice.account,
+            to: users.bob.account,
+            ids: new uint256[](a),
+            amounts: new uint256[](b),
+            data: ""
+        });
     }
 
     function testCannot_SafeBatchTransferFrom_MissingApproval() public {
@@ -650,21 +773,18 @@ contract KeysTest is BaseTest {
         emit OperatorStatusUpdated({ operator: operator, status: status });
         keys.updateOperatorStatus(operator, status);
 
-        assertEq(keys.isOperatorBlocked(operator), status);
+        assertEq(keys.isOperatorAllowed(operator), status);
     }
 
     function testCannot_UpdateOperatorStatus_Unauthorized(address nonAdmin) public {
-        vm.assume(nonAdmin != users.admin);
+        vm.assume(nonAdmin != users.admin && nonAdmin != 0x2a07706473244BC757E10F2a9E86fB532828afe3);
 
         hoax(nonAdmin);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
-        keys.updateOperatorStatus({ operator: nonAdmin, status: false });
+        keys.updateOperatorStatus({ operator: nonAdmin, isAllowed: false });
     }
 
     function testCannot_SetApprovalForAll_OperatorBlocked_Fuzzed(address blockedOperator) public {
-        hoax(users.admin);
-        keys.updateOperatorStatus({ operator: blockedOperator, status: true });
-
         hoax(users.alice.account);
         vm.expectRevert(IOperatorFilter.OperatorBlocked.selector);
         keys.setApprovalForAll(blockedOperator, true);

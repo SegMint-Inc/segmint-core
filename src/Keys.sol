@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
+import { OwnableRoles } from "@solady/src/auth/OwnableRoles.sol";
 import { ERC1155 } from "@openzeppelin/token/ERC1155/ERC1155.sol";
+import { ReentrancyGuard } from "@openzeppelin/security/ReentrancyGuard.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
 import { IAccessRegistry } from "./interfaces/IAccessRegistry.sol";
 import { OperatorFilter } from "./handlers/OperatorFilter.sol";
@@ -13,7 +14,7 @@ import { VaultType, KeyConfig } from "./types/DataTypes.sol";
  * @notice Protocol ERC1155 token that provides functionality for key lending.
  */
 
-contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
+contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter, ReentrancyGuard {
     /// `keccak256("ADMIN_ROLE");`
     uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
 
@@ -56,6 +57,8 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
     }
 
     constructor(address admin_, string memory uri_, IAccessRegistry accessRegistry_) ERC1155(uri_) {
+        if (admin_ == address(0) || address(accessRegistry_) == address(0)) revert ZeroAddressInvalid();
+
         _initializeOwner(msg.sender);
         _grantRoles(admin_, ADMIN_ROLE);
 
@@ -113,6 +116,9 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
      * @inheritdoc IKeys
      */
     function lendKeys(address lendee, uint256 keyId, uint256 lendAmount, uint256 lendDuration) external {
+        /// Checks: Ensure `lendee` is not the zero address to prevent excess gas consumption.
+        if (lendee == address(0)) revert ZeroAddressInvalid();
+
         /// Checks: Ensure the key idenitifier is not frozen.
         if (_keyConfig[keyId].isFrozen) revert KeysFrozen();
 
@@ -131,6 +137,10 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
 
         /// Checks: Ensure a valid lend duration has been provided.
         if (lendDuration < MIN_LEND_DURATION || lendDuration > MAX_LEND_DURATION) revert InvalidLendDuration();
+
+        /// Checks: Ensure the keys being lended are not lended themselves.
+        uint256 ownedKeys = balanceOf(msg.sender, keyId) - _activeLends[msg.sender][keyId].amount;
+        if (lendAmount > ownedKeys) revert CannotLendOutLendedKeys();
 
         uint40 lendExpiryTime = uint40(block.timestamp + lendDuration);
 
@@ -174,7 +184,9 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
      * @inheritdoc IKeys
      */
     function registerVault(address vault) external onlyRoles(FACTORY_ROLE) {
+        if (vault == address(0)) revert ZeroAddressInvalid();
         isRegistered[vault] = true;
+        emit VaultRegistered({ registeredVault: vault });
     }
 
     /**
@@ -182,7 +194,6 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
      */
     function freezeKeys(uint256 keyId) external onlyRoles(ADMIN_ROLE) {
         _keyConfig[keyId].isFrozen = true;
-
         emit IKeys.KeyFrozen({ admin: msg.sender, keyId: keyId });
     }
 
@@ -191,7 +202,6 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
      */
     function unfreezeKeys(uint256 keyId) external onlyRoles(ADMIN_ROLE) {
         _keyConfig[keyId].isFrozen = false;
-
         emit IKeys.KeyUnfrozen({ admin: msg.sender, keyId: keyId });
     }
 
@@ -210,11 +220,40 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
     }
 
     /**
-     * Function used to set the key exchange address.
-     * @dev This function may only be called once during deployment.
+     * @inheritdoc IKeys
+     */
+    function clearLendingTerms(address lendee, uint256 keyId) external {
+        /// Checks: Ensure the caller is the Key Exchange.
+        if (msg.sender != keyExchange) revert CallerNotExchange();
+        _activeLends[lendee][keyId] = LendingTerms({ lender: address(0), amount: 0, expiryTime: 0 });
+    }
+
+    /**
+     * Function used to set the `accessRegistry` address.
+     */
+    function setAccessRegistry(IAccessRegistry newAccessRegistry) external onlyRoles(ADMIN_ROLE) {
+        if (address(newAccessRegistry) == address(0)) revert ZeroAddressInvalid();
+
+        IAccessRegistry oldAccessRegistry = accessRegistry;
+        accessRegistry = newAccessRegistry;
+
+        emit AccessRegistryUpdated({ oldAccessRegistry: oldAccessRegistry, newAccessRegistry: newAccessRegistry });
+    }
+
+    /**
+     * Function used to set the `keyExchange` address.
      */
     function setKeyExchange(address newKeyExchange) external onlyOwner {
+        if (newKeyExchange == address(0)) revert ZeroAddressInvalid();
+
+        address oldKeyExchange = keyExchange;
         keyExchange = newKeyExchange;
+
+        /// Authorize the Key Exchange as whitelisted operator, this operation does NOT clear
+        /// the previous Key Exchange's operator status.
+        _updateOperatorStatus({ operator: newKeyExchange, isAllowed: true });
+
+        emit KeyExchangeUpdated({ oldKeyExchange: oldKeyExchange, newKeyExchange: newKeyExchange });
     }
 
     /**
@@ -222,13 +261,14 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
      */
     function setURI(string calldata newURI) external onlyRoles(ADMIN_ROLE) {
         _setURI(newURI);
+        emit URIUpdated({ newURI: newURI });
     }
 
     /**
      * Function used to update an operators status.
      */
-    function updateOperatorStatus(address operator, bool status) external onlyRoles(ADMIN_ROLE) {
-        _updateOperatorStatus(operator, status);
+    function updateOperatorStatus(address operator, bool isAllowed) external onlyRoles(ADMIN_ROLE) {
+        _updateOperatorStatus(operator, isAllowed);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -242,6 +282,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         public
         override
         filterOperator(from)
+        nonReentrant
     {
         /// Checks: Ensure that `to` has a valid access type.
         IAccessRegistry.AccessType accessType = accessRegistry.accessType(to);
@@ -269,7 +310,10 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
         uint256[] memory ids,
         uint256[] memory amounts,
         bytes memory data
-    ) public override filterOperator(from) {
+    ) public override filterOperator(from) nonReentrant {
+        /// Checks: Ensure `ids` and `amounts` are equivalent in length.
+        if (ids.length != amounts.length) revert ArrayLengthMismatch();
+
         /// Checks: Ensure that `to` has a valid access type.
         IAccessRegistry.AccessType accessType = accessRegistry.accessType(to);
         if (accessType == IAccessRegistry.AccessType.BLOCKED) revert IAccessRegistry.InvalidAccessType();
@@ -351,8 +395,9 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter {
             uint256 freeKeys = this.balanceOf(from, id) - lendingTerms.amount;
 
             /// If the number of keys being transferred exceeds the number of free keys owned by
-            /// `from`, they shouldn't be able to move any keys.
-            if (amount > freeKeys) revert OverFreeKeyBalance();
+            /// `from`, they shouldn't be able to move any keys as this would result in lended keys being
+            /// transferred.
+            if (amount > freeKeys) revert CannotTransferLendedKeys();
         }
     }
 }

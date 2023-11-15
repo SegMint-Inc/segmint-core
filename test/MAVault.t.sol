@@ -47,10 +47,43 @@ contract MAVaultTest is BaseTest {
         assertEq(keyConfig.supply, keySupply);
     }
 
+    function testCannot_Initialize_Implementation_MAVault() public {
+        vm.expectRevert("Initializable: contract is already initialized");
+        maVault.initialize({ owner_: users.eve.account, keys_: keys, keyAmount_: 0 });
+    }
+
     function testCannot_Initialize_Twice() public {
         hoax(users.eve.account);
         vm.expectRevert("Initializable: contract is already initialized");
         vault.initialize({ owner_: users.eve.account, keys_: keys, keyAmount_: 0 });
+    }
+
+    function testCannot_Initialize_MAVault_Owner_ZeroAddressInvalid() public {
+        MAVault testVault = new MAVault();
+        vm.expectRevert(IMAVault.ZeroAddressInvalid.selector);
+        new ERC1967Proxy({
+            _logic: address(testVault),
+            _data: abi.encodeWithSelector(
+                IMAVault.initialize.selector,
+                address(0),  // owner
+                keys,
+                1
+            )
+        });
+    }
+
+    function testCannot_Initialize_MAVault_Keys_ZeroAddressInvalid() public {
+        MAVault testVault = new MAVault();
+        vm.expectRevert(IMAVault.ZeroAddressInvalid.selector);
+        new ERC1967Proxy({
+            _logic: address(testVault),
+            _data: abi.encodeWithSelector(
+                IMAVault.initialize.selector,
+                users.alice.account,
+                address(0),  // Keys
+                1
+            )
+        });
     }
 
     function test_UnlockAssets_ERC20() public {
@@ -139,11 +172,19 @@ contract MAVaultTest is BaseTest {
         vault.unlockAssets({ assets: assets, receiver: users.alice.account });
     }
 
-    function testCannot_UnlockAssets_KeysBinded() public {
+    function testCannot_UnlockAssets_ZeroAddressInvalid() public {
+        Asset[] memory assets = new Asset[](1);
+
+        hoax(users.alice.account);
+        vm.expectRevert(IMAVault.ZeroAddressInvalid.selector);
+        vault.unlockAssets({ assets: assets, receiver: address(0) });
+    }
+
+    function testCannot_UnlockAssets_KeysBindedToVault() public {
         Asset[] memory assets = getAssets();
 
         hoax(users.alice.account);
-        vm.expectRevert(IMAVault.KeysBinded.selector);
+        vm.expectRevert(IMAVault.KeysBindedToVault.selector);
         vault.unlockAssets({ assets: assets, receiver: users.alice.account });
     }
 
@@ -166,6 +207,9 @@ contract MAVaultTest is BaseTest {
 
         startHoax(users.alice.account, 0 ether);
         vault.claimOwnership();
+
+        vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
+        emit NativeTokenUnlocked({ receiver: users.alice.account, amount: amount });
         vault.unlockNativeToken(users.alice.account);
 
         assertEq(users.alice.account.balance, amount);
@@ -180,9 +224,21 @@ contract MAVaultTest is BaseTest {
         vault.unlockNativeToken(nonOwner);
     }
 
-    function testCannot_UnlockNativeToken_KeysBinded() public {
+    function testCannot_UnlockNativeToken_ZeroAddressInvalid() public {
+        uint256 amount = 1 ether;
+        deal(address(vault), amount);
+        assertEq(address(vault).balance, amount);
+
+        startHoax(users.alice.account, 0 ether);
+        vault.claimOwnership();
+
+        vm.expectRevert(IMAVault.ZeroAddressInvalid.selector);
+        vault.unlockNativeToken({ receiver: address(0) });
+    }
+
+    function testCannot_UnlockNativeToken_KeysBindedToVault() public {
         hoax(users.alice.account);
-        vm.expectRevert(IMAVault.KeysBinded.selector);
+        vm.expectRevert(IMAVault.KeysBindedToVault.selector);
         vault.unlockNativeToken(users.alice.account);
     }
 
@@ -228,10 +284,10 @@ contract MAVaultTest is BaseTest {
         assertEq(keyConfig.supply, keySupply);
     }
 
-    function testCannot_ClaimOwnership_NoKeysBinded() public {
+    function testCannot_ClaimOwnership_NoKeysBindedToVault() public {
         startHoax(users.alice.account);
         vault.claimOwnership();
-        vm.expectRevert(IMAVault.NoKeysBinded.selector);
+        vm.expectRevert(IMAVault.NoKeysBindedToVault.selector);
         vault.claimOwnership();
     }
 

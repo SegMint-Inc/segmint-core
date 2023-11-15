@@ -25,23 +25,125 @@ contract VaultFactoryTest is BaseTest {
         assertEq(version, "1.0");
     }
 
-    function test_Initialize_SetsVaules() public {
-        VaultFactory testVaultFactory = new VaultFactory();
-        testVaultFactory.initialize({
-            admin_: users.eve.account,
-            maVault_: address(maVault),
-            saVault_: address(saVault),
-            signerRegistry_: signerRegistry,
-            accessRegistry_: accessRegistry,
-            keys_: keys
-        });
+    function testCannot_Initialize_Implementation_VaultFactory() public {
+        /// @dev Since we cast the original implementation in `Base.sol` to the proxy, we need to
+        /// load the EIP-1967 slot to get the true implementation address.
+        bytes32 implementationSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+        bytes32 vaultFactoryImplementation = vm.load(address(vaultFactory), implementationSlot);
+        address implementation = address(uint160(uint256(vaultFactoryImplementation)));
 
-        assertEq(testVaultFactory.owner(), address(this));
-        assertEq(testVaultFactory.maVault(), address(maVault));
-        assertEq(testVaultFactory.saVault(), address(saVault));
-        assertEq(testVaultFactory.signerRegistry(), signerRegistry);
-        assertEq(testVaultFactory.accessRegistry(), accessRegistry);
-        assertEq(testVaultFactory.keys(), keys);
+        hoax(users.eve.account);
+        vm.expectRevert("Initializable: contract is already initialized");
+        VaultFactory(implementation).initialize({
+            admin_: users.eve.account,
+            maVault_: address(0),
+            saVault_: address(0),
+            signerRegistry_: ISignerRegistry(address(0)),
+            accessRegistry_: IAccessRegistry(address(0)),
+            keys_: IKeys(address(0))
+        });
+    }
+
+    function testCannot_Initialize_VaultFactory_Admin_ZeroAddressInvalid() public {
+        VaultFactory testVaultFactory = new VaultFactory();
+        vm.expectRevert(IVaultFactory.ZeroAddressInvalid.selector);
+        new ERC1967Proxy({
+            _logic: address(testVaultFactory),
+            _data: abi.encodeWithSelector(
+                VaultFactory.initialize.selector,
+                address(0), // admin
+                address(maVault),
+                address(saVault),
+                ISignerRegistry(signerRegistry),
+                IAccessRegistry(accessRegistry),
+                IKeys(keys)
+            )
+        });
+    }
+
+    function testCannot_Initialize_VaultFactory_MAVault_ZeroAddressInvalid() public {
+        VaultFactory testVaultFactory = new VaultFactory();
+        vm.expectRevert(IVaultFactory.ZeroAddressInvalid.selector);
+        new ERC1967Proxy({
+            _logic: address(testVaultFactory),
+            _data: abi.encodeWithSelector(
+                VaultFactory.initialize.selector,
+                users.admin,
+                address(0),  // MAVault
+                address(saVault),
+                ISignerRegistry(signerRegistry),
+                IAccessRegistry(accessRegistry),
+                IKeys(keys)
+            )
+        });
+    }
+
+    function testCannot_Initialize_VaultFactory_SAVault_ZeroAddressInvalid() public {
+        VaultFactory testVaultFactory = new VaultFactory();
+        vm.expectRevert(IVaultFactory.ZeroAddressInvalid.selector);
+        new ERC1967Proxy({
+            _logic: address(testVaultFactory),
+            _data: abi.encodeWithSelector(
+                VaultFactory.initialize.selector,
+                users.admin,
+                address(maVault),
+                address(0),  // SAVault
+                ISignerRegistry(signerRegistry),
+                IAccessRegistry(accessRegistry),
+                IKeys(keys)
+            )
+        });
+    }
+
+    function testCannot_Initialize_VaultFactory_SignerRegistry_ZeroAddressInvalid() public {
+        VaultFactory testVaultFactory = new VaultFactory();
+        vm.expectRevert(IVaultFactory.ZeroAddressInvalid.selector);
+        new ERC1967Proxy({
+            _logic: address(testVaultFactory),
+            _data: abi.encodeWithSelector(
+                VaultFactory.initialize.selector,
+                users.admin,
+                address(maVault),
+                address(saVault),
+                ISignerRegistry(address(0)),  // SignerRegistry
+                IAccessRegistry(accessRegistry),
+                IKeys(keys)
+            )
+        });
+    }
+
+    function testCannot_Initialize_VaultFactory_AccessRegistry_ZeroAddressInvalid() public {
+        VaultFactory testVaultFactory = new VaultFactory();
+        vm.expectRevert(IVaultFactory.ZeroAddressInvalid.selector);
+        new ERC1967Proxy({
+            _logic: address(testVaultFactory),
+            _data: abi.encodeWithSelector(
+                VaultFactory.initialize.selector,
+                users.admin,
+                address(maVault),
+                address(saVault),
+                ISignerRegistry(signerRegistry),
+                IAccessRegistry(address(0)),  // AccessRegistry
+                IKeys(keys)
+            )
+        });
+    }
+
+    function testCannot_Initialize_VaultFactory_Keys_ZeroAddressInvalid() public {
+        VaultFactory testVaultFactory = new VaultFactory();
+        vm.expectRevert(IVaultFactory.ZeroAddressInvalid.selector);
+        new ERC1967Proxy({
+            _logic: address(testVaultFactory),
+            _data: abi.encodeWithSelector(
+                VaultFactory.initialize.selector,
+                users.admin,
+                address(maVault),
+                address(saVault),
+                ISignerRegistry(signerRegistry),
+                IAccessRegistry(accessRegistry),
+                IKeys(address(0))
+            )
+        });
     }
 
     function testCannot_Initialize_Twice() public {
@@ -470,6 +572,12 @@ contract VaultFactoryTest is BaseTest {
         vaultFactory.proposeUpgrade({ newImplementation: mockUpgrade });
     }
 
+    function testCannot_ProposeUpgrade_ZeroAddressInvalid() public {
+        hoax(users.admin);
+        vm.expectRevert(IVaultFactory.ZeroAddressInvalid.selector);
+        vaultFactory.proposeUpgrade({ newImplementation: address(0) });
+    }
+
     function testCannot_ProposeUpgrade_ProposalInProgress() public {
         startHoax(users.admin);
         vaultFactory.proposeUpgrade({ newImplementation: mockUpgrade });
@@ -552,5 +660,15 @@ contract VaultFactoryTest is BaseTest {
         vaultFactory.proposeUpgrade({ newImplementation: mockUpgrade });
         vm.expectRevert(IUpgradeHandler.UpgradeTimeLocked.selector);
         vaultFactory.executeUpgrade({ payload: "" });
+    }
+
+    function testCannot_UpgradeTo_UUPSUpgradeable() public {
+        vm.expectRevert(IUpgradeHandler.UpgradeMethodBlocked.selector);
+        vaultFactory.upgradeTo({ newImplementation: address(0) });
+    }
+
+    function testCannot_UpgradeToAndCall_UUPSUpgradeable() public {
+        vm.expectRevert(IUpgradeHandler.UpgradeMethodBlocked.selector);
+        vaultFactory.upgradeToAndCall({ newImplementation: address(0), data: "" });
     }
 }

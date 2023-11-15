@@ -10,4 +10,4 @@ broadcast/
 docs/
 
 # Coverage
-.cov.debug
+lcov.info

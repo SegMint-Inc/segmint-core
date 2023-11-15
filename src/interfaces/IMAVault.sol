@@ -25,17 +25,33 @@ interface IMAVault {
     /**
      * Thrown when trying to bind keys to an already key binded vault.
      */
-    error KeysBinded();
+    error KeysBindedToVault();
 
     /**
      * Thrown when trying to unbind keys from a non-key binded vault.
      */
-    error NoKeysBinded();
+    error NoKeysBindedToVault();
 
     /**
      * Thrown when trying to unlock an asset of class `NONE`.
      */
     error NoneAssetType();
+
+    /**
+     * Thrown when the zero address is provided.
+     */
+    error ZeroAddressInvalid();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                           EVENTS                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * Emitted when native token is unlocked.
+     * @param receiver Account receiving the native token.
+     * @param amount Amount of native token being unlocked.
+     */
+    event NativeTokenUnlocked(address indexed receiver, uint256 amount);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                         FUNCTIONS                          */

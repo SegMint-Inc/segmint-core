@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { Ownable } from "solady/src/auth/Ownable.sol";
+import { Ownable } from "@solady/src/auth/Ownable.sol";
 import { Initializable } from "@openzeppelin/proxy/utils/Initializable.sol";
 import { SafeERC20 } from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/token/ERC20/IERC20.sol";
@@ -27,10 +27,17 @@ contract MAVault is IMAVault, Ownable, Initializable {
      */
     uint256 public boundKeyId;
 
+    constructor() {
+        /// Prevent implementation contract from being initialized.
+        _disableInitializers();
+    }
+
     /**
      * @inheritdoc IMAVault
      */
     function initialize(address owner_, IKeys keys_, uint256 keyAmount_) external initializer {
+        if (owner_ == address(0) || address(keys_) == address(0)) revert ZeroAddressInvalid();
+
         _initializeOwner(owner_);
 
         keys = keys_;
@@ -46,8 +53,11 @@ contract MAVault is IMAVault, Ownable, Initializable {
         /// Checks: Ensure a non-zero amount of assets has been specified.
         if (assets.length == 0) revert ZeroAssetAmount();
 
+        /// Checks: Ensure `receiver` is not zero address to prevent excess gas consumption.
+        if (receiver == address(0)) revert ZeroAddressInvalid();
+
         /// Checks: Ensure the associated keys have been burnt.
-        if (boundKeyId != 0) revert KeysBinded();
+        if (boundKeyId != 0) revert KeysBindedToVault();
 
         for (uint256 i = 0; i < assets.length; i++) {
             Asset calldata asset = assets[i];
@@ -84,10 +94,16 @@ contract MAVault is IMAVault, Ownable, Initializable {
      */
     function unlockNativeToken(address receiver) external onlyOwner {
         /// Checks: Ensure the associated keys have been burnt.
-        if (boundKeyId != 0) revert KeysBinded();
+        if (boundKeyId != 0) revert KeysBindedToVault();
 
-        (bool success,) = receiver.call{ value: address(this).balance }("");
+        /// Checks: Ensure `receiver` is not zero address to prevent excess gas consumption.
+        if (receiver == address(0)) revert ZeroAddressInvalid();
+
+        uint256 amount = address(this).balance;
+        (bool success,) = receiver.call{ value: amount }("");
         if (!success) revert NativeTokenUnlockFailed();
+
+        emit NativeTokenUnlocked({ receiver: receiver, amount: amount });
     }
 
     /**
@@ -95,7 +111,7 @@ contract MAVault is IMAVault, Ownable, Initializable {
      */
     function claimOwnership() external {
         /// Checks: Ensure a valid key ID is binded to the vault.
-        if (boundKeyId == 0) revert NoKeysBinded();
+        if (boundKeyId == 0) revert NoKeysBindedToVault();
 
         /// Burn the keys associated with the vault, this will revert if the caller
         /// doesn't hold the full supply of keys.

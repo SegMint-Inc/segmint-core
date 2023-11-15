@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";
-import { ECDSA } from "solady/src/utils/ECDSA.sol";
-import { LibClone } from "solady/src/utils/LibClone.sol";
-import { Initializable } from "@openzeppelin/proxy/utils/Initializable.sol";
+import { OwnableRoles } from "@solady/src/auth/OwnableRoles.sol";
+import { ECDSA } from "@solady/src/utils/ECDSA.sol";
+import { LibClone } from "@solady/src/utils/LibClone.sol";
+import { Initializable } from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
 import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
 import { UpgradeHandler } from "../handlers/UpgradeHandler.sol";
@@ -37,6 +37,11 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
     mapping(address account => uint256 nonce) private _maVaultNonce;
     mapping(address account => uint256 nonce) private _saVaultNonce;
 
+    constructor() {
+        /// Prevent implementation contract from being initialized.
+        _disableInitializers();
+    }
+
     /**
      * @inheritdoc IVaultFactory
      */
@@ -48,6 +53,13 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
         IAccessRegistry accessRegistry_,
         IKeys keys_
     ) external initializer {
+        if (admin_ == address(0)) revert ZeroAddressInvalid();
+        if (maVault_ == address(0)) revert ZeroAddressInvalid();
+        if (saVault_ == address(0)) revert ZeroAddressInvalid();
+        if (address(signerRegistry_) == address(0)) revert ZeroAddressInvalid();
+        if (address(accessRegistry_) == address(0)) revert ZeroAddressInvalid();
+        if (address(keys_) == address(0)) revert ZeroAddressInvalid();
+
         _initializeOwner(msg.sender);
         _grantRoles(admin_, ADMIN_ROLE);
 
@@ -163,21 +175,22 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
     /**
      * @inheritdoc IVaultFactory
      */
-    function proposeUpgrade(address newImplementation) external onlyRoles(ADMIN_ROLE) {
+    function proposeUpgrade(address newImplementation) external onlyRoles(ADMIN_ROLE) onlyProxy {
+        if (newImplementation == address(0)) revert ZeroAddressInvalid();
         _proposeUpgrade(newImplementation);
     }
 
     /**
      * @inheritdoc IVaultFactory
      */
-    function cancelUpgrade() external onlyRoles(ADMIN_ROLE) {
+    function cancelUpgrade() external onlyRoles(ADMIN_ROLE) onlyProxy {
         _cancelUpgrade();
     }
 
     /**
      * @inheritdoc IVaultFactory
      */
-    function executeUpgrade(bytes memory payload) external onlyRoles(ADMIN_ROLE) {
+    function executeUpgrade(bytes memory payload) external onlyRoles(ADMIN_ROLE) onlyProxy {
         _executeUpgrade(payload);
     }
 
@@ -204,9 +217,11 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
     {
         address[] memory deployments = new address[](nonce);
 
-        for (uint256 i = 0; i < nonce; i++) {
+        for (uint256 i = 0; i < nonce;) {
             bytes32 salt = keccak256(abi.encodePacked(account, i));
             deployments[i] = implementation.predictDeterministicAddress(salt, address(this));
+
+            unchecked { i++; }
         }
 
         return deployments;
