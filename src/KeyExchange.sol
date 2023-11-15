@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: SegMint Code License 1.1
 pragma solidity 0.8.19;
 
 import { OwnableRoles } from "solady/src/auth/OwnableRoles.sol";

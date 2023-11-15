@@ -1,0 +1,99 @@
+SegMint Code License 1.1 (the “License”) 
+
+1.	Background
+This License including its name and terms is protected by SegMint GmbH through international copyright. All rights are reserved. You may make copies of this license agreement and forward it to others, but it is prohibited to change it. Non-exclusive permission is granted to use this License's text for your projects, under the condition that you adhere to the Terms of this License.
+
+This License regulates the relationship between SegMint GmbH and anybody who uses, copies, modifies, distributes or redistributes the SegMint Code.
+
+2.	Definitions
+"Copyright" means all registered and unregistered intellectual property rights which are associated with the SegMint Code, its name, logo and design.
+
+“Current Subsequent Licence” means this License for the most current SegMint Code as distributed on the sub-domain v1-core-license-grants.segmint.eth.
+
+"Distribute" means providing a copy of the Package or making it accessible to anyone else, or in the case of a company or organization, to others outside of your company or organization.
+
+“Open Source License” means this license according to Section 4 for versions of the SegMint Code after a Transition Date occurred.  
+
+"Original License" means this License for the first version 1.1 of the SegMint Code as distributed on the sub-domain v1-core-license-grants.segmint.eth.
+
+“Protected Software” means the SegMint Code as defined below and software derived from the SegMint Code.
+
+"SegMint Code" means the smart contracts specified in the current version of Exhibit A to this License. Exhibit A may be amended and changed by SegMint GmbH at its own discretion at any time.  
+
+"Subsequent License" means this License for any new version of the SegMint Code above Version 1.1. as distributed on the sub-domain v1-core-license-grants.segmint.eth.
+
+“Transition Date” means the sooner of four years after the publication of the latest version of the Protected Software and the date of a subsequent version of the Protected Software published on the sub-domain at v1-core-license-grants.segmint.eth
+
+"You" means any person who copies, uses, distributes, or modifies the SegMint Code.
+
+3.	Permission
+SegMint GmbH grants you permission to copy, adapt, distribute, redistribute and make non-commercial utilization of the Protected Software. Supplementary permissions for restricted commercial use might be granted to you on request. Supplementary permissions must be in written form to be valid. You  may approach SegMint GmbH at the below address with requests for supplementary permissions.  
+
+Upon reaching the Transition Date of a particular version of the Protected Software the rights and obligations under this License will automatically apply to the new version of the Protected Software and will accordingly apply as the then Current Subsequent License. The Original License or former Subsequent License will automatically transition into an Open Source License according to Section 4 of this License. Accordingly, in case of a Transition this License will automatically become effective for the new Version of the Protected Software and Section 4 of this License will apply to any former version of the Protected Software.
+
+Do not use, modify, or distribute the Protected Software, if you do not accept this License. If your utilization of the Protected Software breaches the conditions of this license, you are obliged to either obtain a proprietary license from SegMint GmbH or its official partners or cease using the software.
+
+The Terms and Conditions and licensing of Software derived from the Protected Software by you must adhere to this License. Each release of the Protected Software by SegMint GmbH can have different Transition Dates. If you use an adapted or modified subsequent version of the Protected Software and/or your version has been derived from an adapted or modified version made by someone other than you, you are nevertheless required to ensure that your version complies with the requirements of this license.
+
+This License must be prominently displayed on every copy or modification of the Protected Software and on any new software derived from the Protected Software. Acquiring the Protected Software or any software that is derived from the Protected Software to any extent does not waive or change the requirement to adherence to the terms of this License.
+
+Violations of this License results automatically in an immediate revocation of all permissions granted for all versions of the Protected Software. Any violation of this license and any use of the SegMint Code other than provided for in this License may be subject to (a) claims of all relevant economic, IP and related damages; claims for omission of direct and indirect use; (c) claims for access to all related information; and (d) applications for prosecution and penalty law procedings. However, your Licence is reinstated if SegMint GmbH notifies you of the violation by some reasonable means, this is the first time you have received notice of violation of this License from SegMint GmbH and you cure the violation prior to 40 days after your receipt of the notice.
+
+The license doesn't confer rights to use any service mark, trademarks or logos associated with SegMint GmbH, except where explicitly permitted by this License.
+
+Unless restricted by law, the Protected Software is supplied "AS IS". All warranties, both explicit and implied, are disclaimed by the Issuer. Any implied warranties of merchantability and/or its fitness for a particular purpose are disclaimed to the extent permitted by the law applicable in the jurisdiction of your main domicile. Unless mandatory under applicable law SegMint GmbH will not be liable for any direct, incidental or consequential damages even - if likely or obvious - arising in any way out of the use of the SegMint Code by you.
+
+Non-exclusive permission is granted to use this License's text for your projects, under the condition that you adhere to the Issuer's Commitments described below.
+
+The SegMint Code License 1.1, as described in this document, does not qualify as an Open Source License. However, the Protected Software will be available under an Open Source License in the future, as detailed herein.
+
+4.	Open Source License
+This entire Section 4 shall apply to any version of the Protected Software that is issued or published by SegMint GmbH before any Transition Date (“Open Source SegMint Code”). The limitations according to Section 3 above shall not apply to any Open Source SegMint Code.
+
+4.1	Rights
+(1) You may reproduce and distribute the Open Source SegMint Code and make it publicly available in an unmodified form.
+(2) You may modify the Open Source SegMint Code and reproduce and distribute modified versions and make them publicly available. It is also permitted to combine the Open Source SegMint Code or parts thereof with other programs.
+(3) You obtain the rights free of charge.
+
+4.2	Obligations for Distribution and Making Publicly Available
+If you distribute the Open Source SegMint Code or make it publicly available, be it in unmodified or modified form, be it in combination with other programs or in connection with hardware, you also have to provide or include the following:
+•	all references to this License in the Source Code and/or Object Code;
+•	all references in the Source Code and/or Object Code containing information about SegMint GmbH as the author of the Open Source SegMint Code;
+•	a conspicuous reference to this License and the Internet address, to be displayed in a form that can easily be read by the recipient;
+•	the complete text of this License in a form easy to perceive.
+
+If a license for your derived program or software and/or contract terms are displayed when your program or hardware is installed and/or started, the following items must also be displayed:
+•	this License;
+•	a reference to this License; and
+•	a reference to SegMint GmbH as the entitled person to the Open Source SegMint Code used under this License.
+
+You may not make the use of the Open Source SegMint Code upon the compliance with this License.
+
+You may only distribute modified versions of the Open Source SegMint Code or make them publicly available as open Source software in accordance with the terms of this License, so that any third party is able to make use of the modified software as a whole under this License.
+
+If the Open Source SegMint Code or a part thereof is combined with another program, this also applies to the entire combination as a modified version of the Open Source SegMint Code, unless the other program is independent in terms of form and content. Another program shall be regarded as independent if it fulfils the following requirements:
+•	The Source Code of the combined programs must be contained in separate files which do not include components of the other part except for parts containing the information customary and required for the Program combination. The Source Code of the other program does not have to be delivered.
+•	The part which is combined with the Program must also be reasonably usable when not combined with the Program, i.e. on a standalone basis or with other programs. The meaning of "reasonably usable" will be based on the opinion of pertinent circles of expert groups in the relevant field. Such circles of experts include everyone who develops, uses, distributes or makes publicly available the Program concerned or programs with similar functionality.
+
+5.	Governing Law and Jurisdiction
+
+This License shall be governed by and interpreted according to the laws of Germany without regard to its conflict of law provisions. Both parties consent to the exclusive jurisdiction and venue of the courts located in Frankfurt am Main, Germany for any disputes arising out of this License.
+
+Status: V1_10 November 2023
+
+Exhibit A to SegMint Code License 1.1 (the “License”)
+
+The SegMint Code consists of the following smart contracts:  
+
+VaultFactory.sol
+OperatorFilter.sol
+TypeHasher.sol
+UpgradeHandler.sol
+NonceManager.sol
+AccessRegistry.sol
+SignerRegistry.sol
+DataTypes.sol
+KeyExchange.sol
+Keys.sol
+MAVault.sol
+SAVault.sol
