@@ -9,11 +9,11 @@ import { IKeyExchange } from "../interfaces/IKeyExchange.sol";
  * @notice Used to derive the EIP712 hash associated with Order/Bid types for {KeyExchange}.
  */
 abstract contract TypeHasher is EIP712 {
-    /// Order(uint256 price,address maker,address taker,uint256 keyId,uint256 amount,uint256 nonce,uint256 startTime,uint256 endTime)
-    bytes32 private constant _ORDER_TYPEHASH = 0x9a3b6761b926f38baa0938ef9c869311aed6761ec5857a410ad87bd983171278;
+    /// Order(uint256 price,address maker,address taker,uint256 keyId,uint256 amount,uint256 nonce,uint256 startTime,uint256 endTime,uint256 protocolFee)
+    bytes32 private constant _ORDER_TYPEHASH = 0x0b6924d5b04b806b54420ab907a20ef6e436c98940c145fc9cbecf56f16f16ee;
 
-    /// Bid(address maker,uint256 price,uint256 keyId,uint256 amount,uint256 startTime,uint256 endTime)
-    bytes32 private constant _BID_TYPEHASH = 0xdf9d101dd2b60a9a7812e3b3efb62d0f6bbe4d5dbcc3c96268ee8c3f393dd534;
+    /// Bid(address maker,uint256 price,uint256 keyId,uint256 amount,uint256 startTime,uint256 endTime,uint256 protocolFee)
+    bytes32 private constant _BID_TYPEHASH = 0x6046975e732d96874a3c5d01e677d795a05bcbf805627a3fcf949418a44a966f;
 
     /**
      * Function used to return the EIP712 hash of a order.
@@ -29,7 +29,8 @@ abstract contract TypeHasher is EIP712 {
             order.amount,
             order.nonce,
             order.startTime,
-            order.endTime
+            order.endTime,
+            order.protocolFee
         )));
     }
 
@@ -46,7 +47,8 @@ abstract contract TypeHasher is EIP712 {
             bid.amount,
             bid.nonce,
             bid.startTime,
-            bid.endTime
+            bid.endTime,
+            bid.protocolFee
         )));
     }
 
