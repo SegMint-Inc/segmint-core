@@ -38,7 +38,7 @@ abstract contract Events {
     event FeeReceiverUpdated(address oldFeeReceiver, address newFeeReceiver);
 
     /// {IVaultFactory} Events.
-    event VaultCreated(address indexed user, address indexed vault, VaultType vaultType);
+    event VaultCreated(address indexed user, address indexed vault, VaultType vaultType, bytes signature);
     event SafeCreated(address indexed user, address indexed safe);
 
     /// {IKeys} Events.

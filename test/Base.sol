@@ -48,7 +48,7 @@ abstract contract Base is Script, Test {
         accessRegistry = new AccessRegistry({ admin_: admin, signerRegistry_: ISignerRegistry(signerRegistry) });
 
         /// Deploy ERC-1155 keys and exchange contract.
-        keys = new Keys({ admin_: admin, uri_: "", accessRegistry_: IAccessRegistry(accessRegistry) });
+        keys = new Keys({ admin_: admin, uri_: "https://assets.segmint.io/keys/", accessRegistry_: IAccessRegistry(accessRegistry) });
         keyExchange = new KeyExchange({
             admin_: admin,
             feeReceiver_: feeReceiver,

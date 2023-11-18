@@ -169,7 +169,7 @@ contract VaultFactoryTest is BaseTest {
 
         hoax(users.alice.account);
         vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: true, checkData: true });
-        emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.MULTI });
+        emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.MULTI, signature: signature });
         vaultFactory.createMultiAssetVault({ keyAmount: keyAmount, signature: signature });
 
         (uint256 newMaNonce,) = vaultFactory.getNonces(users.alice.account);
@@ -196,7 +196,7 @@ contract VaultFactoryTest is BaseTest {
             signature = getVaultCreationSignature(users.alice.account, i, VaultType.MULTI);
 
             vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: true, checkData: true });
-            emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.MULTI });
+            emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.MULTI, signature: signature });
             vaultFactory.createMultiAssetVault(i + 1, signature);
         }
         vm.stopPrank();
@@ -253,7 +253,7 @@ contract VaultFactoryTest is BaseTest {
         mockERC721.setApprovalForAll({ operator: address(vaultFactory), approved: true });
 
         vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: true, checkData: true });
-        emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.SINGLE });
+        emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.SINGLE, signature: signature });
         vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, signature: signature });
         vm.stopPrank();
 
@@ -323,7 +323,7 @@ contract VaultFactoryTest is BaseTest {
         mockERC1155.setApprovalForAll({ operator: address(vaultFactory), approved: true });
 
         vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: true, checkData: true });
-        emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.SINGLE });
+        emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.SINGLE, signature: signature });
         vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, signature: signature });
         vm.stopPrank();
 
@@ -397,7 +397,7 @@ contract VaultFactoryTest is BaseTest {
                 getVaultCreationSignature({ account: users.alice.account, nonce: i, vaultType: VaultType.SINGLE });
 
             vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: true, checkData: true });
-            emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.SINGLE });
+            emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.SINGLE, signature: signature });
             vaultFactory.createSingleAssetVault({ asset: assets[i], keyAmount: keyAmount, signature: signature });
         }
         vm.stopPrank();
