@@ -29,8 +29,9 @@ interface IVaultFactory {
      * @param user Address of the account that created the vault.
      * @param vault Address of the newly created vault.
      * @param vaultType The type of vault created.
+     * @param signature Signature used for Vault creation.
      */
-    event VaultCreated(address indexed user, address indexed vault, VaultType vaultType);
+    event VaultCreated(address indexed user, address indexed vault, VaultType vaultType, bytes signature);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                         FUNCTIONS                          */

@@ -100,7 +100,7 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
         IMAVault(newVault).initialize({ owner_: msg.sender, keys_: keys, keyAmount_: keyAmount });
 
         /// Emit vault creation event.
-        emit IVaultFactory.VaultCreated({ user: msg.sender, vault: newVault, vaultType: VaultType.MULTI });
+        emit IVaultFactory.VaultCreated({ user: msg.sender, vault: newVault, vaultType: VaultType.MULTI, signature: signature });
     }
 
     /**
@@ -141,7 +141,7 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
         }
 
         /// Emit vault creation event.
-        emit IVaultFactory.VaultCreated({ user: msg.sender, vault: newVault, vaultType: VaultType.SINGLE });
+        emit IVaultFactory.VaultCreated({ user: msg.sender, vault: newVault, vaultType: VaultType.SINGLE, signature: signature });
     }
 
     /**
