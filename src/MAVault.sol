@@ -7,6 +7,7 @@ import { SafeERC20 } from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/token/ERC20/IERC20.sol";
 import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
+import { IDelegateRegistry } from "@delegate-registry/src/IDelegateRegistry.sol";
 import { IMAVault } from "./interfaces/IMAVault.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
 import { AssetClass, Asset, VaultType, KeyConfig } from "./types/DataTypes.sol";
@@ -19,6 +20,9 @@ import { AssetClass, Asset, VaultType, KeyConfig } from "./types/DataTypes.sol";
 
 contract MAVault is IMAVault, Ownable, Initializable {
     using SafeERC20 for IERC20;
+
+    /// @dev delegate.xyz V2 Registry
+    IDelegateRegistry public constant DELEGATE_V2_REGISTRY = IDelegateRegistry(0x00000000000000447e69651d841bD8D104Bed493);
 
     IKeys public keys;
 
@@ -35,13 +39,20 @@ contract MAVault is IMAVault, Ownable, Initializable {
     /**
      * @inheritdoc IMAVault
      */
-    function initialize(address owner_, IKeys keys_, uint256 keyAmount_) external initializer {
+    function initialize(address owner_, IKeys keys_, uint256 keyAmount_, bool delegateAssets_) external initializer {
         if (owner_ == address(0) || address(keys_) == address(0)) revert ZeroAddressInvalid();
 
         _initializeOwner(owner_);
 
         keys = keys_;
         boundKeyId = keys.createKeys({ amount: keyAmount_, receiver: owner_, vaultType: VaultType.MULTI });
+
+        /// If the creator of the Vault has chosen to delegate the underlying asset, all rights will be given to the
+        /// creator. These rights can be modified at a later point in time by calling `modifyAssetDelegation`.
+        if (delegateAssets_) {
+            bytes32 delegationHash = DELEGATE_V2_REGISTRY.delegateAll({ to: owner_, rights: "", enable: true });
+            emit DelegationPerformed(delegationHash);
+        }
     }
 
     /**
@@ -123,6 +134,23 @@ contract MAVault is IMAVault, Ownable, Initializable {
 
         /// Transfer ownership to the caller.
         _setOwner(msg.sender);
+    }
+
+    /**
+     * @inheritdoc IMAVault
+     */
+    function modifyAssetDelegation(bytes[] calldata delegationPayloads) external onlyOwner {
+        /// Checks: Ensure a valid number of delegation rights have been provided.
+        if (delegationPayloads.length == 0) revert ZeroLengthArray();
+
+        /// Call the delegation V2 registry with the encoded payloads.
+        bytes[] memory results = DELEGATE_V2_REGISTRY.multicall(delegationPayloads);
+        
+        /// Iterate over the returned results and emit the respective delegation hashes.
+        for (uint256 i = 0; i < results.length;) {
+            emit DelegationPerformed(abi.decode(results[i], (bytes32)));
+            unchecked { ++i; }
+        }
     }
 
     /**

@@ -56,6 +56,9 @@ abstract contract Events {
     /// {OperatorFilter} Events.
     event OperatorStatusUpdated(address operator, bool status);
 
+    /// {ISAVault} Events.
+    event DelegationPerformed(bytes32 indexed delegationHash);
+
     /// {IMAVault} Events.
     event NativeTokenUnlocked(address indexed receiver, uint256 amount);
 }

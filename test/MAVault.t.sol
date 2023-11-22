@@ -29,7 +29,7 @@ contract MAVaultTest is BaseTest {
         bytes memory signature = getVaultCreationSignature(users.alice.account, maNonce, VaultType.MULTI);
 
         hoax(users.alice.account);
-        vaultFactory.createMultiAssetVault({ keyAmount: keySupply, signature: signature });
+        vaultFactory.createMultiAssetVault({ keyAmount: keySupply, delegateAssets: false, signature: signature });
 
         vault = MAVault(payable(vaultFactory.getMultiAssetVaults({ account: users.alice.account })[0]));
     }
@@ -49,13 +49,13 @@ contract MAVaultTest is BaseTest {
 
     function testCannot_Initialize_Implementation_MAVault() public {
         vm.expectRevert("Initializable: contract is already initialized");
-        maVault.initialize({ owner_: users.eve.account, keys_: keys, keyAmount_: 0 });
+        maVault.initialize({ owner_: users.eve.account, keys_: keys, keyAmount_: 0, delegateAssets_: false });
     }
 
     function testCannot_Initialize_Twice() public {
         hoax(users.eve.account);
         vm.expectRevert("Initializable: contract is already initialized");
-        vault.initialize({ owner_: users.eve.account, keys_: keys, keyAmount_: 0 });
+        vault.initialize({ owner_: users.eve.account, keys_: keys, keyAmount_: 0, delegateAssets_: false });
     }
 
     function testCannot_Initialize_MAVault_Owner_ZeroAddressInvalid() public {
@@ -67,7 +67,8 @@ contract MAVaultTest is BaseTest {
                 IMAVault.initialize.selector,
                 address(0),  // owner
                 keys,
-                1
+                1,
+                false
             )
         });
     }
@@ -81,7 +82,8 @@ contract MAVaultTest is BaseTest {
                 IMAVault.initialize.selector,
                 users.alice.account,
                 address(0),  // Keys
-                1
+                1,
+                false
             )
         });
     }
@@ -295,6 +297,52 @@ contract MAVaultTest is BaseTest {
         hoax(users.bob.account);
         vm.expectRevert("ERC1155: burn amount exceeds balance");
         vault.claimOwnership();
+    }
+
+    // TODO: Finish tests for `modifyAssetDelegation`.
+
+    function test_ModifyAssetDelegation() public {
+        // Confirm that there are no outgoing delegations as Alice created the vault with `delegateAssets_` as false.
+        IDelegateRegistry.Delegation[] memory delegations = delegateRegistry.getOutgoingDelegations(address(vault));
+        assertEq(delegations.length, 0);
+
+        /// Approve Alice's delegation rights for all.
+        bytes[] memory delegationPayloads = new bytes[](1);
+        delegationPayloads[0] = abi.encodeWithSelector(
+            IDelegateRegistry.delegateAll.selector,
+            users.alice.account,  // `to`
+            bytes32(""),        // `rights`
+            true                // `enable`
+        );
+
+        hoax(users.alice.account);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
+        emit DelegationPerformed({ delegationHash: 0x4fd98b4ab70d00e9fd2b80daf2480ad1b0e9e320468f35effbeb4489cb32e001 });
+        vault.modifyAssetDelegation(delegationPayloads);
+
+        /// Check outgoing delegations for `vault` and ensure Bob is the only delegate with full rights.
+        delegations = delegateRegistry.getOutgoingDelegations(address(vault));
+        assertEq(delegations.length, 1);
+        assertEq(delegations[0].type_, IDelegateRegistry.DelegationType.ALL);
+        assertEq(delegations[0].to, users.alice.account);
+        assertEq(delegations[0].from, address(vault));
+        assertEq(delegations[0].contract_, address(0));
+        assertEq(delegations[0].tokenId, 0);
+        assertEq(delegations[0].amount, 0);
+    }
+
+    function testCannot_ModifyAssetDelegation_Unauthorized_Fuzzed(address notOwner) public {
+        vm.assume(notOwner != vault.owner());
+
+        hoax(notOwner);
+        vm.expectRevert(UNAUTHORIZED_SELECTOR);
+        vault.modifyAssetDelegation({ delegationPayloads: new bytes[](1) });
+    }
+
+    function testCannot_ModifyAssetDelegation_ZeroLengthArray() public {
+        hoax(users.alice.account);
+        vm.expectRevert(IMAVault.ZeroLengthArray.selector);
+        vault.modifyAssetDelegation({ delegationPayloads: new bytes[](0) });
     }
 
     function test_OnERC1155BatchReceived() public {

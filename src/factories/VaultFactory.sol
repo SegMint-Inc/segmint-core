@@ -74,7 +74,7 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
     /**
      * @inheritdoc IVaultFactory
      */
-    function createMultiAssetVault(uint256 keyAmount, bytes calldata signature) external {
+    function createMultiAssetVault(uint256 keyAmount, bool delegateAssets, bytes calldata signature) external {
         /// Checks: Ensure the caller has valid access.
         IAccessRegistry.AccessType _accessType = accessRegistry.accessType(msg.sender);
         if (_accessType == IAccessRegistry.AccessType.BLOCKED) revert IAccessRegistry.InvalidAccessType();
@@ -97,7 +97,12 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
         keys.registerVault(newVault);
 
         /// Initialize the newly created clone.
-        IMAVault(newVault).initialize({ owner_: msg.sender, keys_: keys, keyAmount_: keyAmount });
+        IMAVault(newVault).initialize({
+            owner_: msg.sender,
+            keys_: keys,
+            keyAmount_: keyAmount,
+            delegateAssets_: delegateAssets
+        });
 
         /// Emit vault creation event.
         emit IVaultFactory.VaultCreated({ user: msg.sender, vault: newVault, vaultType: VaultType.MULTI, signature: signature });
@@ -106,7 +111,7 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
     /**
      * @inheritdoc IVaultFactory
      */
-    function createSingleAssetVault(Asset calldata asset, uint256 keyAmount, bytes calldata signature) external {
+    function createSingleAssetVault(Asset calldata asset, uint256 keyAmount, bool delegateAsset, bytes calldata signature) external {
         /// Checks: Ensure the caller has valid access.
         IAccessRegistry.AccessType _accessType = accessRegistry.accessType(msg.sender);
         if (_accessType == IAccessRegistry.AccessType.BLOCKED) revert IAccessRegistry.InvalidAccessType();
@@ -131,7 +136,13 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
         keys.registerVault(newVault);
 
         /// Initialize the newly created clone.
-        ISAVault(newVault).initialize({ _asset: asset, _keys: keys, _keyAmount: keyAmount, _receiver: msg.sender });
+        ISAVault(newVault).initialize({
+            _asset: asset,
+            _keys: keys,
+            _keyAmount: keyAmount,
+            _receiver: msg.sender,
+            _delegateAsset: delegateAsset
+        });
 
         /// Transfer asset to the newly created clone after initialization.
         if (asset.class == AssetClass.ERC721) {
@@ -220,7 +231,6 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
         for (uint256 i = 0; i < nonce;) {
             bytes32 salt = keccak256(abi.encodePacked(account, i));
             deployments[i] = implementation.predictDeterministicAddress(salt, address(this));
-
             unchecked { i++; }
         }
 

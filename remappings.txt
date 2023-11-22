@@ -5,3 +5,4 @@ forge-std/=lib/forge-std/src/
 @openzeppelin/=lib/openzeppelin-contracts/contracts/
 @openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 @solady/=lib/solady/
+@delegate-registry/=lib/delegate-registry/

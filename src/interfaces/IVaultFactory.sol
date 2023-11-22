@@ -58,17 +58,19 @@ interface IVaultFactory {
     /**
      * Function used to create a multi-asset vault.
      * @param keyAmount Number of keys to bind to the vault.
+     * @param delegateAssets Flag indicating if the underlying assets should be delegated to the Vault creator.
      * @param signature Signed message digest.
      */
-    function createMultiAssetVault(uint256 keyAmount, bytes calldata signature) external;
+    function createMultiAssetVault(uint256 keyAmount, bool delegateAssets, bytes calldata signature) external;
 
     /**
      * Function used to create a single-asset vault.
      * @param asset The asset being locked and fractionalized.
      * @param keyAmount Number of keys to create and bind.
+     * @param delegateAsset Flag indicating if the underlying asset should be delegated to the Vault creator.
      * @param signature Signed message digest.
      */
-    function createSingleAssetVault(Asset calldata asset, uint256 keyAmount, bytes calldata signature) external;
+    function createSingleAssetVault(Asset calldata asset, uint256 keyAmount, bool delegateAsset, bytes calldata signature) external;
 
     /**
      * Function used to get all the multi-asset vaults created by a given account.

@@ -37,6 +37,26 @@ interface ISAVault {
      */
     error ZeroAddressInvalid();
 
+    /**
+     * Thrown when the caller is not the original Vault creator.
+     */
+    error CallerNotVaultCreator();
+
+    /**
+     * Thrown when the input array has zero length.
+     */
+    error ZeroLengthArray();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                           EVENTS                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * Emitted when changes to the delegation rights of an asset are performed.
+     * @param delegationHash Unique delegation identifier.
+     */
+    event DelegationPerformed(bytes32 indexed delegationHash);
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                         FUNCTIONS                          */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -52,14 +72,23 @@ interface ISAVault {
      * @param _keys Keys contract address.
      * @param _keyAmount Number of keys being binded.
      * @param _receiver Receiving address of the newly created keys.
+     * @param _delegateAsset Flag indicating if the underlying asset should be delegated to the Vault creator.
      */
-    function initialize(Asset calldata _asset, IKeys _keys, uint256 _keyAmount, address _receiver) external;
+    function initialize(Asset calldata _asset, IKeys _keys, uint256 _keyAmount, address _receiver, bool _delegateAsset) external;
 
     /**
      * Function used to unlock the underlying asset within a vault.
      * @param receiver Account that will receive the unlocked asset.
      */
     function unlockAsset(address receiver) external;
+
+    /**
+     * Function used to modify delegation rights of underlying assets contained within the Vault.
+     * @param delegationPayloads Array of encoded delegation calls to make.
+     * @dev It is expected that only delegation calls should be made with this function, such as:
+     * `delegateAll`, `delegateContract`, `delegateERC721` and `delegateERC1155`.
+     */
+    function modifyAssetDelegation(bytes[] calldata delegationPayloads) external;
 
     /**
      * Function used to view the key config associated the vaults key ID.
