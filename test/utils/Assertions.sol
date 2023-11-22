@@ -3,6 +3,7 @@ pragma solidity 0.8.19;
 
 import "forge-std/Test.sol";
 
+import { IDelegateRegistry } from "@delegate-registry/src/IDelegateRegistry.sol";
 import { ISignerRegistry } from "../../src/interfaces/ISignerRegistry.sol";
 import { IAccessRegistry } from "../../src/interfaces/IAccessRegistry.sol";
 import { IKeyExchange } from "../../src/interfaces/IKeyExchange.sol";
@@ -64,6 +65,11 @@ abstract contract Assertions is Test {
 
     /// Assets two {IKeyExchange.Status} enum values match.
     function assertEq(IKeyExchange.Status a, IKeyExchange.Status b) internal {
+        assertEq(uint256(a), uint256(b));
+    }
+
+    /// Assets two {IDelegateRegistry.DelegationType} enums values match.
+    function assertEq(IDelegateRegistry.DelegationType a, IDelegateRegistry.DelegationType b) internal {
         assertEq(uint256(a), uint256(b));
     }
 }

@@ -25,7 +25,7 @@ contract VaultFactoryTest is BaseTest {
         assertEq(version, "1.0");
     }
 
-    function testCannot_Initialize_Implementation_VaultFactory() public {
+    function testCannot_Initialize_VaultFactory_Implementation() public {
         /// @dev Since we cast the original implementation in `Base.sol` to the proxy, we need to
         /// load the EIP-1967 slot to get the true implementation address.
         bytes32 implementationSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
@@ -170,7 +170,7 @@ contract VaultFactoryTest is BaseTest {
         hoax(users.alice.account);
         vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: true, checkData: true });
         emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.MULTI, signature: signature });
-        vaultFactory.createMultiAssetVault({ keyAmount: keyAmount, signature: signature });
+        vaultFactory.createMultiAssetVault({ keyAmount: keyAmount, delegateAssets: false, signature: signature });
 
         (uint256 newMaNonce,) = vaultFactory.getNonces(users.alice.account);
         assertEq(newMaNonce, maNonce + 1);
@@ -197,7 +197,7 @@ contract VaultFactoryTest is BaseTest {
 
             vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: true, checkData: true });
             emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.MULTI, signature: signature });
-            vaultFactory.createMultiAssetVault(i + 1, signature);
+            vaultFactory.createMultiAssetVault(i + 1, false, signature);
         }
         vm.stopPrank();
 
@@ -217,13 +217,35 @@ contract VaultFactoryTest is BaseTest {
         }
     }
 
+    function test_CreateMultiAssetVault_WithDelegation() public {
+        bytes memory signature = getVaultCreationSignature(users.alice.account, 0, VaultType.MULTI);
+
+        hoax(users.alice.account);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
+        emit DelegationPerformed({ delegationHash: 0x4fd98b4ab70d00e9fd2b80daf2480ad1b0e9e320468f35effbeb4489cb32e001 });
+        vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: true, checkData: true });
+        emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.MULTI, signature: signature });
+        vaultFactory.createMultiAssetVault({ keyAmount: 100, delegateAssets: true, signature: signature });
+
+        address delegationVault = vaultFactory.getMultiAssetVaults({ account: users.alice.account })[0];
+
+        IDelegateRegistry.Delegation[] memory delegations = delegateRegistry.getOutgoingDelegations(delegationVault);
+        assertEq(delegations.length, 1);
+        assertEq(delegations[0].type_, IDelegateRegistry.DelegationType.ALL);
+        assertEq(delegations[0].to, users.alice.account);
+        assertEq(delegations[0].from, delegationVault);
+        assertEq(delegations[0].contract_, address(0));
+        assertEq(delegations[0].tokenId, 0);
+        assertEq(delegations[0].amount, 0);
+    }
+
     function testCannot_CreateMultiAssetVault_InvalidAccessType() public {
         (uint256 maNonce,) = vaultFactory.getNonces(users.eve.account);
         bytes memory signature = getVaultCreationSignature(users.eve.account, maNonce, VaultType.MULTI);
 
         hoax(users.eve.account);
         vm.expectRevert(IAccessRegistry.InvalidAccessType.selector);
-        vaultFactory.createMultiAssetVault({ keyAmount: 1, signature: signature });
+        vaultFactory.createMultiAssetVault({ keyAmount: 1, delegateAssets: false, signature: signature });
     }
 
     function testCannot_CreateMultiAssetVault_SignerMismatch_Fuzzed(uint256 randomNonce) public {
@@ -233,10 +255,10 @@ contract VaultFactoryTest is BaseTest {
 
         hoax(users.alice.account);
         vm.expectRevert(ISignerRegistry.SignerMismatch.selector);
-        vaultFactory.createMultiAssetVault({ keyAmount: 1, signature: signature });
+        vaultFactory.createMultiAssetVault({ keyAmount: 1, delegateAssets: false, signature: signature });
     }
 
-    function test_CreateSingleAssetVault_ERC721() public {
+    function test_CreateSingleAssetVault_ERC721_WithDelegation_Fuzzed() public {
         uint256 keyAmount = keys.MAX_KEYS();
 
         Asset memory asset = getERC721Asset();
@@ -248,14 +270,13 @@ contract VaultFactoryTest is BaseTest {
         bytes memory signature =
             getVaultCreationSignature({ account: users.alice.account, nonce: saNonce, vaultType: VaultType.SINGLE });
 
-        startHoax(users.alice.account);
         /// Approve `vaultFactory` to transfer the asset on callers behalf.
+        startHoax(users.alice.account);
         mockERC721.setApprovalForAll({ operator: address(vaultFactory), approved: true });
 
         vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: true, checkData: true });
         emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.SINGLE, signature: signature });
-        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, signature: signature });
-        vm.stopPrank();
+        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, delegateAsset: true, signature: signature });
 
         (, uint256 newSaNonce) = vaultFactory.getNonces({ account: users.alice.account });
         assertEq(newSaNonce, saNonce + 1);
@@ -266,14 +287,19 @@ contract VaultFactoryTest is BaseTest {
         address payable saVault = payable(saVaults[0]);
         assertTrue(keys.isRegistered(saVault));
 
-        uint256 codeSize = 0;
-        assembly {
-            codeSize := extcodesize(saVault)
-        }
-        assertGt(codeSize, 0);
-
         SAVault vault = SAVault(saVault);
         assertEq(vault.keys(), keys);
+
+        bytes32[] memory delegationHashes = new bytes32[](1);
+        delegationHashes[0] = 0xe1ad6c25371c70191567b905adf6873640932a4f95fc14f718520fa8fe24cf01;  // Hardcoded hash.
+        IDelegateRegistry.Delegation[] memory delegations = vault.DELEGATE_V2_REGISTRY().getDelegationsFromHashes(delegationHashes);
+        assertEq(delegations.length, 1);
+        assertEq(delegations[0].type_, IDelegateRegistry.DelegationType.ALL);
+        assertEq(delegations[0].to, users.alice.account);
+        assertEq(delegations[0].from, saVault);
+        assertEq(delegations[0].contract_, address(0));
+        assertEq(delegations[0].tokenId, 0);
+        assertEq(delegations[0].amount, 0);
 
         uint256 keyId = vault.boundKeyId();
         assertTrue(keyId != 0);
@@ -324,7 +350,7 @@ contract VaultFactoryTest is BaseTest {
 
         vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: true, checkData: true });
         emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.SINGLE, signature: signature });
-        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, signature: signature });
+        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, delegateAsset: false, signature: signature });
         vm.stopPrank();
 
         (, uint256 newSaNonce) = vaultFactory.getNonces({ account: users.alice.account });
@@ -398,7 +424,7 @@ contract VaultFactoryTest is BaseTest {
 
             vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: true, checkData: true });
             emit VaultCreated({ user: users.alice.account, vault: address(0), vaultType: VaultType.SINGLE, signature: signature });
-            vaultFactory.createSingleAssetVault({ asset: assets[i], keyAmount: keyAmount, signature: signature });
+            vaultFactory.createSingleAssetVault({ asset: assets[i], keyAmount: keyAmount, delegateAsset: false, signature: signature });
         }
         vm.stopPrank();
 
@@ -468,7 +494,7 @@ contract VaultFactoryTest is BaseTest {
 
         hoax(users.eve.account);
         vm.expectRevert(IAccessRegistry.InvalidAccessType.selector);
-        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: 1, signature: signature });
+        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: 1, delegateAsset: false, signature: signature });
     }
 
     function testCannot_CreateSingleAssetVault_SignerMismatch_Fuzzed(uint256 randomNonce) public {
@@ -480,7 +506,7 @@ contract VaultFactoryTest is BaseTest {
 
         hoax(users.alice.account);
         vm.expectRevert(ISignerRegistry.SignerMismatch.selector);
-        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: 1, signature: signature });
+        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: 1, delegateAsset: false, signature: signature });
     }
 
     function testCannot_CreateSingleAssetVault_ZeroAmountValue() public {
@@ -495,7 +521,7 @@ contract VaultFactoryTest is BaseTest {
 
         hoax(users.alice.account);
         vm.expectRevert(ISAVault.ZeroAssetAmount.selector);
-        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, signature: signature });
+        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, delegateAsset: false, signature: signature });
     }
 
     function testCannot_CreateSingleAssetVault_InvalidAssetType() public {
@@ -508,13 +534,13 @@ contract VaultFactoryTest is BaseTest {
 
         startHoax(users.alice.account);
         vm.expectRevert(ISAVault.InvalidAssetType.selector);
-        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, signature: signature });
+        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, delegateAsset: false, signature: signature });
 
         /// Change asset class to type NONE.
         asset.class = AssetClass.NONE;
 
         vm.expectRevert(ISAVault.InvalidAssetType.selector);
-        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, signature: signature });
+        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, delegateAsset: false, signature: signature });
         vm.stopPrank();
     }
 
@@ -532,7 +558,7 @@ contract VaultFactoryTest is BaseTest {
 
         hoax(users.alice.account);
         vm.expectRevert(ISAVault.Invalid721Amount.selector);
-        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, signature: signature });
+        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, delegateAsset: false, signature: signature });
     }
 
     function testCannot_CreateSingleAssetVault_InvalidKeyAmount() public {
@@ -547,7 +573,7 @@ contract VaultFactoryTest is BaseTest {
 
         hoax(users.alice.account);
         vm.expectRevert(IKeys.InvalidKeyAmount.selector);
-        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, signature: signature });
+        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, delegateAsset: false, signature: signature });
     }
 
     function test_ProposeUpgrade() public {

@@ -18,7 +18,7 @@ contract SAVaultTest is BaseTest {
     function testCannot_Initialize_Implementation_SAVault() public {
         Asset memory emptyAsset = Asset({ class: AssetClass.ERC721, token: address(0x01), identifier: 0, amount: 1 });
         vm.expectRevert("Initializable: contract is already initialized");
-        saVault.initialize({ _asset: emptyAsset, _keys: keys, _keyAmount: 0, _receiver: users.eve.account });
+        saVault.initialize({ _asset: emptyAsset, _keys: keys, _keyAmount: 0, _receiver: users.eve.account, _delegateAsset: false });
     }
 
     function testCannot_Initialize_SAVault_Keys_ZeroAddressInvalid() public {
@@ -31,7 +31,8 @@ contract SAVaultTest is BaseTest {
                 getERC721Asset(),
                 address(0),  // Keys
                 1,
-                users.alice.account
+                users.alice.account,
+                false
             )
         });
     }
@@ -46,7 +47,8 @@ contract SAVaultTest is BaseTest {
                 getERC721Asset(),
                 keys,
                 1,
-                address(0)  // Receiver
+                address(0),  // Receiver
+                false
             )
         });
     }
@@ -59,7 +61,7 @@ contract SAVaultTest is BaseTest {
         bytes memory signature = getVaultCreationSignature(users.alice.account, saNonce, VaultType.SINGLE);
 
         startHoax(users.alice.account);
-        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, signature: signature });
+        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, delegateAsset: false, signature: signature });
 
         ISAVault newVault = ISAVault(vaultFactory.getSingleAssetVaults({ account: users.alice.account })[0]);
         uint256 keyId = newVault.boundKeyId();
@@ -89,7 +91,7 @@ contract SAVaultTest is BaseTest {
         bytes memory signature = getVaultCreationSignature(users.alice.account, saNonce, VaultType.SINGLE);
 
         startHoax(users.alice.account);
-        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, signature: signature });
+        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, delegateAsset: false, signature: signature });
 
         ISAVault newVault = ISAVault(vaultFactory.getSingleAssetVaults({ account: users.alice.account })[0]);
         uint256 keyId = newVault.boundKeyId();
@@ -122,7 +124,7 @@ contract SAVaultTest is BaseTest {
         bytes memory signature = getVaultCreationSignature(users.alice.account, saNonce, VaultType.SINGLE);
 
         startHoax(users.alice.account);
-        vaultFactory.createSingleAssetVault({ asset: getERC721Asset(), keyAmount: 1, signature: signature });
+        vaultFactory.createSingleAssetVault({ asset: getERC721Asset(), keyAmount: 1, delegateAsset: false, signature: signature });
 
         ISAVault newVault = ISAVault(vaultFactory.getSingleAssetVaults({ account: users.alice.account })[0]);
 
@@ -138,7 +140,7 @@ contract SAVaultTest is BaseTest {
         bytes memory signature = getVaultCreationSignature(users.alice.account, saNonce, VaultType.SINGLE);
 
         startHoax(users.alice.account);
-        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, signature: signature });
+        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, delegateAsset: false, signature: signature });
 
         ISAVault newVault = ISAVault(vaultFactory.getSingleAssetVaults({ account: users.alice.account })[0]);
         newVault.unlockAsset({ receiver: users.alice.account });
@@ -155,12 +157,128 @@ contract SAVaultTest is BaseTest {
         bytes memory signature = getVaultCreationSignature(users.alice.account, saNonce, VaultType.SINGLE);
 
         hoax(users.alice.account);
-        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, signature: signature });
+        vaultFactory.createSingleAssetVault({ asset: asset, keyAmount: keyAmount, delegateAsset: false, signature: signature });
 
         ISAVault newVault = ISAVault(vaultFactory.getSingleAssetVaults({ account: users.alice.account })[0]);
 
         hoax(users.eve.account);
         vm.expectRevert("ERC1155: burn amount exceeds balance");
         newVault.unlockAsset({ receiver: users.eve.account });
+    }
+
+    function test_ModifyAssetDelegation() public {
+        (, uint256 saNonce) = vaultFactory.getNonces({ account: users.alice.account });
+        bytes memory signature = getVaultCreationSignature(users.alice.account, saNonce, VaultType.SINGLE);
+
+        /// Create a new Vault with delegation rights given to Alice.
+        hoax(users.alice.account);
+        vaultFactory.createSingleAssetVault({
+            asset: getERC721Asset(),
+            keyAmount: 100,
+            delegateAsset: true,
+            signature: signature
+        });
+
+        ISAVault vault = ISAVault(vaultFactory.getSingleAssetVaults({ account: users.alice.account })[0]);
+
+        /// Check outgoing delegations for `vault` and ensure Alice is the only delegate with full rights.
+        IDelegateRegistry.Delegation[] memory delegations = delegateRegistry.getOutgoingDelegations(address(vault));
+        assertEq(delegations.length, 1);
+        assertEq(delegations[0].type_, IDelegateRegistry.DelegationType.ALL);
+        assertEq(delegations[0].to, users.alice.account);
+        assertEq(delegations[0].from, address(vault));
+        assertEq(delegations[0].contract_, address(0));
+        assertEq(delegations[0].tokenId, 0);
+        assertEq(delegations[0].amount, 0);
+
+        bytes[] memory delegationPayloads = new bytes[](2);
+
+        /// Revoke Alice's delegation rights entirely.
+        delegationPayloads[0] = abi.encodeWithSelector(
+            IDelegateRegistry.delegateAll.selector,
+            users.alice.account,    // `to`
+            bytes32(""),            // `rights`
+            false                   // `enable`
+        );
+
+        /// Approve Bob's delegation rights for all.
+        delegationPayloads[1] = abi.encodeWithSelector(
+            IDelegateRegistry.delegateAll.selector,
+            users.bob.account,  // `to`
+            bytes32(""),        // `rights`
+            true                // `enable`
+        );
+
+        hoax(users.alice.account);
+        vault.modifyAssetDelegation(delegationPayloads);
+
+        /// Check outgoing delegations for `vault` and ensure Bob is the only delegate with full rights.
+        delegations = delegateRegistry.getOutgoingDelegations(address(vault));
+        assertEq(delegations.length, 1);
+        assertEq(delegations[0].type_, IDelegateRegistry.DelegationType.ALL);
+        assertEq(delegations[0].to, users.bob.account);
+        assertEq(delegations[0].from, address(vault));
+        assertEq(delegations[0].contract_, address(0));
+        assertEq(delegations[0].tokenId, 0);
+        assertEq(delegations[0].amount, 0);
+    }
+
+    function testCannot_ModifyAssetDelegation_ZeroLengthArray() public {
+        (, uint256 saNonce) = vaultFactory.getNonces({ account: users.alice.account });
+        bytes memory signature = getVaultCreationSignature(users.alice.account, saNonce, VaultType.SINGLE);
+
+        /// Create a new Vault with delegation rights given to Alice.
+        startHoax(users.alice.account);
+        vaultFactory.createSingleAssetVault({
+            asset: getERC721Asset(),
+            keyAmount: 100,
+            delegateAsset: true,
+            signature: signature
+        });
+
+        ISAVault vault = ISAVault(vaultFactory.getSingleAssetVaults({ account: users.alice.account })[0]);
+
+        vm.expectRevert(ISAVault.ZeroLengthArray.selector);
+        vault.modifyAssetDelegation({ delegationPayloads: new bytes[](0) });
+    }
+
+    function testCannot_ModifyAssetDelegation_NoAssetLocked() public {
+        (, uint256 saNonce) = vaultFactory.getNonces({ account: users.alice.account });
+        bytes memory signature = getVaultCreationSignature(users.alice.account, saNonce, VaultType.SINGLE);
+
+        startHoax(users.alice.account);
+        vaultFactory.createSingleAssetVault({
+            asset: getERC721Asset(),
+            keyAmount: 100,
+            delegateAsset: true,
+            signature: signature
+        });
+
+        ISAVault newVault = ISAVault(vaultFactory.getSingleAssetVaults({ account: users.alice.account })[0]);
+        newVault.unlockAsset({ receiver: users.alice.account });
+
+        vm.expectRevert(ISAVault.NoAssetLocked.selector);
+        newVault.modifyAssetDelegation({ delegationPayloads: new bytes[](1) });
+    }
+
+    function testCannot_ModifyAssetDelegation_CallerNotVaultCreator_Fuzzed(address notAlice) public {
+        vm.assume(notAlice != users.alice.account);
+
+        (, uint256 saNonce) = vaultFactory.getNonces({ account: users.alice.account });
+        bytes memory signature = getVaultCreationSignature(users.alice.account, saNonce, VaultType.SINGLE);
+
+        hoax(users.alice.account);
+        vaultFactory.createSingleAssetVault({
+            asset: getERC721Asset(),
+            keyAmount: 100,
+            delegateAsset: true,
+            signature: signature
+        });
+
+        ISAVault newVault = ISAVault(vaultFactory.getSingleAssetVaults({ account: users.alice.account })[0]);
+
+        hoax(notAlice);
+        vm.expectRevert(ISAVault.CallerNotVaultCreator.selector);
+        newVault.modifyAssetDelegation({ delegationPayloads: new bytes[](1) });
     }
 }

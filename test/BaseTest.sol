@@ -8,6 +8,7 @@ import { ECDSA } from "@solady/src/utils/ECDSA.sol";
 import { IERC20 } from "@openzeppelin/token/ERC20/IERC20.sol";
 import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
+import { IDelegateRegistry } from "@delegate-registry/src/IDelegateRegistry.sol";
 
 import { MockERC20 } from "./mocks/MockERC20.sol";
 import { MockERC721 } from "./mocks/MockERC721.sol";
@@ -20,6 +21,7 @@ import { Events } from "./utils/Events.sol";
 import { Users } from "./utils/Users.sol";
 
 abstract contract BaseTest is Base, Assertions, Events {
+    using stdJson for string;
     using ECDSA for bytes32;
 
     /// Constants.
@@ -49,6 +51,7 @@ abstract contract BaseTest is Base, Assertions, Events {
     MockERC1155 public mockERC1155;
     address public mockUpgrade;
     MockWETH public mockWETH;
+    IDelegateRegistry public delegateRegistry;
 
     function setUp() public virtual {
         /// Deploy mocks.
@@ -57,6 +60,16 @@ abstract contract BaseTest is Base, Assertions, Events {
         mockERC1155 = new MockERC1155();
         mockUpgrade = address(new MockUpgrade());
         mockWETH = new MockWETH();
+
+        /// Etch code into delegate V2 registry.
+        string memory root = vm.projectRoot();
+        string memory basePath = string.concat(root, "/test/utils/");
+        string memory path = string.concat(basePath, "delegateRegistry.json");
+        string memory jsonFile = vm.readFile(path);
+
+        delegateRegistry = abi.decode(vm.parseJson(jsonFile, ".registryAddress"), (IDelegateRegistry));
+        bytes memory delegateCode = abi.decode(vm.parseJson(jsonFile, ".code"), (bytes));
+        vm.etch({ target: address(delegateRegistry), newRuntimeBytecode: delegateCode });
 
         /// Initialize users.
         createUsers();
