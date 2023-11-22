@@ -42,6 +42,11 @@ interface IMAVault {
      */
     error ZeroAddressInvalid();
 
+    /**
+     * Thrown when an input array with zero length is provided.
+     */
+    error ZeroLengthArray();
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                           EVENTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -52,6 +57,12 @@ interface IMAVault {
      * @param amount Amount of native token being unlocked.
      */
     event NativeTokenUnlocked(address indexed receiver, uint256 amount);
+
+    /**
+     * Emitted when changes to the delegation rights of an asset are performed.
+     * @param delegationHash Unique delegation identifier.
+     */
+    event DelegationPerformed(bytes32 indexed delegationHash);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                         FUNCTIONS                          */
@@ -67,8 +78,9 @@ interface IMAVault {
      * @param owner_ Address of the caller that created the vault.
      * @param keys_ Address of {SegMintKeys} contract.
      * @param keyAmount_ Number of keys to bind to the vault.
+     * @param delegateAssets_ Flag indicating if the underlying assets should be delegated to the Vault creator.
      */
-    function initialize(address owner_, IKeys keys_, uint256 keyAmount_) external;
+    function initialize(address owner_, IKeys keys_, uint256 keyAmount_, bool delegateAssets_) external;
 
     /**
      * Function used to unlock assets from the vault.
@@ -87,6 +99,14 @@ interface IMAVault {
      * Function used to claim ownership of the vault, enabling asset and native token unlocking.
      */
     function claimOwnership() external;
+
+    /**
+     * Function used to modify delegation rights of underlying assets contained within the Vault.
+     * @param delegationPayloads Array of encoded delegation calls to make.
+     * @dev It is expected that only delegation calls should be made with this function, such as:
+     * `delegateAll`, `delegateContract`, `delegateERC20`, `delegateERC721` and `delegateERC1155`.
+     */
+    function modifyAssetDelegation(bytes[] calldata delegationPayloads) external;
 
     /**
      * Function used to view the key config associated the vaults key ID.

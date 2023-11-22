@@ -4,6 +4,7 @@ pragma solidity 0.8.19;
 import { Initializable } from "@openzeppelin/proxy/utils/Initializable.sol";
 import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
+import { IDelegateRegistry } from "@delegate-registry/src/IDelegateRegistry.sol";
 import { ISAVault } from "./interfaces/ISAVault.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
 import { AssetClass, Asset, VaultType, KeyConfig } from "./types/DataTypes.sol";
@@ -14,6 +15,9 @@ import { AssetClass, Asset, VaultType, KeyConfig } from "./types/DataTypes.sol";
  */
 
 contract SAVault is ISAVault, Initializable {
+    /// @dev delegate.xyz V2 Registry
+    IDelegateRegistry public constant DELEGATE_V2_REGISTRY = IDelegateRegistry(0x00000000000000447e69651d841bD8D104Bed493);
+
     Asset private _lockedAsset;
 
     IKeys public keys;
@@ -31,7 +35,7 @@ contract SAVault is ISAVault, Initializable {
     /**
      * @inheritdoc ISAVault
      */
-    function initialize(Asset calldata _asset, IKeys _keys, uint256 _keyAmount, address _receiver)
+    function initialize(Asset calldata _asset, IKeys _keys, uint256 _keyAmount, address _receiver, bool _delegateAsset)
         external
         initializer
     {
@@ -51,6 +55,13 @@ contract SAVault is ISAVault, Initializable {
 
         /// Create the keys and mint them to the receiver.
         boundKeyId = keys.createKeys({ amount: _keyAmount, receiver: _receiver, vaultType: VaultType.SINGLE });
+
+        /// If the creator of the Vault has chosen to delegate the underlying asset, all rights will be given to the
+        /// creator. These rights can be modified at a later point in time by calling `modifyAssetDelegation`.
+        if (_delegateAsset) {
+            bytes32 delegationHash = DELEGATE_V2_REGISTRY.delegateAll({ to: _receiver, rights: "", enable: true });
+            emit DelegationPerformed(delegationHash);
+        }
     }
 
     /**
@@ -82,6 +93,29 @@ contract SAVault is ISAVault, Initializable {
             IERC721(asset.token).safeTransferFrom(address(this), receiver, asset.identifier);
         } else {
             IERC1155(asset.token).safeTransferFrom(address(this), receiver, asset.identifier, asset.amount, "");
+        }
+    }
+
+    /**
+     * @inheritdoc ISAVault
+     */
+    function modifyAssetDelegation(bytes[] calldata delegationPayloads) external {
+        /// Checks: Ensure the delegation payloads array has a valid length.
+        if (delegationPayloads.length == 0) revert ZeroLengthArray();
+
+        /// Checks: Ensure that the underlying asset is still locked.
+        if (_lockedAsset.class == AssetClass.NONE) revert NoAssetLocked();
+
+        /// Checks: Ensure the caller is the creator of the Vault.
+        if (keys.getKeyConfig(boundKeyId).creator != msg.sender) revert CallerNotVaultCreator();
+
+        /// Call the delegation V2 registry with the encoded payloads.
+        bytes[] memory results = DELEGATE_V2_REGISTRY.multicall(delegationPayloads);
+        
+        /// Iterate over the returned results and emit the respective delegation hashes.
+        for (uint256 i = 0; i < results.length;) {
+            emit DelegationPerformed(abi.decode(results[i], (bytes32)));
+            unchecked { ++i; }
         }
     }
 
