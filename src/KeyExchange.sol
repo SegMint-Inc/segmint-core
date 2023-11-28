@@ -27,6 +27,9 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
     /// @dev Total basis points used for fee calculation.
     uint256 private constant _BASIS_POINTS = 10_000;
 
+    /// @dev Total gas to forward on royalty payments.
+    uint256 private constant _ROYALTY_GAS_STIPEND = 2_100;
+
     /// `keccak256("ADMIN_ROLE");`
     uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
 
@@ -121,9 +124,12 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
             /// Transfer keys to caller.
             IERC1155(address(keys)).safeTransferFrom(order.maker, msg.sender, order.keyId, order.amount, "");
 
+            /// Caclulate total payable royalties.
+            uint256 payableRoyalties = order.royalties.length == 0 ? 0 : _calculateRoyaltyPayment(order.royalties);
+
             /// Calculate the protocol fee and subtract from the order price.
             uint256 calculatedFee = order.price * order.protocolFee / _BASIS_POINTS;
-            uint256 makerEarnings = order.price - calculatedFee;
+            uint256 makerEarnings = order.price - calculatedFee - payableRoyalties;
 
             /// Update the total amount of native token to pay the protocol.
             totalFees += calculatedFee;
@@ -131,6 +137,11 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
             /// Pay the maker earnings, forward a sufficient amount of gas.
             (bool success,) = order.maker.call{ value: makerEarnings }("");
             if (!success) revert NativeTransferFailed();
+
+            /// Pay the royalties if any are due.
+            if (payableRoyalties != 0) {
+                _payRoyaltiesWithNativeToken(order.royalties);
+            }
 
             /// Checks: Ensure a sufficient amount of native token has been provided.
             if (order.price > msgValue) revert InvalidNativeTokenAmount();
@@ -196,12 +207,23 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
             /// Transfer assets to the bid maker.
             IERC1155(address(keys)).safeTransferFrom(msg.sender, bid.maker, bid.keyId, bid.amount, "");
 
+            /// Caclulate total payable royalties.
+            uint256 payableRoyalties = bid.royalties.length == 0 ? 0 : _calculateRoyaltyPayment(bid.royalties);
+
             /// Calculate protocol fee.
             uint256 calculatedFee = bid.price * bid.protocolFee / _BASIS_POINTS;
-            uint256 takerEarnings = bid.price - calculatedFee;
+            uint256 takerEarnings = bid.price - calculatedFee - payableRoyalties;
 
             /// Pay protocol fee.
             WETH.safeTransferFrom(bid.maker, feeReceiver, calculatedFee);
+
+            /// Pay the royalties if any are due.
+            if (payableRoyalties != 0) {
+                for (uint256 j = 0; j < bid.royalties.length; j++) {
+                    IKeyExchange.Royalties calldata royaltyInfo = bid.royalties[j];
+                    WETH.safeTransferFrom(bid.maker, royaltyInfo.receiver, royaltyInfo.fee);
+                }
+            }
 
             /// Pay bid maker.
             WETH.safeTransferFrom(bid.maker, msg.sender, takerEarnings);
@@ -529,6 +551,30 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
         if (msgValue > 0) {
             (bool success,) = msg.sender.call{ value: msgValue }("");
             if (!success) revert NativeTransferFailed();
+        }
+    }
+
+    /**
+     * Function used to calculate the royalty payments to each of the respective parties.
+     */
+    function _calculateRoyaltyPayment(IKeyExchange.Royalties[] calldata royalties) internal pure returns (uint256) {
+        uint256 royaltySum = 0;
+        for (uint256 i = 0; i < royalties.length;) {
+            royaltySum += royalties[i].fee;
+            unchecked { i++; }
+        }
+        return royaltySum;
+    }
+
+    /**
+     * Function used to pay royalties to the respective parties.
+     */
+    function _payRoyaltiesWithNativeToken(IKeyExchange.Royalties[] calldata royalties) internal {
+        for (uint256 i = 0; i < royalties.length;) {
+            IKeyExchange.Royalties calldata royaltyInfo = royalties[i];
+            (bool success,) = royaltyInfo.receiver.call{ gas: _ROYALTY_GAS_STIPEND, value: royaltyInfo.fee }("");
+            if (!success) revert NativeTransferFailed();
+            unchecked { i++; }
         }
     }
 }

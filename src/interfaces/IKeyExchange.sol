@@ -253,6 +253,14 @@ interface IKeyExchange {
     }
 
     /**
+     * Struct encapsulating all royalty payment information.
+     */
+    struct Royalties {
+        address receiver;
+        uint256 fee;
+    }
+
+    /**
      * Struct encapsulating all data related to an order.
      * @param price Total price of the order.
      * @param maker Address of the account that created the order.
@@ -274,6 +282,7 @@ interface IKeyExchange {
         uint256 startTime;
         uint256 endTime;
         uint256 protocolFee;
+        Royalties[] royalties;
     }
 
     /**
@@ -296,6 +305,7 @@ interface IKeyExchange {
         uint256 startTime;
         uint256 endTime;
         uint256 protocolFee;
+        Royalties[] royalties;
     }
 
     /**
