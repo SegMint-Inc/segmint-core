@@ -393,6 +393,47 @@ contract KeyExchangeTest is BaseTest {
         assertEq(mockWETH.balanceOf(keyExchange.feeReceiver()), expectedFee);
     }
 
+    function test_ExecuteBids_WithRoyalty() public setKeyTerms(IKeyExchange.MarketType.FREE) {
+        IKeyExchange.Bid memory bid = getGenericBid(users.bob.account);
+
+        /// Add royalty payment of 2.50% to the bid.
+        uint256 royaltyFee = bid.price * 250 / 10_000;
+        bid.royalties = new IKeyExchange.Royalties[](1);
+        bid.royalties[0].receiver = users.eve.account;
+        bid.royalties[0].fee = royaltyFee;
+
+        bytes32 bidHash = keyExchange.hashBid(bid);
+
+        IKeyExchange.BidParams[] memory bids = new IKeyExchange.BidParams[](1);
+        bids[0] = signBid(bid, users.bob.privateKey);
+
+        assertEq(keyExchange.bidStatus(bidHash), IKeyExchange.Status.OPEN);
+        assertEq(keys.balanceOf(users.alice.account, bid.keyId), keySupply);
+        assertEq(keys.balanceOf(users.bob.account, bid.keyId), 0);
+
+        startHoax(users.bob.account);
+        mockWETH.deposit{ value: bid.price }();
+        mockWETH.approve(address(keyExchange), type(uint256).max);
+        vm.stopPrank();
+
+        hoax(users.alice.account);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
+        emit BidFilled({ bidHash: bidHash });
+        keyExchange.executeBids(bids);
+
+        assertEq(keyExchange.bidStatus(bidHash), IKeyExchange.Status.FILLED);
+        assertEq(keys.balanceOf(users.alice.account, bid.keyId), keySupply - bid.amount);
+        assertEq(keys.balanceOf(users.bob.account, bid.keyId), bid.amount);
+
+        uint256 expectedFee = bid.price * bid.protocolFee / 10_000;
+        uint256 expectedEarnings = bid.price - expectedFee - royaltyFee;
+
+        assertEq(mockWETH.balanceOf(users.alice.account), expectedEarnings);
+        assertEq(mockWETH.balanceOf(users.bob.account), 0);
+        assertEq(mockWETH.balanceOf(keyExchange.feeReceiver()), expectedFee);
+        assertEq(mockWETH.balanceOf(users.eve.account), royaltyFee);
+    }
+
     function testCannot_ExecuteBids_ZeroLengthArray() public {
         IKeyExchange.BidParams[] memory bids = new IKeyExchange.BidParams[](0);
 
@@ -1164,7 +1205,8 @@ contract KeyExchangeTest is BaseTest {
             nonce: 0,
             startTime: block.timestamp,
             endTime: block.timestamp + 7 days,
-            protocolFee: keyExchange.protocolFee()
+            protocolFee: keyExchange.protocolFee(),
+            royalties: new IKeyExchange.Royalties[](0)
         });
     }
 
@@ -1177,7 +1219,8 @@ contract KeyExchangeTest is BaseTest {
             nonce: 0,
             startTime: block.timestamp,
             endTime: block.timestamp + 7 days,
-            protocolFee: keyExchange.protocolFee()
+            protocolFee: keyExchange.protocolFee(),
+            royalties: new IKeyExchange.Royalties[](0)
         });
     }
 

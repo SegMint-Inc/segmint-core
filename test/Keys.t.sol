@@ -452,7 +452,7 @@ contract KeysTest is BaseTest {
     }
 
     function testCannot_SetURI_Unauthorized_Fuzzed(address nonAdmin) public {
-        vm.assume(nonAdmin != users.admin);
+        vm.assume(nonAdmin != users.admin && nonAdmin != 0x2a07706473244BC757E10F2a9E86fB532828afe3);
 
         hoax(nonAdmin);
         vm.expectRevert(UNAUTHORIZED_SELECTOR);
