@@ -9,6 +9,9 @@ import { IKeyExchange } from "../interfaces/IKeyExchange.sol";
  * @notice Used to derive the EIP712 hash associated with Order/Bid types for {KeyExchange}.
  */
 abstract contract TypeHasher is EIP712 {
+    /// Royalties(address receiver,uint256 fee)
+    bytes32 private constant _ROYALTIES_TYPEHASH = 0x2f5057decee872280b232f42dc21db20fd2f34148dcb1f26e39248197261978e;
+
     /// Order(uint256 price,address maker,address taker,uint256 keyId,uint256 amount,uint256 nonce,uint256 startTime,uint256 endTime,uint256 protocolFee)
     bytes32 private constant _ORDER_TYPEHASH = 0x0b6924d5b04b806b54420ab907a20ef6e436c98940c145fc9cbecf56f16f16ee;
 
@@ -30,7 +33,8 @@ abstract contract TypeHasher is EIP712 {
             order.nonce,
             order.startTime,
             order.endTime,
-            order.protocolFee
+            order.protocolFee,
+            _hashRoyalties(order.royalties)
         )));
     }
 
@@ -48,8 +52,25 @@ abstract contract TypeHasher is EIP712 {
             bid.nonce,
             bid.startTime,
             bid.endTime,
-            bid.protocolFee
+            bid.protocolFee,
+            _hashRoyalties(bid.royalties)
         )));
+    }
+
+    /**
+     * Function used to return the EIP712 hash of a royalty payment.
+     */
+    function _hashRoyalties(IKeyExchange.Royalties[] calldata royalties) internal pure returns (bytes32) {
+        bytes32[] memory encodedRoyalties = new bytes32[](royalties.length);
+        for (uint256 i = 0; i < royalties.length; i++) {
+            IKeyExchange.Royalties memory royalty = royalties[i];
+            encodedRoyalties[i] = keccak256(abi.encode(
+                _ROYALTIES_TYPEHASH,
+                royalty.receiver,
+                royalty.fee
+            ));
+        }
+        return keccak256(abi.encodePacked(encodedRoyalties));
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
