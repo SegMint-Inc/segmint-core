@@ -2,6 +2,7 @@
 pragma solidity 0.8.19;
 
 import { OwnableRoles } from "@solady/src/auth/OwnableRoles.sol";
+import { LibString } from "@solady/src/utils/LibString.sol";
 import { ERC1155 } from "@openzeppelin/token/ERC1155/ERC1155.sol";
 import { ReentrancyGuard } from "@openzeppelin/security/ReentrancyGuard.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
@@ -15,6 +16,8 @@ import { VaultType, KeyConfig } from "./types/DataTypes.sol";
  */
 
 contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter, ReentrancyGuard {
+    using LibString for uint256;
+
     /// `keccak256("ADMIN_ROLE");`
     uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
 
@@ -335,6 +338,13 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter, ReentrancyGuard {
         }
 
         super.safeBatchTransferFrom(from, to, ids, amounts, data);
+    }
+
+    /**
+     * Override `uri` to include the token ID in the URI.
+     */
+    function uri(uint256 tokenId) public view override returns (string memory) {
+        return string(abi.encodePacked(super.uri(tokenId), tokenId.toString()));
     }
 
     /**
