@@ -209,6 +209,50 @@ contract KeyExchangeTest is BaseTest {
         assertEq(keyExchange.feeReceiver().balance, initialFeeBalance + expectedFee);
     }
 
+    function test_ExecuteOrders_WithRoyalty() public setKeyTerms(IKeyExchange.MarketType.FREE) {
+        IKeyExchange.Order memory order = getGenericOrder(users.alice.account);
+
+        /// Add a royalty payment of 2.5% to the order.
+        uint256 royaltyFee = order.price * 250 / 10_000;
+        order.royalties = new IKeyExchange.Royalties[](1);
+        order.royalties[0].receiver = users.eve.account;
+        order.royalties[0].fee = royaltyFee;
+        uint256 expectedBalanceWithRoyalty = users.eve.account.balance + royaltyFee;
+
+        bytes32 orderHash = keyExchange.hashOrder(order);
+
+        IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](1);
+        orders[0] = signOrder(order, users.alice.privateKey);
+
+        assertEq(keyExchange.orderStatus(orderHash), IKeyExchange.Status.OPEN);
+        assertEq(keys.balanceOf(users.alice.account, order.keyId), keySupply);
+        assertEq(keys.balanceOf(users.bob.account, order.keyId), 0);
+
+        uint256 initialMakerBalance = users.alice.account.balance;
+        uint256 initialFeeBalance = keyExchange.feeReceiver().balance;
+
+        /// Change protocol fee after the order has been signed.
+        hoax(users.admin);
+        keyExchange.setProtocolFee({ newProtocolFee: 1_000 }); // 10.00%
+
+        hoax(users.bob.account, order.price);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
+        emit OrderFilled({ orderHash: orderHash });
+        keyExchange.executeOrders{ value: order.price }(orders);
+
+        assertEq(keyExchange.orderStatus(orderHash), IKeyExchange.Status.FILLED);
+        assertEq(keys.balanceOf(users.alice.account, order.keyId), keySupply - order.amount);
+        assertEq(keys.balanceOf(users.bob.account, order.keyId), order.amount);
+
+        uint256 expectedFee = order.price * order.protocolFee / 10_000;
+        uint256 expectedEarnings = order.price - expectedFee - royaltyFee;
+
+        assertEq(users.alice.account.balance, initialMakerBalance + expectedEarnings);
+        assertEq(users.bob.account.balance, 0);
+        assertEq(keyExchange.feeReceiver().balance, initialFeeBalance + expectedFee);
+        assertEq(users.eve.account.balance, expectedBalanceWithRoyalty);
+    }
+
     function testCannot_ExecuteOrders_ZeroLengthArray() public {
         IKeyExchange.OrderParams[] memory orders = new IKeyExchange.OrderParams[](0);
 
@@ -432,6 +476,50 @@ contract KeyExchangeTest is BaseTest {
         assertEq(mockWETH.balanceOf(users.bob.account), 0);
         assertEq(mockWETH.balanceOf(keyExchange.feeReceiver()), expectedFee);
         assertEq(mockWETH.balanceOf(users.eve.account), royaltyFee);
+    }
+
+    function test_ExecuteBids_WithRoyalties() public setKeyTerms(IKeyExchange.MarketType.FREE) {
+        IKeyExchange.Bid memory bid = getGenericBid(users.bob.account);
+
+        /// Add two royalty payments of 2.50% to the bid.
+        uint256 royaltyFee = bid.price * 250 / 10_000;
+        uint256 expectedRoyaltyFee = royaltyFee * 2;
+        bid.royalties = new IKeyExchange.Royalties[](2);
+        bid.royalties[0].receiver = users.eve.account;
+        bid.royalties[0].fee = royaltyFee;
+        bid.royalties[1].receiver = users.eve.account;
+        bid.royalties[1].fee = royaltyFee;
+
+        bytes32 bidHash = keyExchange.hashBid(bid);
+
+        IKeyExchange.BidParams[] memory bids = new IKeyExchange.BidParams[](1);
+        bids[0] = signBid(bid, users.bob.privateKey);
+
+        assertEq(keyExchange.bidStatus(bidHash), IKeyExchange.Status.OPEN);
+        assertEq(keys.balanceOf(users.alice.account, bid.keyId), keySupply);
+        assertEq(keys.balanceOf(users.bob.account, bid.keyId), 0);
+
+        startHoax(users.bob.account);
+        mockWETH.deposit{ value: bid.price }();
+        mockWETH.approve(address(keyExchange), type(uint256).max);
+        vm.stopPrank();
+
+        hoax(users.alice.account);
+        vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
+        emit BidFilled({ bidHash: bidHash });
+        keyExchange.executeBids(bids);
+
+        assertEq(keyExchange.bidStatus(bidHash), IKeyExchange.Status.FILLED);
+        assertEq(keys.balanceOf(users.alice.account, bid.keyId), keySupply - bid.amount);
+        assertEq(keys.balanceOf(users.bob.account, bid.keyId), bid.amount);
+
+        uint256 expectedFee = bid.price * bid.protocolFee / 10_000;
+        uint256 expectedEarnings = bid.price - expectedFee - expectedRoyaltyFee;
+
+        assertEq(mockWETH.balanceOf(users.alice.account), expectedEarnings);
+        assertEq(mockWETH.balanceOf(users.bob.account), 0);
+        assertEq(mockWETH.balanceOf(keyExchange.feeReceiver()), expectedFee);
+        assertEq(mockWETH.balanceOf(users.eve.account), expectedRoyaltyFee);
     }
 
     function testCannot_ExecuteBids_ZeroLengthArray() public {
