@@ -442,13 +442,13 @@ contract KeysTest is BaseTest {
         keys.setKeyExchange({ newKeyExchange: address(0) });
     }
 
-    function test_SetURI_Fuzzed(string memory newURI) public {
+    function test_SetURI_Fuzzed(string memory newURI, uint256 tokenId) public {
         hoax(users.admin);
         vm.expectEmit();
         emit URIUpdated({ newURI: newURI });
         keys.setURI(newURI);
 
-        assertEq(keys.uri(0), newURI);
+        assertEq(keys.uri(tokenId), string(abi.encodePacked(newURI, vm.toString(tokenId))));
     }
 
     function testCannot_SetURI_Unauthorized_Fuzzed(address nonAdmin) public {
