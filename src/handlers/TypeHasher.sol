@@ -12,11 +12,11 @@ abstract contract TypeHasher is EIP712 {
     /// Royalties(address receiver,uint256 fee)
     bytes32 private constant _ROYALTIES_TYPEHASH = 0x2f5057decee872280b232f42dc21db20fd2f34148dcb1f26e39248197261978e;
 
-    /// Order(uint256 price,address maker,address taker,uint256 keyId,uint256 amount,uint256 nonce,uint256 startTime,uint256 endTime,uint256 protocolFee)
-    bytes32 private constant _ORDER_TYPEHASH = 0x0b6924d5b04b806b54420ab907a20ef6e436c98940c145fc9cbecf56f16f16ee;
+    /// Order(uint256 price,address maker,address taker,uint256 keyId,uint256 amount,uint256 nonce,uint256 startTime,uint256 endTime,uint256 protocolFee,Royalties[] royalties)
+    bytes32 private constant _ORDER_TYPEHASH = 0x77bb84960a38daa0cd316ff16f7fb0f47c9163fafbb5065fa2ef34176e095aad;
 
-    /// Bid(address maker,uint256 price,uint256 keyId,uint256 amount,uint256 nonce,uint256 startTime,uint256 endTime,uint256 protocolFee)
-    bytes32 private constant _BID_TYPEHASH = 0x66565501d0b10648a3a937a9008c4f8e1aa821e411aee9f0bcb1e9e4fc863860;
+    /// Bid(address maker,uint256 price,uint256 keyId,uint256 amount,uint256 nonce,uint256 startTime,uint256 endTime,uint256 protocolFee,Royalties[] royalties)
+    bytes32 private constant _BID_TYPEHASH = 0xaeabe233a7566271b1a36b65cdc361c721effabfa0c6058288df81ece139e32d;
 
     /**
      * Function used to return the EIP712 hash of a order.
