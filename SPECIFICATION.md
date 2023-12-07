@@ -78,6 +78,16 @@ It is worth mentioning that once assets have been deposited into the vault, the 
 
 The nature in which assets can be unlocked relates strictly to the `claimOwnership` function. Calling this function whilst holding the entire supply of keys will subsequently burn the keys and transfer ownership of the vault to the caller. Since assets can only be withdrawn when no key ID is associated with the vault (`boundKeyId` is zero), this will enable the new owner to withdraw the assets within the vault on their own terms.
 
+## Asset Delegation
+
+Vaults created through the Vault Factory integrate with the [delegate.xyz](https://delegate.xyz/) Delegate V2 Registry found at this [address](https://etherscan.io/address/0x00000000000000447e69651d841bd8d104bed493#code). This integration provides vault owners with flexibility to delegate rights of the underlying assets in a variety of different use cases.
+
+In the context of a single-asset vault, only the original vault creator may delegate rights to the underlying asset. Creators will be able to see their active delegations for a vault via the SegMint platform in order to manage these delegations clearly in a way that makes sense. Such a use case might be that Alice is the creator a vault where she has locked a token that has an upcoming mint where token owners can claim 1 free mint and the minting contract itself integrates with delegate.xyz. Since she doesn't want to miss out, she can delegate rights of the underlying token to her hot wallet so that she can participate in the mint without reclaiming all the keys and unlocking the asset.
+
+For multi-asset vaults, only the Vault owner can modify delegation rights. Since asset unlocking for multi-asset vaults is non-atomic, once a user has acquired all the keys associated with a multi-asset vault and claimed ownership, they have the freedom to clear all existing delegations since they may choose to keep the assets in the vault for some period of time. Asset delegation within the context of multi-asset vaults is unique as it allows a vault owner to delegate rights of specific tokens to specific users, meaning that in the example above (but in a multi-asset vault context), Alice could delegate rights for two seperate tokens to two seperate users.
+
+Note: Clearing delegation rights isn't necessarily an issue in the context of single-asset vaults as the underlying asset itself is atomically unlocked when the keys to access a vault have been burned.
+
 ## Key Services
 
 ### Keys
@@ -193,6 +203,16 @@ An example flow of Key Trading via the free market is as follows:
 5. The original order that Alice signed is now void and cannot be executed again.
 
 Whilst the free market does allow for better price discovery in relation to keys, this means that in order for Alice to unlock the underlying asset from her vault, she must purchase all distributed keys from existing holders via the Key Exchange. This infers that if a user does not wish to sell their key, the underlying asset can never be unlocked.
+
+#### Regarding Royalty Payments
+
+We have opted to implement royalties at the interface level for underlying collections that may be locked within each type of Vault. This is achieved through the inclusion of a `Royalties[]` struct array within both the `Order` and `Bid` structs. Whilst not enforced at the protocol level, all Orders and Bids created through the SegMint platform will prompt the user to pay royalties for the underlying collections if they have been defined.
+
+Context, let's say Alice is an artist who creates a collection and wishes to store her artwork within a Single Asset Vault (SAVault). After verifying that she is the creator of the collection, possibly by signing a message, she will prompted to input her royalty details. This includes the address that will receive the royalty payment and the royalty percentage associated with the keys. This is data that will be stored off-chain and never committed to the protocol at the smart contract level.
+
+After Alice has created her Vault and distributes the keys, whenever someone wishes to sell a key via the SegMint platform, our backend will query the royalty information associated with the keys and calculate the royalty amount to be paid based on the previously provided percentage. After a key has been sold, the protocol should pay Alice the royalty amount to the wallet address she provided prior. If Alice has failed to set this royalty information, the protocol will execute the order as normal with no further royalties being paid to Alice.
+
+In order to prevent Alice from providing a malicious smart contract as her royalty payment address, a small gas stipend is provided with the royalty payment on native token transfers. It is worth mentioning that royalty payments regarding assets locked within Multi-Asset Vaults is yet to be determined, however we wish that the current solution is composable enough to handle royalty payments for these Vaults in the future.
 
 **Considerations**:
 
