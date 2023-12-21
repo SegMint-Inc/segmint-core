@@ -578,8 +578,8 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
             /// Wraps the royalty fee to WETH if the native call fails.
             (bool success,) = royaltyInfo.receiver.call{ gas: _ROYALTY_GAS_STIPEND, value: royaltyInfo.fee }("");
             if (!success) {
-                IWETH(address(WETH)).deposit{ value: royaltyInfo.fee };
-                WETH.safeTransferFrom({ from: address(this), to: royaltyInfo.receiver, value: royaltyInfo.fee });
+                IWETH(address(WETH)).deposit{ value: royaltyInfo.fee }();
+                WETH.safeTransfer({ to: royaltyInfo.receiver, value: royaltyInfo.fee });
             }
 
             unchecked { i++; }
