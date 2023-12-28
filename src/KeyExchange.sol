@@ -28,7 +28,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
     uint256 private constant _BASIS_POINTS = 10_000;
 
     /// @dev Total gas to forward on royalty payments.
-    uint256 private constant _ROYALTY_GAS_STIPEND = 2_100;
+    uint256 private constant _ROYALTY_GAS_STIPEND = 2_300;
 
     /// `keccak256("ADMIN_ROLE");`
     uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
@@ -221,6 +221,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
             if (payableRoyalties != 0) {
                 for (uint256 j = 0; j < bid.royalties.length; j++) {
                     IKeyExchange.Royalties calldata royaltyInfo = bid.royalties[j];
+                    if (royaltyInfo.receiver == address(0)) revert ZeroAddressInvalid();
                     WETH.safeTransferFrom(bid.maker, royaltyInfo.receiver, royaltyInfo.fee);
                 }
             }
@@ -572,9 +573,20 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
     function _payRoyaltiesWithNativeToken(IKeyExchange.Royalties[] calldata royalties) internal {
         for (uint256 i = 0; i < royalties.length;) {
             IKeyExchange.Royalties calldata royaltyInfo = royalties[i];
+            if (royaltyInfo.receiver == address(0)) revert ZeroAddressInvalid();
+
+            /// Wraps the royalty fee to WETH if the native call fails.
             (bool success,) = royaltyInfo.receiver.call{ gas: _ROYALTY_GAS_STIPEND, value: royaltyInfo.fee }("");
-            if (!success) revert NativeTransferFailed();
+            if (!success) {
+                IWETH(address(WETH)).deposit{ value: royaltyInfo.fee }();
+                WETH.safeTransfer({ to: royaltyInfo.receiver, value: royaltyInfo.fee });
+            }
+
             unchecked { i++; }
         }
     }
+}
+
+interface IWETH {
+    function deposit() external payable;
 }
