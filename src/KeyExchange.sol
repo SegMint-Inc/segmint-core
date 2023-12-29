@@ -148,7 +148,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
             msgValue -= order.price;
 
             /// Emit event after the order has been completely filled.
-            emit OrderFilled(orderHash);
+            emit OrderFilled({ taker: msg.sender, orderHash: orderHash });
 
             unchecked { i++; }
         }
@@ -230,7 +230,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
             WETH.safeTransferFrom(bid.maker, msg.sender, takerEarnings);
 
             /// Emit event to acknowledge the bid has been filled.
-            emit BidFilled(bidHash);
+            emit BidFilled({ taker: msg.sender, bidHash: bidHash });
 
             unchecked { i++; }
         }

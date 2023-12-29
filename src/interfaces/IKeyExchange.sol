@@ -140,15 +140,17 @@ interface IKeyExchange {
 
     /**
      * Emitted when an order is filled.
+     * @param taker Account that filled the order.
      * @param orderHash EIP712 hash of the order.
      */
-    event OrderFilled(bytes32 orderHash);
+    event OrderFilled(address indexed taker, bytes32 orderHash);
 
     /**
      * Emitted when a bid is filled.
+     * @param taker Account that accepted the bid.
      * @param bidHash EIP712 hash of the bid.
      */
-    event BidFilled(bytes32 bidHash);
+    event BidFilled(address indexed taker, bytes32 bidHash);
 
     /**
      * Emitted when an order is cancelled.
