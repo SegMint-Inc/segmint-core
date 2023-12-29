@@ -25,8 +25,8 @@ abstract contract Events {
     event SignerRegistryUpdated(ISignerRegistry indexed oldSignerRegistry, ISignerRegistry indexed newSignerRegistry);
 
     /// {IKeyExchange} Events.
-    event OrderFilled(bytes32 orderHash);
-    event BidFilled(bytes32 bidHash);
+    event OrderFilled(address indexed taker, bytes32 orderHash);
+    event BidFilled(address indexed taker, bytes32 bidHash);
     event OrderCancelled(bytes32 orderHash);
     event BidCancelled(bytes32 bidHash);
     event BuyOutExecuted(address indexed caller, uint256 indexed keyId);

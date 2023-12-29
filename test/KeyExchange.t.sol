@@ -126,7 +126,7 @@ contract KeyExchangeTest is BaseTest {
 
         hoax(users.bob.account, order.price);
         vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
-        emit OrderFilled({ orderHash: orderHash });
+        emit OrderFilled({ taker: users.bob.account, orderHash: orderHash });
         keyExchange.executeOrders{ value: order.price }(orders);
 
         assertEq(keyExchange.orderStatus(orderHash), IKeyExchange.Status.FILLED);
@@ -159,7 +159,7 @@ contract KeyExchangeTest is BaseTest {
 
         hoax(users.bob.account, order.price + excess);
         vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
-        emit OrderFilled({ orderHash: orderHash });
+        emit OrderFilled({ taker: users.bob.account, orderHash: orderHash });
         keyExchange.executeOrders{ value: order.price }(orders);
 
         assertEq(keyExchange.orderStatus(orderHash), IKeyExchange.Status.FILLED);
@@ -194,7 +194,7 @@ contract KeyExchangeTest is BaseTest {
 
         hoax(users.bob.account, order.price);
         vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
-        emit OrderFilled({ orderHash: orderHash });
+        emit OrderFilled({ taker: users.bob.account, orderHash: orderHash });
         keyExchange.executeOrders{ value: order.price }(orders);
 
         assertEq(keyExchange.orderStatus(orderHash), IKeyExchange.Status.FILLED);
@@ -237,7 +237,7 @@ contract KeyExchangeTest is BaseTest {
 
         hoax(users.bob.account, order.price);
         vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
-        emit OrderFilled({ orderHash: orderHash });
+        emit OrderFilled({ taker: users.bob.account, orderHash: orderHash });
         keyExchange.executeOrders{ value: order.price }(orders);
 
         assertEq(keyExchange.orderStatus(orderHash), IKeyExchange.Status.FILLED);
@@ -279,7 +279,7 @@ contract KeyExchangeTest is BaseTest {
 
         hoax(users.bob.account, order.price);
         vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
-        emit OrderFilled({ orderHash: orderHash });
+        emit OrderFilled({ taker: users.bob.account, orderHash: orderHash });
         keyExchange.executeOrders{ value: order.price }(orders);
 
         assertEq(keyExchange.orderStatus(orderHash), IKeyExchange.Status.FILLED);
@@ -487,7 +487,7 @@ contract KeyExchangeTest is BaseTest {
 
         hoax(users.alice.account);
         vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
-        emit BidFilled({ bidHash: bidHash });
+        emit BidFilled({ taker: users.alice.account, bidHash: bidHash });
         keyExchange.executeBids(bids);
 
         assertEq(keyExchange.bidStatus(bidHash), IKeyExchange.Status.FILLED);
@@ -527,7 +527,7 @@ contract KeyExchangeTest is BaseTest {
 
         hoax(users.alice.account);
         vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
-        emit BidFilled({ bidHash: bidHash });
+        emit BidFilled({ taker: users.alice.account, bidHash: bidHash });
         keyExchange.executeBids(bids);
 
         assertEq(keyExchange.bidStatus(bidHash), IKeyExchange.Status.FILLED);
@@ -571,7 +571,7 @@ contract KeyExchangeTest is BaseTest {
 
         hoax(users.alice.account);
         vm.expectEmit({ checkTopic1: true, checkTopic2: false, checkTopic3: false, checkData: true });
-        emit BidFilled({ bidHash: bidHash });
+        emit BidFilled({ taker: users.alice.account, bidHash: bidHash });
         keyExchange.executeBids(bids);
 
         assertEq(keyExchange.bidStatus(bidHash), IKeyExchange.Status.FILLED);
