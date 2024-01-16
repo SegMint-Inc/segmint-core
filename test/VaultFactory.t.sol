@@ -10,7 +10,7 @@ contract VaultFactoryTest is BaseTest {
     }
 
     function test_VaultFactory_Deployment() public {
-        bool result = vaultFactory.hasAllRoles({ user: users.admin, roles: vaultFactory.ADMIN_ROLE() });
+        bool result = vaultFactory.hasAllRoles({ user: users.admin, roles: AccessRoles.ADMIN_ROLE });
         assertTrue(result);
 
         assertEq(vaultFactory.owner(), address(this));
@@ -656,7 +656,7 @@ contract VaultFactoryTest is BaseTest {
         assertEq(version, "2.0");
 
         /// Ensure that all previous defined storage values are retained after upgrade.
-        bool result = vaultFactory.hasAllRoles({ user: users.admin, roles: vaultFactory.ADMIN_ROLE() });
+        bool result = vaultFactory.hasAllRoles({ user: users.admin, roles: AccessRoles.ADMIN_ROLE });
         assertTrue(result);
 
         assertEq(vaultFactory.owner(), address(this));

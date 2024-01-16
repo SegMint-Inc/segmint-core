@@ -15,7 +15,7 @@ contract AccessRegistryTest is BaseTest {
         ISignerRegistry actualSignerRegistry = accessRegistry.signerRegistry();
         assertEq(actualSignerRegistry, signerRegistry);
 
-        bool result = accessRegistry.hasAllRoles({ user: users.admin, roles: signerRegistry.ADMIN_ROLE() });
+        bool result = accessRegistry.hasAllRoles({ user: users.admin, roles: AccessRoles.ADMIN_ROLE });
         assertTrue(result);
     }
 

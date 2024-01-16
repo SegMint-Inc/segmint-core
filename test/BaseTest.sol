@@ -25,7 +25,6 @@ abstract contract BaseTest is Base, Assertions, Events {
     using ECDSA for bytes32;
 
     /// Constants.
-    uint256 public constant FACTORY_ROLE = 0xdfbefbf47cfe66b701d8cfdbce1de81c821590819cb07e71cb01b6602fb0ee27;
     address public constant FEE_RECEIVER = address(0xFEE5);
 
     bytes4 public constant UNAUTHORIZED_SELECTOR = 0x82b42900;

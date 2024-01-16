@@ -5,6 +5,8 @@ import "forge-std/Script.sol";
 import "forge-std/Test.sol";
 
 import { ERC1967Proxy } from "@openzeppelin/proxy/ERC1967/ERC1967Proxy.sol";
+import { OwnableRoles } from "@solady/src/auth/OwnableRoles.sol";
+import { AccessRoles } from "../src/access/AccessRoles.sol";
 
 import { SignerRegistry } from "../src/registries/SignerRegistry.sol";
 import { AccessRegistry } from "../src/registries/AccessRegistry.sol";
@@ -80,8 +82,7 @@ abstract contract Base is Script, Test {
         });
 
         /// Grant `factoryRole` to service factory.
-        uint256 factoryRole = keys.FACTORY_ROLE();
-        keys.grantRoles({ user: address(vaultFactoryProxy), roles: factoryRole });
+        keys.grantRoles({ user: address(vaultFactoryProxy), roles: AccessRoles.FACTORY_ROLE });
 
         /// Interface the proxy contract with the implementation so that calls are delegated correctly.
         vaultFactory = VaultFactory(address(vaultFactoryProxy));

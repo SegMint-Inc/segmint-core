@@ -15,7 +15,7 @@ contract SignerRegistryTest is BaseTest {
         address signer = signerRegistry.getSigner();
         assertEq(signer, users.signer.account);
 
-        bool result = signerRegistry.hasAllRoles({ user: users.admin, roles: signerRegistry.ADMIN_ROLE() });
+        bool result = signerRegistry.hasAllRoles({ user: users.admin, roles: AccessRoles.ADMIN_ROLE });
         assertTrue(result);
     }
 
