@@ -7,6 +7,7 @@ import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
 import { IERC20 } from "@openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/security/ReentrancyGuard.sol";
+import { AccessRoles } from "./access/AccessRoles.sol";
 import { TypeHasher } from "./handlers/TypeHasher.sol";
 import { NonceManager } from "./managers/NonceManager.sol";
 import { IKeyExchange } from "./interfaces/IKeyExchange.sol";
@@ -29,9 +30,6 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
 
     /// @dev Total gas to forward on royalty payments.
     uint256 private constant _ROYALTY_GAS_STIPEND = 2_300;
-
-    /// `keccak256("ADMIN_ROLE");`
-    uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
 
     /// @dev Wrapped native token contract.
     IERC20 public immutable WETH;
@@ -60,7 +58,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
         if (address(accessRegistry_) == address(0)) revert ZeroAddressInvalid();
 
         _initializeOwner(msg.sender);
-        _grantRoles(admin_, ADMIN_ROLE);
+        _grantRoles({ user: admin_, roles: AccessRoles.ADMIN_ROLE });
 
         WETH = IERC20(weth_);
         feeReceiver = feeReceiver_;
@@ -396,7 +394,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
     /**
      * @inheritdoc IKeyExchange
      */
-    function toggleMultiKeyTrading() external onlyRoles(ADMIN_ROLE) {
+    function toggleMultiKeyTrading() external onlyRoles(AccessRoles.ADMIN_ROLE) {
         multiKeysTradable = !multiKeysTradable;
         emit MultiKeyTradingUpdated({ newStatus: multiKeysTradable });
     }
@@ -404,7 +402,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
     /**
      * @inheritdoc IKeyExchange
      */
-    function toggleAllowRestrictedUsers() external onlyRoles(ADMIN_ROLE) {
+    function toggleAllowRestrictedUsers() external onlyRoles(AccessRoles.ADMIN_ROLE) {
         allowRestrictedUsers = !allowRestrictedUsers;
         emit RestrictedUserAccessUpdated({ newStatus: allowRestrictedUsers });
     }
@@ -412,7 +410,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
     /**
      * @inheritdoc IKeyExchange
      */
-    function setProtocolFee(uint256 newProtocolFee) external onlyRoles(ADMIN_ROLE) {
+    function setProtocolFee(uint256 newProtocolFee) external onlyRoles(AccessRoles.ADMIN_ROLE) {
         if (newProtocolFee > _BASIS_POINTS) revert FeeExceedsBps();
         uint256 oldProtocolFee = protocolFee;
         protocolFee = newProtocolFee;
@@ -422,7 +420,7 @@ contract KeyExchange is IKeyExchange, OwnableRoles, NonceManager, TypeHasher, Re
     /**
      * @inheritdoc IKeyExchange
      */
-    function setFeeReceiver(address newFeeReceiver) external onlyRoles(ADMIN_ROLE) {
+    function setFeeReceiver(address newFeeReceiver) external onlyRoles(AccessRoles.ADMIN_ROLE) {
         if (newFeeReceiver == address(0)) revert ZeroAddressInvalid();
         address oldFeeReceiver = feeReceiver;
         feeReceiver = newFeeReceiver;

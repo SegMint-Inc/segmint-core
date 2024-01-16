@@ -4,6 +4,7 @@ pragma solidity 0.8.19;
 import { OwnableRoles } from "@solady/src/auth/OwnableRoles.sol";
 import { ECDSA } from "@solady/src/utils/ECDSA.sol";
 import { EIP712 } from "@solady/src/utils/EIP712.sol";
+import { AccessRoles } from "../access/AccessRoles.sol";
 import { IAccessRegistry } from "../interfaces/IAccessRegistry.sol";
 import { ISignerRegistry } from "../interfaces/ISignerRegistry.sol";
 
@@ -18,9 +19,6 @@ contract AccessRegistry is IAccessRegistry, OwnableRoles, EIP712 {
     /// `AccessParams(address user,uint256 deadline,uint256 nonce,uint8 accessType)`
     bytes32 private constant _ACCESS_TYPEHASH = 0x99eb3c41b67624484b17b738fcdc21b883ecec4c0c7a35257d05bd82c51b6b37;
 
-    /// `keccak256("ADMIN_ROLE");`
-    uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
-
     /// Interface for signer registry.
     ISignerRegistry public signerRegistry;
 
@@ -31,7 +29,7 @@ contract AccessRegistry is IAccessRegistry, OwnableRoles, EIP712 {
         if (admin_ == address(0) || address(signerRegistry_) == address(0)) revert ZeroAddressInvalid();
 
         _initializeOwner(msg.sender);
-        _grantRoles(admin_, ADMIN_ROLE);
+        _grantRoles({ user: admin_, roles: AccessRoles.ADMIN_ROLE });
 
         signerRegistry = signerRegistry_;
     }
@@ -68,7 +66,7 @@ contract AccessRegistry is IAccessRegistry, OwnableRoles, EIP712 {
     /**
      * @inheritdoc IAccessRegistry
      */
-    function modifyAccessType(address account, AccessType newAccessType) external onlyRoles(ADMIN_ROLE) {
+    function modifyAccessType(address account, AccessType newAccessType) external onlyRoles(AccessRoles.ADMIN_ROLE) {
         AccessType oldAccessType = accessType[account];
         accessType[account] = newAccessType;
 
@@ -83,7 +81,7 @@ contract AccessRegistry is IAccessRegistry, OwnableRoles, EIP712 {
     /**
      * @inheritdoc IAccessRegistry
      */
-    function setSignerRegistry(ISignerRegistry newSignerRegistry) external onlyRoles(ADMIN_ROLE) {
+    function setSignerRegistry(ISignerRegistry newSignerRegistry) external onlyRoles(AccessRoles.ADMIN_ROLE) {
         if (address(newSignerRegistry) == address(0)) revert ZeroAddressInvalid();
 
         ISignerRegistry oldSignerRegistry = signerRegistry;

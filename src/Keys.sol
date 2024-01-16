@@ -5,6 +5,7 @@ import { OwnableRoles } from "@solady/src/auth/OwnableRoles.sol";
 import { LibString } from "@solady/src/utils/LibString.sol";
 import { ERC1155 } from "@openzeppelin/token/ERC1155/ERC1155.sol";
 import { ReentrancyGuard } from "@openzeppelin/security/ReentrancyGuard.sol";
+import { AccessRoles } from "./access/AccessRoles.sol";
 import { IKeys } from "./interfaces/IKeys.sol";
 import { IAccessRegistry } from "./interfaces/IAccessRegistry.sol";
 import { OperatorFilter } from "./handlers/OperatorFilter.sol";
@@ -17,12 +18,6 @@ import { VaultType, KeyConfig } from "./types/DataTypes.sol";
 
 contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter, ReentrancyGuard {
     using LibString for uint256;
-
-    /// `keccak256("ADMIN_ROLE");`
-    uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
-
-    /// `keccak256("FACTORY_ROLE");`
-    uint256 public constant FACTORY_ROLE = 0xdfbefbf47cfe66b701d8cfdbce1de81c821590819cb07e71cb01b6602fb0ee27;
 
     /// Minimum duration of a lend.
     uint256 public constant MIN_LEND_DURATION = 1 days;
@@ -63,7 +58,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter, ReentrancyGuard {
         if (admin_ == address(0) || address(accessRegistry_) == address(0)) revert ZeroAddressInvalid();
 
         _initializeOwner(msg.sender);
-        _grantRoles(admin_, ADMIN_ROLE);
+        _grantRoles({ user: admin_, roles: AccessRoles.ADMIN_ROLE });
 
         accessRegistry = accessRegistry_;
     }
@@ -186,7 +181,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter, ReentrancyGuard {
     /**
      * @inheritdoc IKeys
      */
-    function registerVault(address vault) external onlyRoles(FACTORY_ROLE) {
+    function registerVault(address vault) external onlyRoles(AccessRoles.FACTORY_ROLE) {
         if (vault == address(0)) revert ZeroAddressInvalid();
         isRegistered[vault] = true;
         emit VaultRegistered({ registeredVault: vault });
@@ -195,7 +190,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter, ReentrancyGuard {
     /**
      * @inheritdoc IKeys
      */
-    function freezeKeys(uint256 keyId) external onlyRoles(ADMIN_ROLE) {
+    function freezeKeys(uint256 keyId) external onlyRoles(AccessRoles.ADMIN_ROLE) {
         _keyConfig[keyId].isFrozen = true;
         emit IKeys.KeyFrozen({ admin: msg.sender, keyId: keyId });
     }
@@ -203,7 +198,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter, ReentrancyGuard {
     /**
      * @inheritdoc IKeys
      */
-    function unfreezeKeys(uint256 keyId) external onlyRoles(ADMIN_ROLE) {
+    function unfreezeKeys(uint256 keyId) external onlyRoles(AccessRoles.ADMIN_ROLE) {
         _keyConfig[keyId].isFrozen = false;
         emit IKeys.KeyUnfrozen({ admin: msg.sender, keyId: keyId });
     }
@@ -234,7 +229,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter, ReentrancyGuard {
     /**
      * Function used to set the `accessRegistry` address.
      */
-    function setAccessRegistry(IAccessRegistry newAccessRegistry) external onlyRoles(ADMIN_ROLE) {
+    function setAccessRegistry(IAccessRegistry newAccessRegistry) external onlyRoles(AccessRoles.ADMIN_ROLE) {
         if (address(newAccessRegistry) == address(0)) revert ZeroAddressInvalid();
 
         IAccessRegistry oldAccessRegistry = accessRegistry;
@@ -262,7 +257,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter, ReentrancyGuard {
     /**
      * Function used to set a new URI associated with key metadata.
      */
-    function setURI(string calldata newURI) external onlyRoles(ADMIN_ROLE) {
+    function setURI(string calldata newURI) external onlyRoles(AccessRoles.ADMIN_ROLE) {
         _setURI(newURI);
         emit URIUpdated({ newURI: newURI });
     }
@@ -270,7 +265,7 @@ contract Keys is IKeys, OwnableRoles, ERC1155, OperatorFilter, ReentrancyGuard {
     /**
      * Function used to update an operators status.
      */
-    function updateOperatorStatus(address operator, bool isAllowed) external onlyRoles(ADMIN_ROLE) {
+    function updateOperatorStatus(address operator, bool isAllowed) external onlyRoles(AccessRoles.ADMIN_ROLE) {
         _updateOperatorStatus(operator, isAllowed);
     }
 

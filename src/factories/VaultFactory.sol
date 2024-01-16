@@ -7,6 +7,7 @@ import { LibClone } from "@solady/src/utils/LibClone.sol";
 import { Initializable } from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
 import { IERC721 } from "@openzeppelin/token/ERC721/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/token/ERC1155/IERC1155.sol";
+import { AccessRoles } from "../access/AccessRoles.sol";
 import { UpgradeHandler } from "../handlers/UpgradeHandler.sol";
 import { IVaultFactory } from "../interfaces/IVaultFactory.sol";
 import { IMAVault } from "../interfaces/IMAVault.sol";
@@ -23,9 +24,6 @@ import { Asset, AssetClass, VaultType } from "../types/DataTypes.sol";
 contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHandler {
     using LibClone for address;
     using ECDSA for bytes32;
-
-    /// `keccak256("ADMIN_ROLE");`
-    uint256 public constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
 
     ISignerRegistry public signerRegistry;
     IAccessRegistry public accessRegistry;
@@ -61,7 +59,7 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
         if (address(keys_) == address(0)) revert ZeroAddressInvalid();
 
         _initializeOwner(msg.sender);
-        _grantRoles(admin_, ADMIN_ROLE);
+        _grantRoles({ user: admin_, roles: AccessRoles.ADMIN_ROLE });
 
         maVault = maVault_;
         saVault = saVault_;
@@ -186,7 +184,7 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
     /**
      * @inheritdoc IVaultFactory
      */
-    function proposeUpgrade(address newImplementation) external onlyRoles(ADMIN_ROLE) onlyProxy {
+    function proposeUpgrade(address newImplementation) external onlyRoles(AccessRoles.ADMIN_ROLE) onlyProxy {
         if (newImplementation == address(0)) revert ZeroAddressInvalid();
         _proposeUpgrade(newImplementation);
     }
@@ -194,14 +192,14 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
     /**
      * @inheritdoc IVaultFactory
      */
-    function cancelUpgrade() external onlyRoles(ADMIN_ROLE) onlyProxy {
+    function cancelUpgrade() external onlyRoles(AccessRoles.ADMIN_ROLE) onlyProxy {
         _cancelUpgrade();
     }
 
     /**
      * @inheritdoc IVaultFactory
      */
-    function executeUpgrade(bytes memory payload) external onlyRoles(ADMIN_ROLE) onlyProxy {
+    function executeUpgrade(bytes memory payload) external onlyRoles(AccessRoles.ADMIN_ROLE) onlyProxy {
         _executeUpgrade(payload);
     }
 
@@ -240,5 +238,5 @@ contract VaultFactory is IVaultFactory, OwnableRoles, Initializable, UpgradeHand
     /**
      * Overriden to ensure that only callers with the correct role can perform an upgrade.
      */
-    function _authorizeUpgrade(address newImplementation) internal override onlyRoles(ADMIN_ROLE) { }
+    function _authorizeUpgrade(address newImplementation) internal override onlyRoles(AccessRoles.ADMIN_ROLE) { }
 }
