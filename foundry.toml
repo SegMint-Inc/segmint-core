@@ -17,10 +17,14 @@ gas_reports = [
     "MAVault",
     "SAVault"
 ]
+fallback_oz = true
+is_system = false # Note: NonceHolder and the ContractDeployer system contracts can only be called with a special isSystem flag as true
+mode = "3"
 
 [rpc_endpoints]
 goerli = "${GOERLI_RPC_URL}"
 mainnet = "${MAINNET_RPC_URL}"
+abstract = "${ABSTRACT_RPC_URL}"
 
 [fmt]
 bracket_spacing = true
